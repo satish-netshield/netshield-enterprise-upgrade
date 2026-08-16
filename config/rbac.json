@@ -1,0 +1,40 @@
+{
+  "default_role": "viewer",
+  "roles": {
+    "viewer": [
+      "view_alerts",
+      "view_closed_reports"
+    ],
+    "analyst": [
+      "view_alerts",
+      "view_closed_reports",
+      "investigate_incidents",
+      "add_investigation_notes",
+      "classify_false_positives"
+    ],
+    "responder": [
+      "view_alerts",
+      "view_closed_reports",
+      "investigate_incidents",
+      "add_investigation_notes",
+      "classify_false_positives",
+      "request_containment",
+      "execute_approved_containment",
+      "record_recovery"
+    ],
+    "administrator": [
+      "view_alerts",
+      "view_closed_reports",
+      "investigate_incidents",
+      "add_investigation_notes",
+      "classify_false_positives",
+      "request_containment",
+      "execute_approved_containment",
+      "record_recovery",
+      "manage_rules",
+      "manage_roles",
+      "manage_inventories",
+      "manage_configuration"
+    ]
+  }
+}

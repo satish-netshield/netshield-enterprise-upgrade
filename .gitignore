@@ -1,0 +1,42 @@
+# Python virtual environment
+.venv/
+
+# Python cache
+__pycache__/
+*.py[cod]
+
+# Runtime logs
+logs/application/*
+logs/audit/*
+
+# Generated outputs
+outputs/alerts/*
+outputs/incidents/*
+outputs/reports/*
+
+# Runtime database files
+database/*.db
+database/*.sqlite
+database/*.sqlite3
+
+# Preserved evidence
+evidence/*
+
+# Local secrets and environment files
+.env
+*.key
+*.pem
+
+# Editor and operating-system files
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# Preserve empty runtime directories
+!logs/application/.gitkeep
+!logs/audit/.gitkeep
+!outputs/alerts/.gitkeep
+!outputs/incidents/.gitkeep
+!outputs/reports/.gitkeep
+!evidence/.gitkeep

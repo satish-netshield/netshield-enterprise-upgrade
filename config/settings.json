@@ -1,0 +1,24 @@
+{
+  "project": {
+    "name": "NetShield Automation",
+    "phase": 3,
+    "version": "0.1.0",
+    "environment": "sandbox"
+  },
+  "database": {
+    "path": "database/netshield.db"
+  },
+  "logging": {
+    "application_log": "logs/application/netshield.log",
+    "audit_log": "logs/audit/audit.log"
+  },
+  "evidence": {
+    "directory": "evidence",
+    "hash_algorithm": "sha256"
+  },
+  "security": {
+    "default_access": "deny",
+    "require_approval_for_disruptive_actions": true,
+    "allow_real_external_targets": false
+  }
+}

@@ -1,0 +1,23 @@
+{
+  "default_action": "deny",
+  "automatic": [
+    "create_alert",
+    "calculate_evidence_hash",
+    "preserve_log_copy",
+    "add_to_simulated_blocklist",
+    "increase_monitoring"
+  ],
+  "approval_required": [
+    "restrict_account",
+    "revoke_session",
+    "terminate_process",
+    "quarantine_device",
+    "apply_ubuntu_firewall_rule"
+  ],
+  "manual_only": [
+    "reset_credentials",
+    "remove_physical_device",
+    "modify_router_configuration",
+    "remove_access_point"
+  ]
+}
