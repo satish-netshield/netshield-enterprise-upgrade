@@ -2,7 +2,7 @@
   "project": {
     "name": "NetShield Automation",
     "phase": 3,
-    "version": "0.1.0",
+    "version": "0.2.0",
     "environment": "sandbox"
   },
   "database": {
@@ -20,5 +20,21 @@
     "default_access": "deny",
     "require_approval_for_disruptive_actions": true,
     "allow_real_external_targets": false
+  },
+  "pipeline": {
+    "raw_directory": "data/raw",
+    "processed_directory": "data/processed",
+    "accepted_extensions": [
+      ".jsonl"
+    ],
+    "allowed_source_types": [
+      "authentication",
+      "network",
+      "wifi",
+      "endpoint",
+      "application"
+    ],
+    "reject_malformed_events": true,
+    "preserve_raw_event": true
   }
 }

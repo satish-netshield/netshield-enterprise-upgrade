@@ -1,0 +1,4 @@
+{"event_id": "NET-001", "event_time": "2026-08-20T08:10:00+12:00", "event_type": "connection_allowed", "hostname": "Ubuntu-NetShield", "ip_address": "10.0.2.15", "source_type": "network", "status": "allowed"}
+{"event_id": "NET-002", "event_time": "2026-08-20T08:11:00+12:00", "event_type": "connection_attempt", "hostname": "Unknown-Device", "ip_address": "192.0.2.50", "source_type": "network", "status": "observed"}
+{"event_id": "NET-003", "event_time": "2026-08-20T08:12:00+12:00", "event_type": "port_connection", "hostname": "Test-Scanner", "ip_address": "198.51.100.25", "source_type": "network", "status": "observed"}
+{"event_id": "NET-004", "event_time": "2026-08-20T08:13:00+12:00", "event_type": "connection_attempt", "ip_address": "999.10.10.10", "source_type": "network"}

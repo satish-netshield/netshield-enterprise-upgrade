@@ -1,0 +1,167 @@
+"""Validate and normalise security events into one consistent structure."""
+
+import ipaddress
+import re
+from datetime import datetime, timezone
+from typing import Any
+
+
+REQUIRED_FIELDS = (
+    "event_id",
+    "event_time",
+    "source_type",
+    "event_type",
+)
+
+ALLOWED_SOURCE_TYPES = {
+    "authentication",
+    "network",
+    "wifi",
+    "endpoint",
+    "application",
+}
+
+MAC_PATTERN = re.compile(
+    r"^(?:[0-9A-Fa-f]{2}[:-]){5}[0-9A-Fa-f]{2}$"
+)
+
+
+def require_text(event: dict[str, Any], field: str) -> str:
+    """Return a required non-empty text field."""
+    value = event.get(field)
+
+    if not isinstance(value, str) or not value.strip():
+        raise ValueError(
+            f"Required field '{field}' must contain text"
+        )
+
+    return value.strip()
+
+
+def optional_text(event: dict[str, Any], field: str) -> str | None:
+    """Return a cleaned optional text field."""
+    value = event.get(field)
+
+    if value is None or value == "":
+        return None
+
+    if not isinstance(value, str):
+        raise ValueError(
+            f"Optional field '{field}' must contain text"
+        )
+
+    cleaned_value = value.strip()
+    return cleaned_value or None
+
+
+def normalise_timestamp(value: str) -> str:
+    """Return an ISO 8601 timestamp expressed in UTC."""
+    timestamp_value = value.replace("Z", "+00:00")
+
+    try:
+        timestamp = datetime.fromisoformat(timestamp_value)
+    except ValueError as error:
+        raise ValueError(
+            "Field 'event_time' must contain a valid ISO 8601 timestamp"
+        ) from error
+
+    if timestamp.tzinfo is None:
+        raise ValueError(
+            "Field 'event_time' must include a timezone"
+        )
+
+    return timestamp.astimezone(timezone.utc).isoformat()
+
+
+def normalise_ip_address(value: str | None) -> str | None:
+    """Validate and return a canonical IP address."""
+    if value is None:
+        return None
+
+    try:
+        return str(ipaddress.ip_address(value))
+    except ValueError as error:
+        raise ValueError(
+            "Field 'ip_address' must contain a valid IP address"
+        ) from error
+
+
+def normalise_mac_address(value: str | None) -> str | None:
+    """Validate and return a lowercase colon-separated MAC address."""
+    if value is None:
+        return None
+
+    if not MAC_PATTERN.fullmatch(value):
+        raise ValueError(
+            "Field 'mac_address' must contain a valid MAC address"
+        )
+
+    return value.replace("-", ":").lower()
+
+
+def normalise_cpu_percent(event: dict[str, Any]) -> float | None:
+    """Validate an optional CPU percentage."""
+    value = event.get("cpu_percent")
+
+    if value is None or value == "":
+        return None
+
+    if isinstance(value, bool):
+        raise ValueError(
+            "Field 'cpu_percent' must contain a number"
+        )
+
+    try:
+        cpu_percent = float(value)
+    except (TypeError, ValueError) as error:
+        raise ValueError(
+            "Field 'cpu_percent' must contain a number"
+        ) from error
+
+    if not 0 <= cpu_percent <= 100:
+        raise ValueError(
+            "Field 'cpu_percent' must be between 0 and 100"
+        )
+
+    return cpu_percent
+
+
+def normalise_event(event: dict[str, Any]) -> dict[str, Any]:
+    """Validate one raw event and return the normalised event."""
+    if not isinstance(event, dict):
+        raise ValueError("Each security event must be a JSON object")
+
+    for field in REQUIRED_FIELDS:
+        require_text(event, field)
+
+    source_type = require_text(event, "source_type").lower()
+
+    if source_type not in ALLOWED_SOURCE_TYPES:
+        raise ValueError(
+            f"Unsupported source_type: {source_type}"
+        )
+
+    return {
+        "source_event_id": require_text(event, "event_id"),
+        "event_time": normalise_timestamp(
+            require_text(event, "event_time")
+        ),
+        "source_type": source_type,
+        "event_type": require_text(
+            event,
+            "event_type",
+        ).lower(),
+        "username": optional_text(event, "username"),
+        "ip_address": normalise_ip_address(
+            optional_text(event, "ip_address")
+        ),
+        "mac_address": normalise_mac_address(
+            optional_text(event, "mac_address")
+        ),
+        "hostname": optional_text(event, "hostname"),
+        "process_name": optional_text(event, "process_name"),
+        "cpu_percent": normalise_cpu_percent(event),
+        "location": optional_text(event, "location"),
+        "status": optional_text(event, "status"),
+        "message": optional_text(event, "message"),
+    }

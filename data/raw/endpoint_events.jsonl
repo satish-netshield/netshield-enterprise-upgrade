@@ -1,0 +1,4 @@
+{"cpu_percent": 22.5, "event_id": "END-001", "event_time": "2026-08-20T08:20:00+12:00", "event_type": "cpu_observation", "hostname": "Ubuntu-NetShield", "process_name": "python", "source_type": "endpoint", "status": "normal", "username": "netshield01"}
+{"cpu_percent": 91.7, "event_id": "END-002", "event_time": "2026-08-20T08:21:00+12:00", "event_type": "cpu_observation", "hostname": "Ubuntu-NetShield", "process_name": "cpu-stress-test", "source_type": "endpoint", "status": "test_activity", "username": "netshield01"}
+{"event_id": "END-003", "event_time": "2026-08-20T08:22:00+12:00", "event_type": "process_started", "hostname": "Ubuntu-NetShield", "process_name": "approved-test-process", "source_type": "endpoint", "status": "observed", "username": "netshield01"}
+{"cpu_percent": 145, "event_id": "END-004", "event_time": "2026-08-20T08:23:00+12:00", "event_type": "cpu_observation", "source_type": "endpoint"}

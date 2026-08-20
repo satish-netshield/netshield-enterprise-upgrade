@@ -1,81 +1,174 @@
-# Engineering Handbook
+# NetShield Phase 3 Engineering Handbook
 
-## Stage 1 — Environment and Access Control
+## Welcome
 
-Stage 1 creates the controlled foundation required by every later detection and response component.
+Welcome to the NetShield Phase 3 Engineering Handbook.
 
-## What was built
+This handbook explains the engineering approach used while building NetShield Phase 3. It is written in plain English for learners who want to understand the important decisions, lessons and improvements without reading every project file.
 
-The project now has:
+It complements the README by focusing on the engineering journey rather than explaining every technical detail.
 
-- A structured Python project
-- A local SQLite database
-- Separate application and audit logs
-- RBAC permissions
-- An automation-action ACL
-- CYOD and IP access lists
-- Protected evidence storage
-- Unit tests and a complete Stage 1 validator
+This version records the work completed through Stage 2.
 
-## Why the controls exist
+## Engineering Goals
 
-Security automation can cause disruption if it is allowed to perform unrestricted actions.
+The goal of NetShield Phase 3 is to build a security automation platform inside a controlled Ubuntu sandbox.
 
-The project separates low-risk evidence and alert actions from actions that affect accounts, devices, processes, firewalls or physical infrastructure.
+The project is being developed one stage at a time. Each stage must be built, tested, understood, documented and validated before moving to the next.
 
-Default deny ensures that a missing rule does not accidentally become permission.
+Stage 1 created the safe environment and access controls.
 
-## Standard library first
+Stage 2 created the security data pipeline needed to collect, validate, normalise and store events for later detection.
 
-Stage 1 uses the Python standard library. This keeps the foundation small and makes its behaviour easier to inspect.
+The remaining stages will build detections, correlation, incident handling and controlled response on top of this foundation.
 
-## SQLite
+## Engineering Principles
 
-SQLite provides structured local storage without requiring a separate database server.
+The following engineering principles guide the project:
 
-It suits this single-VM lab, although a larger deployment would require a more scalable database platform.
+- Understand before changing.
+- Build one stage at a time.
+- Test every component.
+- Use default deny.
+- Follow least privilege.
+- Keep disruptive actions controlled.
+- Preserve original evidence.
+- Reject invalid or inconsistent data.
+- Prevent duplicate accepted records.
+- Revalidate earlier work after changes.
+- Fix genuine issues only.
+- Record meaningful engineering decisions.
+- Keep documentation aligned with the implementation.
+- Let Git history reflect the engineering process.
+- Write as the engineer who built the project.
+- Keep the writing simple, honest, technically accurate and easy to learn from.
 
-## Separate audit logging
+## What Was Built
 
-Application logs explain how the program is operating.
+The following components have been completed.
 
-Audit logs record security-relevant actions and accountability. Keeping them separate supports investigation.
+### Stage 1 — Environment and Access Control
 
-## CYOD
+- Ubuntu VirtualBox sandbox
+- Python virtual environment
+- Project configuration
+- SQLite database
+- Application and audit logging
+- File and directory permissions
+- Viewer, Analyst, Responder and Administrator roles
+- Role-Based Access Control
+- CYOD device allowlist
+- IP allowlist and simulated blocklist
+- Automation-action ACL
+- Evidence hashing and protection
+- Stage 1 unit tests and validation
 
-CYOD provides a defined approved-device inventory.
+### Stage 2 — Security Data Pipeline
 
-An observed device can be compared with its registered MAC address, hostname, user and approval status.
+- Safe simulated security events
+- Authentication event source
+- Network event source
+- Wi-Fi and CYOD event source
+- Endpoint and CPU event source
+- Application event source
+- JSONL event collector
+- Event validation and normalisation
+- Accepted security-event storage
+- Rejected-event storage
+- Duplicate-event protection
+- Import-batch tracking
+- Raw-event preservation
+- Stage 2 unit tests and validation
 
-## Evidence hashing
+## Major Engineering Decisions
 
-SHA-256 creates a repeatable fingerprint of evidence content.
+The following decisions helped keep the project safe, simple and reliable.
 
-If the recalculated hash differs from the stored hash, the evidence has changed since preservation.
+- Ubuntu VirtualBox was used to keep testing separate from the Windows host and public systems.
+- The Python standard library was used for the first two stages to keep the foundation small and easy to inspect.
+- SQLite was selected because it is lightweight and suitable for a single-VM lab.
+- JSON configuration files were used so project rules could be changed without rewriting the main program logic.
+- Default deny was used so unknown roles, permissions, actions and event sources were not trusted automatically.
+- RBAC was used to separate Viewer, Analyst, Responder and Administrator permissions.
+- The automation ACL separated automatic, approval-required and manual-only actions.
+- CYOD was selected because an approved device inventory is easier to test and explain than unrestricted BYOD.
+- JSONL was selected because each event can be processed one line at a time.
+- Event timestamps were converted to UTC so later stages can use one investigation timeline.
+- Invalid input was preserved with a failure reason instead of being deleted silently.
+- Duplicate events were prevented from entering the accepted-event table.
+- Accepted events retained their original JSON as well as their normalised values.
+- Import batches were recorded so accepted and rejected totals could be checked.
+- Parameterised SQL was used so event values were treated as data rather than SQL instructions.
 
-## What testing proved
+## Improvements Made
 
-Testing confirmed that:
+The project improved as Stage 2 was added to the Stage 1 foundation.
 
-- Approved permissions are allowed.
-- Unauthorised permissions are denied.
-- Unknown roles are denied.
-- Disruptive actions require approval.
-- Undefined actions are denied.
-- The approved CYOD device is recognised.
-- An unknown device is rejected.
-- Allowed and unknown IP addresses are classified.
-- Malformed IP input raises an error.
-- The database and logs operate correctly.
-- Sensitive filesystem permissions are applied.
-- Evidence integrity can be verified.
+- Expanded the original SQLite schema to store security events.
+- Added separate storage for rejected records.
+- Added import-batch tracking.
+- Added indexes for common event searches.
+- Added validation for timestamps, IP addresses, MAC addresses and CPU values.
+- Added checks to confirm that the event source matches the source filename.
+- Added duplicate-event protection.
+- Added raw-event preservation.
+- Added isolated pipeline tests using temporary databases.
+- Added a complete Stage 2 validator.
+- Re-ran the Stage 1 tests after the pipeline changes.
+- Confirmed that Stage 2 did not break the Stage 1 security controls.
+- Updated the project documentation to match the implemented pipeline.
 
-## Important limitation
+## Testing Results
 
-Application RBAC controls project decisions but does not create separate Linux operating-system users.
+The current project testing produced these results:
 
-The Wi-Fi heat-map scenario will also require simulated signal data because the VM uses a virtual network adapter.
+- 11 Stage 1 access-control tests passed.
+- 11 Stage 2 normalisation tests passed.
+- 6 Stage 2 pipeline tests passed.
+- 28 unit tests passed in total.
+- Stage 1 validation passed 12/12.
+- Stage 2 validation passed 14/14.
 
-## What comes next
+The first Stage 2 import processed 19 simulated records:
 
-Stage 2 will generate, import, validate and normalise security events before storing them for detection.
+- 15 valid records were accepted.
+- 4 deliberately malformed records were rejected.
+- Each of the five event sources stored 3 accepted records.
+
+## Lessons Learned
+
+The first two stages have already provided several useful engineering lessons.
+
+- A safe foundation should be built before adding detection or automated response.
+- Configuration files make security rules easier to review and change.
+- Normalised data is easier to search and compare than inconsistent raw data.
+- UTC timestamps are important when events come from different locations.
+- Invalid data should be preserved and explained rather than silently ignored.
+- One malformed JSONL record does not need to stop the complete file import.
+- Duplicate prevention protects the accuracy of later detections.
+- Unit tests can check individual decisions without changing the working database.
+- Revalidating Stage 1 helped confirm that Stage 2 did not introduce a regression.
+- Real test failures and rejected records provide useful engineering evidence.
+- Asking why each component exists makes the project easier to understand.
+- Documentation is easier to maintain when it is updated with the actual work.
+
+## Future Expansion
+
+Stage 1 and Stage 2 provide the foundation for the remaining NetShield Phase 3 stages.
+
+Future work will include:
+
+- Identity and authentication detection
+- Impossible-travel investigation
+- Network, CYOD and Wi-Fi detection
+- WPA3 policy checks
+- Endpoint and high-CPU monitoring
+- Local SQL injection testing
+- Event correlation and risk scoring
+- Indicator of Compromise extraction
+- Incident records and evidence handling
+- Controlled containment
+- Eradication and recovery
+- Complete project validation and sign-off
+
+The next stage will use the accepted authentication events to build identity and authentication detections.

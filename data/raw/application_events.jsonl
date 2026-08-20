@@ -1,0 +1,4 @@
+{"event_id": "APP-001", "event_time": "2026-08-20T08:25:00+12:00", "event_type": "request_received", "hostname": "Ubuntu-NetShield", "ip_address": "127.0.0.1", "message": "Local application request accepted", "source_type": "application", "status": "normal", "username": "test-user"}
+{"event_id": "APP-002", "event_time": "2026-08-20T08:26:00+12:00", "event_type": "database_query", "hostname": "Ubuntu-NetShield", "ip_address": "127.0.0.1", "message": "Parameterised local query completed", "source_type": "application", "status": "success", "username": "test-user"}
+{"event_id": "APP-003", "event_time": "2026-08-20T08:27:00+12:00", "event_type": "authentication_request", "hostname": "Ubuntu-NetShield", "ip_address": "127.0.0.1", "message": "Local test authentication completed", "source_type": "application", "status": "success", "username": "test-user"}
+{"event_id": "APP-BROKEN", invalid-json}
