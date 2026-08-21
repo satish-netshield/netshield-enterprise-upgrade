@@ -1,0 +1,73 @@
+{
+  "thresholds": {
+    "repeated_failures": 3,
+    "brute_force_failures": 5,
+    "failure_window_minutes": 5,
+    "success_after_failures": 3,
+    "mfa_failures": 3,
+    "mfa_window_minutes": 5,
+    "impossible_travel_speed_kmh": 900
+  },
+  "locations": {
+    "Auckland, NZ": {
+      "latitude": -36.8485,
+      "longitude": 174.7633
+    },
+    "Sydney, Australia": {
+      "latitude": -33.8688,
+      "longitude": 151.2093
+    },
+    "London, UK": {
+      "latitude": 51.5074,
+      "longitude": -0.1278
+    }
+  },
+  "user_baselines": {
+    "netshield01": {
+      "approved_devices": [
+        "Ubuntu-NetShield"
+      ],
+      "usual_locations": [
+        "Auckland, NZ"
+      ],
+      "expected_role": "administrator"
+    },
+    "analyst01": {
+      "approved_devices": [
+        "Analyst-Laptop"
+      ],
+      "usual_locations": [
+        "Auckland, NZ"
+      ],
+      "expected_role": "analyst"
+    },
+    "traveller01": {
+      "approved_devices": [
+        "Travel-Laptop"
+      ],
+      "usual_locations": [
+        "Auckland, NZ",
+        "London, UK"
+      ],
+      "expected_role": "analyst"
+    },
+    "vpnuser01": {
+      "approved_devices": [
+        "VPN-Laptop"
+      ],
+      "usual_locations": [
+        "Auckland, NZ"
+      ],
+      "expected_role": "analyst"
+    },
+    "trainee01": {
+      "approved_devices": [
+        "Trainee-Laptop"
+      ],
+      "usual_locations": [
+        "Auckland, NZ"
+      ],
+      "expected_role": "viewer"
+    }
+  }
+}

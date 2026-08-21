@@ -2,137 +2,139 @@
 
 ## Stage 1 — Environment and access control
 
-### Initialisation
+Stage 1 created the safe foundation before security detection work began.
+
+### Foundation
 
 1. Load the project settings.
 2. Create the SQLite database from the tracked schema.
-3. Save project metadata.
-4. Assign the project-owner role.
-5. Configure application and audit logs.
-6. Record the initialisation event.
+3. Save project metadata and assign the project-owner role.
+4. Configure application and audit logging.
+5. Apply protected file and directory permissions.
 
-### Access decision
+### Access decisions
 
 1. Identify the user role.
-2. Look up the requested permission.
-3. Allow only explicitly assigned permissions.
-4. Deny unknown roles and permissions.
-
-### Automation decision
-
-1. Receive the proposed response action.
-2. Check the automation ACL.
-3. Run approved low-risk automatic actions.
+2. Allow only explicitly assigned permissions.
+3. Check the automation ACL before every response action.
 4. Require approval for disruptive actions.
-5. Keep infrastructure and physical actions manual.
-6. Deny undefined actions.
+5. Deny unknown roles, permissions and actions.
 
-### Device decision
+### Device and IP decisions
 
-1. Collect the device MAC address.
-2. Compare it with the CYOD inventory.
-3. Confirm that its status is approved.
-4. Send unmatched devices for investigation.
+1. Compare observed devices with the CYOD inventory.
+2. Check whether the device is approved.
+3. Validate the IP address.
+4. Check the blocklist before the allowlist.
+5. Send unknown devices and IP addresses for investigation.
 
-### IP decision
+### Evidence
 
-1. Validate the IP address.
-2. Check the blocklist first.
-3. Check the allowlist second.
-4. Classify remaining valid addresses as unknown.
-5. Reject malformed addresses.
-
-### Evidence workflow
-
-1. Collect the evidence.
+1. Preserve the evidence.
 2. Calculate its SHA-256 hash.
 3. Store the expected hash.
-4. Change the preserved copy to read-only.
+4. Protect the preserved file from casual modification.
 5. Recalculate the hash during validation.
-6. Confirm that the evidence has not changed.
+
+Result: a controlled sandbox with default-deny access and protected evidence.
 
 ## Stage 2 — Security data pipeline
 
-### Pipeline initialisation
+Stage 2 prepared consistent events for later detection.
 
-1. Load the existing project settings.
-2. Apply the updated SQLite schema.
-3. Create the import-batch table.
-4. Create the accepted security-event table.
-5. Create the rejected-event table.
-6. Create indexes for common event searches.
-7. Update the project version to `0.2.0`.
-8. Record the Stage 2 initialisation event.
+### Event generation
 
-### Simulated event generation
+1. Generate safe simulated authentication, network, Wi-Fi, endpoint and application events.
+2. Add deliberate malformed records for testing.
+3. Write each source to a separate JSONL file.
 
-1. Create authentication events.
-2. Create network events.
-3. Create Wi-Fi and CYOD events.
-4. Create endpoint and CPU events.
-5. Create local application events.
-6. Add deliberate malformed records for testing.
-7. Write each source to a separate JSONL file.
+### Import and normalisation
 
-### File import
+1. Create an import batch for each source file.
+2. Read one JSONL record at a time.
+3. Parse and validate the JSON object.
+4. Confirm required fields and approved source type.
+5. Convert timestamps to UTC.
+6. Validate IP addresses, MAC addresses and CPU values.
+7. Store accepted events in SQLite.
 
-1. Find the JSONL files in `data/raw`.
-2. Create an import batch for each source file.
-3. Read each file one line at a time.
-4. Count every input record.
-5. Reject empty lines.
-6. Parse each remaining line as JSON.
-7. Send valid JSON objects to the normaliser.
-8. Store accepted events in SQLite.
-9. Preserve rejected records and their reasons.
-10. Complete the batch with its processing totals.
-11. Record the completed import in the audit trail.
+### Rejected data
 
-### Event normalisation
+1. Keep malformed data out of the accepted-event table.
+2. Preserve the original input, filename and line number.
+3. Record the exact rejection reason.
+4. Include rejected records in the batch totals.
 
-1. Confirm that the event is a JSON object.
-2. Require an event ID.
-3. Require a timezone-aware event timestamp.
-4. Require a source type and event type.
-5. Accept only approved source types.
-6. Confirm that the source type matches the filename.
-7. Convert the timestamp to UTC.
-8. Validate and normalise the IP address.
-9. Validate and normalise the MAC address.
-10. Validate CPU usage between 0 and 100 percent.
-11. Clean the optional text fields.
-12. Return one consistent event structure.
-
-### Rejected-event handling
-
-1. Do not place malformed data in the accepted-event table.
-2. Record the source filename.
-3. Record the line number.
-4. Record the exact failure reason.
-5. Preserve the original input.
-6. Count the record as rejected in its import batch.
-
-### Duplicate-event handling
+### Duplicate events
 
 1. Compare the source filename and source event ID.
 2. Accept the first valid occurrence.
-3. Reject later occurrences of the same event.
-4. Preserve the duplicate input and rejection reason.
-5. Keep only one accepted database record.
+3. Reject later duplicates.
+4. Preserve the duplicate and its rejection reason.
 
 ### Stage 2 validation
 
-1. Compile the Python files.
-2. Run the Stage 1 and Stage 2 unit tests.
-3. Re-run the Stage 1 validator.
-4. Confirm the Stage 2 settings and source files.
-5. Confirm the SQLite tables and indexes.
-6. Reconcile the import-batch totals.
-7. Confirm all five source types were imported.
-8. Confirm malformed records were preserved.
-9. Confirm UTC timestamp normalisation.
-10. Confirm IP, MAC and CPU field handling.
-11. Confirm raw-event preservation.
-12. Confirm duplicate-event protection.
-13. Confirm project metadata.
-14. Confirm the import audit record.
+1. Compile the project files.
+2. Run the Stage 1 and Stage 2 tests.
+3. Confirm the five source files and 19 simulated records.
+4. Reconcile accepted and rejected totals.
+5. Confirm normalisation, raw-event preservation and audit logging.
+
+Result: 15 accepted events and 4 rejected records were stored with their reasons.
+
+## Stage 3 — Identity and authentication detection
+
+Stage 3 used accepted authentication events to identify suspicious identity activity.
+
+### Detection
+
+1. Load the identity rules and user baselines.
+2. Read accepted authentication events from SQLite.
+3. Group related events by user, IP address and time.
+4. Detect repeated failures and possible brute force.
+5. Detect successful login after repeated failures.
+6. Detect MFA anomalies.
+7. Detect new devices and unusual locations.
+8. Detect impossible travel.
+9. Detect suspicious role changes.
+10. Apply known VPN exceptions.
+
+### Alert handling
+
+1. Create a deterministic alert key.
+2. Store the detection type, severity, events and evidence.
+3. Ignore duplicate copies of the same alert.
+4. Record detection activity in the audit trail.
+5. Keep alerts available for later investigation and correlation.
+
+### False-positive investigation
+
+1. Review the alert and supporting event evidence.
+2. Confirm whether the device or activity is authorised.
+3. Classify legitimate activity as a false positive.
+4. Preserve the investigation note.
+5. Record the decision in the audit trail.
+
+The replacement laptop was authorised but missing from the CYOD inventory, so its new-device alert was classified as a false positive.
+
+### Engineering observations
+
+- A five-minute failure window may be too broad and should be reviewed during later tuning.
+- Severity should increase when strong detections occur together.
+- An approved device can still be a valid new-device alert if inventory registration is incomplete.
+- Duplicate protection prevents alert flooding but does not yet track unresolved conditions over time.
+- Stage 4 should correlate identity alerts with CYOD, Wi-Fi, WPA3, IP and device-consistency evidence.
+
+### Stage 3 validation
+
+1. Compile all project files.
+2. Run all Stage 1–3 unit tests.
+3. Re-run the Stage 1 and Stage 2 validators.
+4. Confirm 16 Stage 3 events were imported.
+5. Confirm 11 identity alerts were created.
+6. Run the detector again to confirm duplicate protection.
+7. Confirm VPN exceptions were recorded.
+8. Confirm the false-positive investigation and audit record.
+9. Run the Stage 3 validator.
+
+Result: 39 unit tests passed, Stage 1 passed 12/12, Stage 2 passed 14/14 and Stage 3 passed 12/12.

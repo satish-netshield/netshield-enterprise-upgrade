@@ -1,4 +1,4 @@
-"""Validate the complete NetShield Stage 2 security-data pipeline."""
+"""Validate the NetShield Stage 2 security-data pipeline."""
 
 import json
 import sqlite3
@@ -10,9 +10,8 @@ from src.utils.config_loader import load_json
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 SETTINGS_PATH = PROJECT_ROOT / "config/settings.json"
-SCHEMA_PATH = PROJECT_ROOT / "database/schema.sql"
 
-EXPECTED_SOURCE_FILES = {
+STAGE2_SOURCE_FILES = {
     "application_events.jsonl",
     "authentication_events.jsonl",
     "endpoint_events.jsonl",
@@ -35,47 +34,56 @@ EXPECTED_INDEXES = {
 }
 
 
-def database_path() -> Path:
-    """Return the configured SQLite database path."""
+def get_database_path() -> Path:
+    """Return the configured database path."""
     settings = load_json(SETTINGS_PATH)
     return PROJECT_ROOT / settings["database"]["path"]
 
 
-def query_one(sql: str) -> tuple:
-    """Run a database query and return one result row."""
-    with sqlite3.connect(database_path()) as connection:
-        result = connection.execute(sql).fetchone()
+def query_all(
+    sql: str,
+    parameters: tuple = (),
+) -> list[tuple]:
+    """Run a database query and return every row."""
+    with sqlite3.connect(get_database_path()) as connection:
+        return connection.execute(
+            sql,
+            parameters,
+        ).fetchall()
 
-    if result is None:
+
+def query_one(
+    sql: str,
+    parameters: tuple = (),
+) -> tuple:
+    """Run a database query and return one row."""
+    rows = query_all(sql, parameters)
+
+    if not rows:
         raise AssertionError("Database query returned no result")
 
-    return result
-
-
-def query_all(sql: str) -> list[tuple]:
-    """Run a database query and return every result row."""
-    with sqlite3.connect(database_path()) as connection:
-        return connection.execute(sql).fetchall()
+    return rows[0]
 
 
 def check_required_files() -> None:
     """Confirm that the Stage 2 implementation files exist."""
     required_files = [
-        PROJECT_ROOT / "src/collectors/event_normalizer.py",
-        PROJECT_ROOT / "src/collectors/jsonl_collector.py",
-        PROJECT_ROOT / "scripts/initialize_stage2.py",
-        PROJECT_ROOT / "scripts/generate_stage2_events.py",
-        PROJECT_ROOT / "scripts/import_stage2_events.py",
-        PROJECT_ROOT / "tests/test_stage2_normalizer.py",
-        PROJECT_ROOT / "tests/test_stage2_pipeline.py",
-        SCHEMA_PATH,
-        SETTINGS_PATH,
+        "config/settings.json",
+        "database/schema.sql",
+        "scripts/generate_stage2_events.py",
+        "scripts/import_stage2_events.py",
+        "scripts/initialize_stage2.py",
+        "scripts/validate_stage2.py",
+        "src/collectors/event_normalizer.py",
+        "src/collectors/jsonl_collector.py",
+        "tests/test_stage2_normalizer.py",
+        "tests/test_stage2_pipeline.py",
     ]
 
     missing_files = [
-        str(path.relative_to(PROJECT_ROOT))
-        for path in required_files
-        if not path.is_file()
+        filename
+        for filename in required_files
+        if not (PROJECT_ROOT / filename).is_file()
     ]
 
     if missing_files:
@@ -85,16 +93,10 @@ def check_required_files() -> None:
 
 
 def check_pipeline_configuration() -> None:
-    """Confirm that the Stage 2 pipeline settings are safe."""
+    """Confirm that the pipeline configuration remains safe."""
     settings = load_json(SETTINGS_PATH)
     pipeline = settings["pipeline"]
     security = settings["security"]
-
-    if settings["project"]["version"] != "0.2.0":
-        raise AssertionError("Unexpected project version")
-
-    if pipeline["accepted_extensions"] != [".jsonl"]:
-        raise AssertionError("Only JSONL input should be accepted")
 
     expected_sources = {
         "authentication",
@@ -104,6 +106,12 @@ def check_pipeline_configuration() -> None:
         "application",
     }
 
+    if settings["project"]["version"] != "0.2.0":
+        raise AssertionError("Unexpected project version")
+
+    if pipeline["accepted_extensions"] != [".jsonl"]:
+        raise AssertionError("Only JSONL input should be accepted")
+
     if set(pipeline["allowed_source_types"]) != expected_sources:
         raise AssertionError("Unexpected pipeline source types")
 
@@ -111,14 +119,14 @@ def check_pipeline_configuration() -> None:
         raise AssertionError("Malformed events must be rejected")
 
     if not pipeline["preserve_raw_event"]:
-        raise AssertionError("Raw event preservation must remain enabled")
+        raise AssertionError("Raw events must be preserved")
 
     if security["allow_real_external_targets"]:
         raise AssertionError("Real external targets must remain disabled")
 
 
 def check_raw_event_files() -> None:
-    """Confirm that all five simulated source files exist."""
+    """Confirm the original Stage 2 source files and record total."""
     raw_directory = PROJECT_ROOT / "data/raw"
 
     source_files = {
@@ -127,9 +135,9 @@ def check_raw_event_files() -> None:
         if path.is_file()
     }
 
-    if source_files != EXPECTED_SOURCE_FILES:
+    if source_files != STAGE2_SOURCE_FILES:
         raise AssertionError(
-            f"Unexpected source files: {sorted(source_files)}"
+            f"Unexpected Stage 2 source files: {sorted(source_files)}"
         )
 
     total_lines = sum(
@@ -139,7 +147,7 @@ def check_raw_event_files() -> None:
 
     if total_lines != 19:
         raise AssertionError(
-            f"Expected 19 simulated records, found {total_lines}"
+            f"Expected 19 Stage 2 records, found {total_lines}"
         )
 
 
@@ -153,7 +161,6 @@ def check_stage2_tables() -> None:
         """
     )
     table_names = {row[0] for row in rows}
-
     missing_tables = EXPECTED_TABLES - table_names
 
     if missing_tables:
@@ -163,7 +170,7 @@ def check_stage2_tables() -> None:
 
 
 def check_security_event_indexes() -> None:
-    """Confirm that searchable event indexes exist."""
+    """Confirm that the event search indexes exist."""
     rows = query_all(
         """
         SELECT name
@@ -172,7 +179,6 @@ def check_security_event_indexes() -> None:
         """
     )
     index_names = {row[0] for row in rows}
-
     missing_indexes = EXPECTED_INDEXES - index_names
 
     if missing_indexes:
@@ -182,7 +188,7 @@ def check_security_event_indexes() -> None:
 
 
 def check_import_batch_integrity() -> None:
-    """Confirm that batch totals reconcile correctly."""
+    """Confirm that every completed batch reconciles."""
     rows = query_all(
         """
         SELECT
@@ -210,19 +216,26 @@ def check_import_batch_integrity() -> None:
 
         if status not in valid_statuses:
             raise AssertionError(
-                f"Unexpected completed batch status: {status}"
+                f"Unexpected batch status: {status}"
             )
 
 
 def check_accepted_event_counts() -> None:
-    """Confirm that all five event sources were imported."""
+    """Confirm the original Stage 2 accepted-event baseline."""
+    placeholders = ",".join(
+        "?" for _ in STAGE2_SOURCE_FILES
+    )
+    source_files = tuple(sorted(STAGE2_SOURCE_FILES))
+
     rows = query_all(
-        """
+        f"""
         SELECT source_type, COUNT(*)
         FROM security_events
+        WHERE source_file IN ({placeholders})
         GROUP BY source_type
         ORDER BY source_type
-        """
+        """,
+        source_files,
     )
     source_counts = dict(rows)
 
@@ -236,36 +249,42 @@ def check_accepted_event_counts() -> None:
 
     if source_counts != expected_counts:
         raise AssertionError(
-            f"Unexpected accepted-event counts: {source_counts}"
+            f"Unexpected Stage 2 event counts: {source_counts}"
         )
 
 
 def check_rejected_event_reasons() -> None:
-    """Confirm that malformed inputs were preserved with reasons."""
+    """Confirm the four deliberate Stage 2 rejection types."""
     rows = query_all(
         """
         SELECT reason
         FROM rejected_events
+        WHERE source_file IN (
+            'application_events.jsonl',
+            'authentication_events.jsonl',
+            'endpoint_events.jsonl',
+            'network_events.jsonl'
+        )
         """
     )
     reasons = [row[0] for row in rows]
 
-    expected_reason_text = [
+    expected_text = [
         "Invalid JSON",
         "Required field 'event_id'",
         "cpu_percent",
         "ip_address",
     ]
 
-    for expected_text in expected_reason_text:
-        if not any(expected_text in reason for reason in reasons):
+    for text in expected_text:
+        if not any(text in reason for reason in reasons):
             raise AssertionError(
-                f"Missing rejection reason: {expected_text}"
+                f"Missing rejection reason: {text}"
             )
 
 
 def check_utc_normalisation() -> None:
-    """Confirm that every accepted timestamp is stored in UTC."""
+    """Confirm that all accepted timestamps use UTC."""
     total_events = query_one(
         "SELECT COUNT(*) FROM security_events"
     )[0]
@@ -284,38 +303,38 @@ def check_utc_normalisation() -> None:
 
 
 def check_field_normalisation() -> None:
-    """Confirm representative IP, MAC and CPU values."""
-    wifi_row = query_one(
+    """Confirm representative MAC, CPU and IP values."""
+    mac_address = query_one(
         """
         SELECT mac_address
         FROM security_events
         WHERE source_event_id = 'WIFI-001'
         """
-    )
+    )[0]
 
-    if wifi_row[0] != "08:00:27:cf:49:71":
+    if mac_address != "08:00:27:cf:49:71":
         raise AssertionError("MAC address was not normalised")
 
-    endpoint_row = query_one(
+    cpu_percent = query_one(
         """
         SELECT cpu_percent
         FROM security_events
         WHERE source_event_id = 'END-002'
         """
-    )
+    )[0]
 
-    if endpoint_row[0] != 91.7:
+    if cpu_percent != 91.7:
         raise AssertionError("CPU percentage was not preserved")
 
-    application_row = query_one(
+    ip_address = query_one(
         """
         SELECT ip_address
         FROM security_events
         WHERE source_event_id = 'APP-001'
         """
-    )
+    )[0]
 
-    if application_row[0] != "127.0.0.1":
+    if ip_address != "127.0.0.1":
         raise AssertionError("IP address was not preserved")
 
 
@@ -329,7 +348,7 @@ def check_raw_event_preservation() -> None:
     )
 
     if not rows:
-        raise AssertionError("No accepted raw events were preserved")
+        raise AssertionError("No accepted events were preserved")
 
     for row in rows:
         raw_event = json.loads(row[0])
@@ -341,7 +360,7 @@ def check_raw_event_preservation() -> None:
 
 
 def check_duplicate_protection() -> None:
-    """Confirm that the source file and event ID are unique."""
+    """Confirm that duplicate accepted events do not exist."""
     rows = query_all(
         """
         SELECT source_file, source_event_id, COUNT(*)
@@ -356,7 +375,7 @@ def check_duplicate_protection() -> None:
 
 
 def check_stage2_metadata() -> None:
-    """Confirm that Stage 2 metadata was recorded."""
+    """Confirm that the Stage 2 metadata remains correct."""
     version = query_one(
         """
         SELECT value
@@ -380,7 +399,7 @@ def check_stage2_metadata() -> None:
 
 
 def check_stage2_audit_event() -> None:
-    """Confirm that the event import was audited."""
+    """Confirm that the Stage 2 import was audited."""
     audit_count = query_one(
         """
         SELECT COUNT(*)
@@ -398,7 +417,7 @@ def run_check(
     description: str,
     check_function: Callable[[], None],
 ) -> bool:
-    """Run one validation check and print its result."""
+    """Run one check and print its result."""
     try:
         check_function()
     except Exception as error:
@@ -413,10 +432,7 @@ def run_check(
 def main() -> None:
     """Run every Stage 2 validation check."""
     checks = [
-        (
-            "Required Stage 2 files exist",
-            check_required_files,
-        ),
+        ("Required Stage 2 files exist", check_required_files),
         (
             "Pipeline configuration is valid and safe",
             check_pipeline_configuration,
@@ -425,10 +441,7 @@ def main() -> None:
             "Five simulated raw-event files contain 19 records",
             check_raw_event_files,
         ),
-        (
-            "Stage 2 SQLite tables exist",
-            check_stage2_tables,
-        ),
+        ("Stage 2 SQLite tables exist", check_stage2_tables),
         (
             "Security-event search indexes exist",
             check_security_event_indexes,
@@ -438,7 +451,7 @@ def main() -> None:
             check_import_batch_integrity,
         ),
         (
-            "Five event sources contain accepted records",
+            "Stage 2 source files contain accepted records",
             check_accepted_event_counts,
         ),
         (
@@ -461,10 +474,7 @@ def main() -> None:
             "Duplicate-event protection is active",
             check_duplicate_protection,
         ),
-        (
-            "Stage 2 metadata is correct",
-            check_stage2_metadata,
-        ),
+        ("Stage 2 metadata is correct", check_stage2_metadata),
         (
             "Stage 2 import has an audit record",
             check_stage2_audit_event,
@@ -472,8 +482,8 @@ def main() -> None:
     ]
 
     passed_checks = sum(
-        run_check(description, check_function)
-        for description, check_function in checks
+        run_check(description, function)
+        for description, function in checks
     )
     total_checks = len(checks)
 

@@ -2,144 +2,130 @@
 
 ## Default deny
 
-Access and automation are permitted only when explicitly defined. Unknown roles, permissions and actions are denied.
+Access, automation and event processing are allowed only when explicitly defined.
 
-Stage 2 follows the same approach. Only approved event sources and valid fields enter the accepted-event table.
+Unknown roles, permissions, actions, event sources and invalid fields are denied.
 
 ## Role-Based Access Control
 
-- Viewer: reads alerts and closed reports.
-- Analyst: investigates and classifies incidents.
+- Viewer: views alerts and closed reports.
+- Analyst: investigates incidents and classifies false positives.
 - Responder: performs approved containment and records recovery.
 - Administrator: manages rules, roles, inventories and configuration.
 
-Application RBAC controls NetShield decisions. It does not create separate Ubuntu operating-system users.
+Application RBAC controls NetShield decisions. It does not create separate Ubuntu users.
 
 ## Automation-action ACL
 
-- Automatic: alert creation, evidence preservation and simulated responses.
-- Approval required: account restriction, session revocation, process termination, device quarantine and Ubuntu firewall changes.
+- Automatic: alert creation, evidence hashing, log preservation and simulated monitoring actions.
+- Approval required: account restriction, session revocation, process termination, device quarantine and firewall changes.
 - Manual only: credential resets, physical-device removal and infrastructure changes.
 
 Undefined actions are denied.
 
 ## CYOD allowlist
 
-CYOD provides a controlled list of approved devices. The VirtualBox device is the first approved test asset.
+The CYOD inventory identifies approved test devices.
 
-A MAC address helps with inventory checks but does not prove device identity because it can be spoofed. Later stages will also use hostname, assigned user and connection history.
+The allowlist checks the device record, MAC address, hostname, assigned user and approval status. A MAC address supports inventory matching but does not prove identity because it can be spoofed.
 
-## IP-list precedence
+An approved device is not automatically approved in every physical or Wi-Fi zone. Stage 4 will add heat-map and zone policy.
 
-The blocklist is checked before the allowlist. An address appearing in both lists is treated as blocked until investigated.
+## IP and VPN decisions
+
+The blocklist is checked before the allowlist. An address present in both lists is treated as blocked until investigated.
 
 Malformed IP addresses are rejected.
 
-## Approved event sources
+Known approved VPN addresses are treated as exceptions for selected baseline and impossible-travel checks. A VPN exception explains a known route but does not prove the user’s physical location.
 
-Stage 2 accepts:
+## Event-source control
 
-- Authentication
-- Network
-- Wi-Fi
-- Endpoint
-- Application
+Stage 2 accepts only authentication, network, Wi-Fi, endpoint and application events.
 
-An unsupported source type is rejected.
+The source type must match the source filename. Unsupported or incorrectly labelled events are rejected.
 
-The source type inside an event must also match its source filename. This prevents incorrectly labelled data from entering the accepted-event table.
+## Event validation
 
-## Required event fields
-
-Every accepted event must contain:
+Every accepted event requires:
 
 - Event ID
-- Event timestamp
+- Timezone-aware event timestamp
 - Source type
 - Event type
 
-Required values must be non-empty text. Optional fields are validated when supplied.
+Timestamps are converted to UTC so later detection uses one consistent timeline.
 
-## Timestamp handling
+IP addresses, MAC addresses and CPU values are validated before storage. Invalid values are rejected rather than silently corrected.
 
-Event timestamps must use ISO 8601 and include a timezone.
+## Rejected data
 
-Accepted timestamps are converted to UTC before storage. This gives later detection and correlation stages one consistent timeline.
+Malformed data is kept out of the accepted-event table.
 
-## IP and MAC validation
+The rejected record preserves its source filename, line number, original input and failure reason. This supports troubleshooting and prevents invalid data from influencing detection.
 
-IP addresses are validated using Python's standard `ipaddress` module.
+## Duplicate event protection
 
-MAC addresses must contain six hexadecimal pairs. Accepted MAC addresses are stored in lowercase with colon separators.
+The source filename and source event ID must be unique.
 
-Consistent formatting supports later IP-list and CYOD inventory comparisons.
+The first valid event is accepted. A later copy is rejected and preserved as a duplicate.
 
-## CPU validation
+## Identity detection logic
 
-CPU usage is optional because it does not apply to every event source.
+Stage 3 groups authentication events by user, address and time window.
 
-When supplied, it must be numeric and between 0 and 100 percent. Invalid values are rejected rather than corrected silently.
+The current rules detect:
 
-## Malformed-event handling
+- Three failed logins within the configured window: Repeated Failed Logins — Medium.
+- Five failed logins within the configured window: Possible Brute Force — High.
+- A successful login after repeated failures: Successful Login After Failures — High.
+- Repeated MFA failures: MFA Failure Anomaly — High.
+- A device outside the user baseline: Login From New Device — Medium.
+- A location outside the user baseline: Login From Unusual Location — Medium.
+- Unrealistic movement between successful logins: Impossible Travel — High.
+- An unauthorised role change: Suspicious Role Change — Critical in the current baseline.
 
-Malformed input is separated from accepted security data.
+These are initial rule-based severities, not a final numerical risk score.
 
-Each rejected record stores:
+## Correlated severity
 
-- Rejection time
-- Source filename
-- Import batch
-- Line number
-- Failure reason
-- Original input
+A single detection may require investigation before escalation.
 
-This keeps invalid data available for troubleshooting without allowing it into later detection logic.
+Impossible travel combined with MFA failure, brute force, a successful suspicious login or unauthorised privilege escalation should be considered for Critical severity.
 
-## Duplicate protection
+Suspicious role changes should be assessed according to the actual privilege change and authorisation rather than always being treated as Critical.
 
-The combination of source filename and source event ID must be unique.
+## Alert protection
 
-The first valid event is accepted. A later copy is rejected as a duplicate and preserved in the rejected-event table.
+A deterministic SHA-256 alert key prevents the same detection pattern from creating duplicate alert rows.
 
-## Raw-event preservation
+This controls alert flooding, but it does not yet provide complete tracking for an unresolved condition. Future logic should update last-seen time, observation count, escalation state and alert reopening.
 
-Accepted events contain normalised searchable fields and the original JSON event.
+## False-positive handling
 
-The normalised fields support later detection. The original event preserves the source context.
+A new-device alert is not automatically proof of compromise.
 
-## Import-batch tracking
+The replacement laptop was authorised but had not yet been registered in the CYOD inventory. The alert was preserved, investigated and classified as a false positive with an audit record.
 
-Each source file receives a unique batch ID.
+The correct follow-up is to verify and register the device, then recheck the detection.
 
-The batch records:
+## Raw events and evidence
 
-- Start and completion times
-- Source filename and source type
-- Total records
-- Accepted records
-- Rejected records
-- Final status
+Accepted events retain normalised fields and their original JSON.
 
-The total number of records must equal accepted plus rejected.
+Stage 1 evidence uses SHA-256 hashing and protected file permissions. Stage 3 uses SHA-256 alert keys for duplicate protection; it does not yet hash every alert as separate preserved evidence.
 
 ## Parameterised SQL
 
-Event values are passed separately from the SQL statements.
+Event values are passed separately from SQL statements.
 
-This treats event content as data rather than executable SQL syntax.
-
-## Evidence protection
-
-Evidence is kept in an owner-only directory. Preserved files receive a SHA-256 hash and read-only permission.
-
-Hashing detects content changes. Read-only permission reduces accidental modification but is not enterprise immutable storage.
+This treats input as data rather than executable SQL syntax.
 
 ## Sandbox boundaries
 
 - Testing remains inside Ubuntu VirtualBox.
-- Stage 2 events are controlled and simulated.
-- Real external targets are prohibited.
-- SQL injection will target only the local test application.
+- Simulated events do not target real external systems.
+- SQL injection testing will use only the local test application.
 - Containment begins as a simulation.
 - Disruptive actions require approval.
-- The Windows host and public systems are outside scope.
+- The Windows host and public systems remain outside scope.
