@@ -110,6 +110,44 @@ CREATE TABLE IF NOT EXISTS identity_alerts (
     investigation_notes TEXT
 );
 
+CREATE TABLE IF NOT EXISTS network_alerts (
+    alert_id INTEGER PRIMARY KEY AUTOINCREMENT,
+    alert_key TEXT NOT NULL UNIQUE,
+    created_at TEXT NOT NULL,
+    detection_type TEXT NOT NULL,
+    severity TEXT NOT NULL
+        CHECK (
+            severity IN (
+                'Low',
+                'Medium',
+                'High',
+                'Critical'
+            )
+        ),
+    first_event_time TEXT NOT NULL,
+    last_event_time TEXT NOT NULL,
+    source_event_ids TEXT NOT NULL,
+    source_types TEXT NOT NULL,
+    ip_address TEXT,
+    mac_address TEXT,
+    hostname TEXT,
+    username TEXT,
+    location TEXT,
+    evidence TEXT NOT NULL,
+    status TEXT NOT NULL DEFAULT 'New'
+        CHECK (
+            status IN (
+                'New',
+                'Investigating',
+                'Confirmed',
+                'False Positive',
+                'Closed'
+            )
+        ),
+    classification TEXT,
+    investigation_notes TEXT
+);
+
 CREATE INDEX IF NOT EXISTS idx_security_events_time
 ON security_events(event_time);
 
@@ -136,3 +174,18 @@ ON identity_alerts(severity);
 
 CREATE INDEX IF NOT EXISTS idx_identity_alerts_status
 ON identity_alerts(status);
+
+CREATE INDEX IF NOT EXISTS idx_network_alerts_type
+ON network_alerts(detection_type);
+
+CREATE INDEX IF NOT EXISTS idx_network_alerts_severity
+ON network_alerts(severity);
+
+CREATE INDEX IF NOT EXISTS idx_network_alerts_status
+ON network_alerts(status);
+
+CREATE INDEX IF NOT EXISTS idx_network_alerts_mac
+ON network_alerts(mac_address);
+
+CREATE INDEX IF NOT EXISTS idx_network_alerts_ip
+ON network_alerts(ip_address);

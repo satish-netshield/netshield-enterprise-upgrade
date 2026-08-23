@@ -8,25 +8,27 @@ This handbook explains the engineering approach used while building NetShield Ph
 
 It complements the README by focusing on the engineering journey rather than explaining every technical detail.
 
-This version records the work completed through Stage 3.
+This version records the work completed through Stage 4.
 
 ## Engineering Goals
 
 The goal of NetShield Phase 3 is to build a security automation platform inside a controlled Ubuntu sandbox.
 
-The project is being developed one stage at a time. Each stage must be built, tested, understood, documented and validated before moving to the next.
+The project is developed one stage at a time. Each stage is built, tested, understood, documented and validated before the next stage begins.
 
 Stage 1 created the safe environment and access controls.
 
 Stage 2 created the security data pipeline needed to collect, validate, normalise and store events.
 
-Stage 3 added identity and authentication detection using the accepted authentication events.
+Stage 3 added identity and authentication detection.
 
-The remaining stages will add network and Wi-Fi detection, correlation, incident handling and controlled response.
+Stage 4 added network, CYOD and Wi-Fi detection with MAC-based correlation.
+
+The remaining stages will add endpoint monitoring, further correlation, incident handling and controlled response.
 
 ## Engineering Principles
 
-The following engineering principles guide the project:
+The following principles guide the project:
 
 - Understand before changing.
 - Build one stage at a time.
@@ -36,14 +38,14 @@ The following engineering principles guide the project:
 - Keep disruptive actions controlled.
 - Preserve original evidence.
 - Reject invalid or inconsistent data.
-- Prevent duplicate accepted records and alert flooding.
+- Prevent duplicate records and alert flooding.
 - Revalidate earlier work after changes.
 - Fix genuine issues only.
 - Record meaningful engineering decisions.
 - Keep documentation aligned with the implementation.
 - Let Git history reflect the engineering process.
 - Write as the engineer who built the project.
-- Keep the writing simple, honest, technically accurate and easy to learn from.
+- Keep the writing simple, honest and technically accurate.
 
 ## What Was Built
 
@@ -63,29 +65,25 @@ The following components have been completed.
 - IP allowlist and simulated blocklist
 - Automation-action ACL
 - Evidence hashing and protection
-- Stage 1 unit tests and validation
+- Stage 1 tests and validation
 
 ### Stage 2 — Security Data Pipeline
 
 - Safe simulated security events
-- Authentication event source
-- Network event source
-- Wi-Fi and CYOD event source
-- Endpoint and CPU event source
-- Application event source
+- Authentication, network, Wi-Fi, endpoint and application sources
 - JSONL event collector
 - Event validation and normalisation
-- Accepted security-event storage
+- UTC timestamp handling
+- Accepted-event storage
 - Rejected-event storage
 - Duplicate-event protection
 - Import-batch tracking
 - Raw-event preservation
-- Stage 2 unit tests and validation
+- Stage 2 tests and validation
 
 ### Stage 3 — Identity and Authentication Detection
 
 - Configurable identity-detection rules
-- Simulated authentication scenarios
 - Repeated failed-login detection
 - Possible brute-force detection
 - Successful login after repeated failures
@@ -98,111 +96,114 @@ The following components have been completed.
 - Duplicate-alert protection
 - False-positive investigation
 - Identity-alert storage and audit records
-- Stage 3 unit tests and validation
+- Stage 3 tests and validation
+
+### Stage 4 — Network, CYOD and Wi-Fi Detection
+
+- Controlled network and Wi-Fi event generation
+- Suspicious IP detection
+- Repeated connection detection
+- Port-scanning detection
+- Unknown CYOD and unregistered MAC detection
+- MAC reuse or possible spoofing detection
+- Wi-Fi zone checks
+- WPA3 policy checks
+- WPA2 downgrade detection
+- Rogue access-point detection
+- MAC-based alert correlation
+- Duplicate-alert protection
+- Stage 4 tests and validation
 
 ## Major Engineering Decisions
 
-The following decisions helped keep the project safe, simple and reliable.
+The following decisions kept the project safe, simple and easy to test:
 
-- Ubuntu VirtualBox was used to keep testing separate from the Windows host and public systems.
-- The Python standard library was used to keep the foundation small and easy to inspect.
-- SQLite was selected because it is lightweight and suitable for a single-VM lab.
-- JSON configuration files were used so project rules could be changed without rewriting the main program logic.
-- Default deny was used so unknown roles, permissions, actions and event sources were not trusted automatically.
-- RBAC was used to separate Viewer, Analyst, Responder and Administrator permissions.
-- The automation ACL separated automatic, approval-required and manual-only actions.
-- CYOD was selected because an approved device inventory is easier to test and explain than unrestricted BYOD.
-- JSONL was selected because each event can be processed one line at a time.
-- Event timestamps were converted to UTC so later stages can use one investigation timeline.
-- Invalid input was preserved with a failure reason instead of being deleted silently.
-- Duplicate events and duplicate alerts were prevented from flooding accepted records.
-- Accepted events retained their original JSON as well as their normalised values.
-- Identity rules were kept configurable so thresholds can be tuned after testing.
-- Known VPN addresses were treated as exceptions for selected baseline and travel checks.
-- A new-device alert was investigated instead of automatically containing the device.
-- The approved replacement device was classified as a false positive because inventory registration was incomplete.
-- Parameterised SQL was used so event values were treated as data rather than SQL instructions.
+- Ubuntu VirtualBox keeps testing separate from the Windows host and public systems.
+- The Python standard library keeps the foundation small and easy to inspect.
+- SQLite suits this single-VM learning environment.
+- JSON configuration keeps security rules separate from program logic.
+- Default deny prevents unknown roles, actions, sources and values from being trusted.
+- CYOD provides a controlled device inventory for testing.
+- The MAC address is the primary CYOD matching value, while IP, hostname, user and location provide supporting evidence.
+- JSONL allows one malformed record to be rejected without stopping the complete file.
+- Network and Wi-Fi files remain separate because the existing collector checks the event source against the filename.
+- Network and Wi-Fi evidence is correlated after successful validation and storage.
+- UTC timestamps provide one timeline for events from different sources and locations.
+- Invalid input is preserved with a reason instead of being silently deleted.
+- Alert keys prevent repeated detector runs from creating duplicate alerts.
+- Disruptive actions require verification and approval.
+- A rogue access point is detected but not automatically stopped because shutdown requires approval.
 
 ## Improvements Made
 
-The project improved as each stage was added.
+The project improved as each stage was added:
 
-- Expanded the original SQLite schema to store security events and identity alerts.
-- Added separate storage for rejected records.
-- Added import-batch tracking and search indexes.
+- Expanded the SQLite schema for security events, identity alerts and network alerts.
+- Added rejected-event and import-batch tracking.
 - Added validation for timestamps, IP addresses, MAC addresses and CPU values.
 - Added source-type verification.
-- Added duplicate-event protection.
 - Added raw-event preservation.
-- Added isolated pipeline tests using temporary databases.
-- Added identity detection tests for thresholds, travel, VPN exceptions and role changes.
-- Added duplicate-alert protection for repeated detector runs.
-- Added false-positive classification with investigation notes and audit records.
-- Corrected the Stage 2 validator so new Stage 3 authentication events did not break earlier validation.
-- Re-ran all earlier tests after the Stage 3 changes.
-- Confirmed that Stage 3 did not break the Stage 1 or Stage 2 security controls.
-- Updated the project documentation to match the implemented stages.
+- Added identity detection and false-positive investigation.
+- Added network and Wi-Fi detection rules.
+- Added MAC-focused alert correlation.
+- Added detection for MAC reuse or possible spoofing.
+- Added controlled test events for repeated connections and wireless policy violations.
+- Corrected the Stage 2 validator scope after Stage 3 added authentication events.
+- Corrected Stage 4 file generation after Wi-Fi records were rejected from a mixed source file.
+- Corrected the Stage 4 SQL placeholder count when four source files were supplied.
+- Corrected Stage 3 initialisation so Stage 4 setup did not reset completed Stage 3 metadata.
+- Re-ran earlier tests and validators after the Stage 4 changes.
 
 ## Testing Results
 
-The current project testing produced these results:
+The completed regression run produced these results:
 
 - 11 Stage 1 access-control tests passed.
 - 11 Stage 2 normalisation tests passed.
 - 6 Stage 2 pipeline tests passed.
 - 11 Stage 3 identity-detection tests passed.
-- 39 unit tests passed in total.
+- 5 Stage 4 network-correlation tests passed.
+- 44 unit tests passed in total.
 - Stage 1 validation passed 12/12.
 - Stage 2 validation passed 14/14.
 - Stage 3 validation passed 12/12.
+- Stage 4 validation passed 12/12.
 
-Stage 2 processed 19 simulated records:
+Stage 4 accepted 23 events and produced 12 correlated network alerts.
 
-- 15 valid records were accepted.
-- 4 deliberately malformed records were rejected.
-- Each original Stage 2 source stored 3 accepted events.
-
-Stage 3 processed 16 additional authentication events and produced 11 identity alerts.
-
-The second detection run created no duplicate alerts. The approved replacement-device alert was preserved and classified as a false positive.
+The repeated detector run created no new duplicate alerts. MAC reuse, repeated connections, WPA3 and WPA2 checks, rogue access-point detection and audit records were verified.
 
 ## Lessons Learned
 
-The first three stages have provided several useful engineering lessons.
+The first four stages have provided several useful lessons:
 
-- A safe foundation should be built before adding detection or automated response.
-- Configuration files make security rules easier to review and change.
+- A safe foundation should be built before detection or automated response.
 - Normalised data is easier to search and compare than inconsistent raw data.
-- UTC timestamps are important when events come from different locations.
-- Invalid data should be preserved and explained rather than silently ignored.
-- One malformed JSONL record does not need to stop the complete file import.
-- Duplicate protection prevents repeated detector runs from flooding the system.
-- Duplicate protection also needs future last-seen tracking for unresolved conditions.
+- Source validation should happen before cross-source correlation.
+- Network and Wi-Fi sources can be correlated without placing them in the same input file.
+- A MAC address is useful for CYOD matching but can be copied or spoofed.
+- A restricted location is evidence for investigation, not automatic proof of compromise.
 - A security alert is not always proof of malicious activity.
-- A legitimate replacement device can appear suspicious when inventory registration is incomplete.
-- Impossible travel and MFA anomalies should be correlated before final severity is assigned.
-- Unit tests and validation should be repeated after every major stage.
-- A validator must check the correct scope when later stages add new data.
-- Real test failures and rejected records provide useful engineering evidence.
-- Asking why each component exists makes the project easier to understand.
-- Documentation is easier to maintain when it is updated with the actual work.
+- Duplicate protection reduces alert noise but does not replace continuous monitoring.
+- Real test failures show where components do not connect correctly.
+- Earlier validators must be checked when later stages add new data.
+- Initial severity should be reassessed when several strong detections occur together.
+- Documentation should be updated from the actual implementation and test results.
+- LAN access, restricted server-room privileges and endpoint CPU correlation require additional data that is not yet available in Stage 4.
 
 ## Future Expansion
 
-Stages 1, 2 and 3 provide the foundation for the remaining NetShield Phase 3 stages.
+Stages 1–4 provide the foundation for the remaining NetShield Phase 3 work.
 
-Future work will include:
+Future expansion will include:
 
-- Network, CYOD and Wi-Fi detection
-- Device consistency checks
-- Suspicious IP and port-scanning detection
-- WPA3 policy checks
-- WPA2 downgrade attempts
-- Wi-Fi heat-map zone investigation
-- Unknown wired and wireless device detection
+- Wired LAN checks for restricted areas
+- Server-room and physical-zone privileges
+- Switch-port or VLAN authorisation
 - Endpoint and high-CPU monitoring
+- Approved CPU stress-test records
+- Correlation between identity, network and endpoint evidence
 - Local SQL injection testing
-- Event correlation and risk scoring
 - Indicator of Compromise extraction
 - Incident records and evidence handling
 - Inventory verification requests

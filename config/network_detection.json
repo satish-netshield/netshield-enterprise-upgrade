@@ -1,0 +1,76 @@
+{
+  "stage": 4,
+  "version": "0.1.0",
+  "environment": "sandbox",
+  "thresholds": {
+    "repeated_connection_attempts": 5,
+    "connection_window_minutes": 2,
+    "port_scan_unique_ports": 5,
+    "port_scan_window_minutes": 2,
+    "mac_reuse_overlap_minutes": 2
+  },
+  "correlation": {
+    "primary_device_identity": "mac_address",
+    "supporting_evidence": [
+      "ip_address",
+      "hostname",
+      "username",
+      "location",
+      "event_time",
+      "event_type"
+    ],
+    "group_related_events_by_mac": true,
+    "notify_inventory_team_for_unregistered_mac": true,
+    "detect_mac_reuse_or_spoofing": true
+  },
+  "network_policy": {
+    "approved_ip_sources": [
+      "allowlist",
+      "known_vpn"
+    ],
+    "documentation_networks_are_simulated": true,
+    "real_external_targets_allowed": false
+  },
+  "wifi_policy": {
+    "required_security": "WPA3",
+    "allowed_cipher": "AES",
+    "allow_wpa2_downgrade": false,
+    "allow_open_networks": false
+  },
+  "approved_zones": [
+    "Lab Zone A"
+  ],
+  "restricted_zones": [
+    "Lab Zone B",
+    "Parking Lot",
+    "Public Area"
+  ],
+  "detection_rules": {
+    "unknown_cyod_device": true,
+    "unregistered_mac_address": true,
+    "device_inventory_mismatch": true,
+    "mac_reuse_or_spoofing": true,
+    "suspicious_ip_address": true,
+    "repeated_connection_attempts": true,
+    "port_scanning": true,
+    "wpa3_policy_violation": true,
+    "wpa2_downgrade_attempt": true,
+    "rogue_access_point": true,
+    "wifi_zone_violation": true,
+    "unknown_wired_device": true
+  },
+  "severity": {
+    "Unknown CYOD Device": "High",
+    "Unregistered MAC Address": "High",
+    "Device Inventory Mismatch": "High",
+    "MAC Address Reuse or Possible Spoofing": "High",
+    "Suspicious IP Address": "Medium",
+    "Repeated Connection Attempts": "Medium",
+    "Port Scanning": "High",
+    "WPA3 Policy Violation": "High",
+    "WPA2 Downgrade Attempt": "High",
+    "Rogue Access Point": "Critical",
+    "Wi-Fi Zone Violation": "Medium",
+    "Unknown Wired Device": "High"
+  }
+}

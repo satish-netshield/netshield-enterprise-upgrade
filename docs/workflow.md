@@ -2,7 +2,7 @@
 
 ## Stage 1 — Environment and access control
 
-Stage 1 created the safe foundation before security detection work began.
+Stage 1 created the safe foundation before detection work began.
 
 ### Foundation
 
@@ -16,7 +16,7 @@ Stage 1 created the safe foundation before security detection work began.
 
 1. Identify the user role.
 2. Allow only explicitly assigned permissions.
-3. Check the automation ACL before every response action.
+3. Check the automation ACL before response actions.
 4. Require approval for disruptive actions.
 5. Deny unknown roles, permissions and actions.
 
@@ -53,7 +53,7 @@ Stage 2 prepared consistent events for later detection.
 1. Create an import batch for each source file.
 2. Read one JSONL record at a time.
 3. Parse and validate the JSON object.
-4. Confirm required fields and approved source type.
+4. Confirm required fields and the approved source type.
 5. Convert timestamps to UTC.
 6. Validate IP addresses, MAC addresses and CPU values.
 7. Store accepted events in SQLite.
@@ -105,7 +105,7 @@ Stage 3 used accepted authentication events to identify suspicious identity acti
 2. Store the detection type, severity, events and evidence.
 3. Ignore duplicate copies of the same alert.
 4. Record detection activity in the audit trail.
-5. Keep alerts available for later investigation and correlation.
+5. Keep alerts available for investigation and later correlation.
 
 ### False-positive investigation
 
@@ -121,14 +121,14 @@ The replacement laptop was authorised but missing from the CYOD inventory, so it
 
 - A five-minute failure window may be too broad and should be reviewed during later tuning.
 - Severity should increase when strong detections occur together.
-- An approved device can still be a valid new-device alert if inventory registration is incomplete.
-- Duplicate protection prevents alert flooding but does not yet track unresolved conditions over time.
-- Stage 4 should correlate identity alerts with CYOD, Wi-Fi, WPA3, IP and device-consistency evidence.
+- An approved device can still create a valid new-device alert when inventory registration is incomplete.
+- Duplicate protection prevents alert flooding but does not track unresolved conditions over time.
+- Later stages should correlate identity alerts with CYOD, Wi-Fi, network and endpoint evidence.
 
 ### Stage 3 validation
 
 1. Compile all project files.
-2. Run all Stage 1–3 unit tests.
+2. Run the Stage 1–3 unit tests.
 3. Re-run the Stage 1 and Stage 2 validators.
 4. Confirm 16 Stage 3 events were imported.
 5. Confirm 11 identity alerts were created.
@@ -138,3 +138,82 @@ The replacement laptop was authorised but missing from the CYOD inventory, so it
 9. Run the Stage 3 validator.
 
 Result: 39 unit tests passed, Stage 1 passed 12/12, Stage 2 passed 14/14 and Stage 3 passed 12/12.
+
+## Stage 4 — Network, CYOD and Wi-Fi detection
+
+Stage 4 used accepted network and Wi-Fi events to detect suspicious device and wireless activity.
+
+### Event preparation
+
+1. Generate controlled network and Wi-Fi events.
+2. Keep network and Wi-Fi records in separate source files.
+3. Import both sources into the shared `security_events` table.
+4. Generate additional events for repeated connections and MAC reuse.
+5. Import the correlation events without changing the earlier pipeline rules.
+
+The files remained separate because the existing collector requires the event source type to match the source filename. Correlation takes place after both sources have been validated and stored.
+
+### Network and device detection
+
+1. Load accepted Stage 4 events from SQLite.
+2. Compare MAC addresses with the CYOD inventory.
+3. Check suspicious IP addresses.
+4. Detect repeated connection attempts.
+5. Detect port-scanning behaviour.
+6. Detect unknown or unregistered devices.
+7. Preserve the related source-event evidence.
+
+### Wi-Fi detection
+
+1. Check whether the MAC address is registered.
+2. Check the observed Wi-Fi zone.
+3. Check WPA3 and AES compliance.
+4. Detect WPA3 policy violations.
+5. Detect WPA2 downgrade attempts.
+6. Detect unauthorised or open access points.
+7. Detect rogue access points.
+8. Preserve the original event evidence.
+
+### Alert correlation
+
+1. Group related alerts by MAC address.
+2. Compare IP address, hostname, username, location and event time.
+3. Preserve high-impact detections such as port scanning, WPA3 violations, WPA2 downgrade attempts and rogue access points.
+4. Detect conflicting use of the same MAC address.
+5. Create a MAC-reuse or possible-spoofing alert when the evidence supports it.
+6. Save one correlated alert for each unique alert key.
+7. Record the detection run in the audit trail.
+
+### Problems found and solved
+
+- Wi-Fi records were initially placed in a network-named file and were rejected by source verification.
+- The event generator was changed to create separate network and Wi-Fi files.
+- The detection runner initially supplied four files to a query with only two placeholders.
+- The runner was changed to create the correct number of SQL placeholders dynamically.
+- The Stage 3 initializer reset completed metadata while creating the Stage 4 table.
+- The initializer was changed to preserve the completed Stage 3 status.
+
+### Stage 4 validation
+
+1. Compile all project files.
+2. Run the Stage 1–4 unit tests.
+3. Run the Stage 1, Stage 2, Stage 3 and Stage 4 validators.
+4. Confirm 23 accepted Stage 4 events.
+5. Confirm the expected network and Wi-Fi source totals.
+6. Confirm 12 correlated network alerts.
+7. Confirm MAC reuse detection.
+8. Confirm repeated connections were grouped.
+9. Confirm the rogue access point was classified as Critical.
+10. Run the detector again to confirm duplicate protection.
+11. Confirm Stage 4 audit records and metadata.
+
+Result: 44 unit tests passed. Stage 1 passed 12/12, Stage 2 passed 14/14, Stage 3 passed 12/12 and Stage 4 passed 12/12.
+
+### What was learned
+
+- Network and Wi-Fi sources can be correlated without placing them in the same input file.
+- Source validation should be completed before cross-source correlation.
+- MAC address is useful as the primary CYOD identity, but supporting evidence is still required.
+- A restricted location is evidence for investigation, not automatic proof of compromise.
+- Duplicate protection reduces alert noise but does not replace continuous monitoring.
+- The next stage should add wired LAN checks, restricted server-room privileges and endpoint CPU/process correlation.
