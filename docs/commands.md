@@ -164,6 +164,52 @@ Validate Stage 4:
 python -m scripts.validate_stage4
 ```
 
+## Stage 5
+
+Validate the configuration:
+
+```bash
+python -m json.tool config/endpoint_detection.json > /dev/null
+```
+
+Generate endpoint and wired-LAN events:
+
+```bash
+python -m scripts.generate_stage5_events
+```
+
+Review generated event counts:
+
+```bash
+wc -l \
+  data/raw/stage5/endpoint_stage5_events.jsonl \
+  data/raw/stage5/network_stage5_events.jsonl
+```
+
+Initialise Stage 5 storage:
+
+```bash
+python -m scripts.initialize_stage5
+```
+
+Import Stage 5 events:
+
+```bash
+python -m scripts.import_stage5_events
+```
+
+Run endpoint and wired-LAN detection:
+
+```bash
+python -m scripts.run_stage5_detection
+```
+
+Validate Stage 5:
+
+```bash
+python -m scripts.validate_stage5
+```
+
 ## Unit tests
 
 Stage 1:
@@ -196,6 +242,12 @@ Stage 4 network correlation:
 python -m unittest -v tests.test_stage4_network_correlation
 ```
 
+Stage 5 endpoint detection:
+
+```bash
+python -m unittest -v tests.test_stage5_endpoint_detector
+```
+
 All current tests:
 
 ```bash
@@ -204,7 +256,8 @@ python -m unittest -v \
   tests.test_stage2_normalizer \
   tests.test_stage2_pipeline \
   tests.test_stage3_identity_detector \
-  tests.test_stage4_network_correlation
+  tests.test_stage4_network_correlation \
+  tests.test_stage5_endpoint_detector
 ```
 
 ## Complete validation
@@ -217,12 +270,14 @@ python -m unittest -q \
   tests.test_stage2_normalizer \
   tests.test_stage2_pipeline \
   tests.test_stage3_identity_detector \
-  tests.test_stage4_network_correlation
+  tests.test_stage4_network_correlation \
+  tests.test_stage5_endpoint_detector
 
 python -m scripts.validate_stage1
 python -m scripts.validate_stage2
 python -m scripts.validate_stage3
 python -m scripts.validate_stage4
+python -m scripts.validate_stage5
 
 git diff --check
 ```
@@ -242,6 +297,7 @@ Useful commands:
 .schema security_events
 .schema identity_alerts
 .schema network_alerts
+.schema endpoint_alerts
 .quit
 ```
 
@@ -283,6 +339,24 @@ SELECT
     location,
     status
 FROM network_alerts
+ORDER BY alert_id;
+```
+
+Review endpoint alerts:
+
+```sql
+SELECT
+    alert_id,
+    detection_type,
+    severity,
+    mac_address,
+    hostname,
+    username,
+    location,
+    process_name,
+    cpu_percent,
+    status
+FROM endpoint_alerts
 ORDER BY alert_id;
 ```
 
@@ -328,6 +402,29 @@ Review stage metadata:
 SELECT key, value
 FROM system_metadata
 ORDER BY key;
+```
+
+Review Stage 5 accepted events:
+
+```sql
+SELECT
+    source_event_id,
+    event_time,
+    source_type,
+    event_type,
+    mac_address,
+    hostname,
+    username,
+    location,
+    process_name,
+    cpu_percent,
+    status
+FROM security_events
+WHERE source_file IN (
+    'endpoint_stage5_events.jsonl',
+    'network_stage5_events.jsonl'
+)
+ORDER BY event_time;
 ```
 
 ## Evidence verification

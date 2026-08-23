@@ -1,0 +1,97 @@
+{
+  "stage": 5,
+  "version": "0.1.0",
+  "environment": "sandbox",
+  "thresholds": {
+    "cpu_warning_percent": 80,
+    "cpu_critical_percent": 95,
+    "cpu_window_minutes": 2,
+    "repeated_cpu_events": 3,
+    "lan_access_window_minutes": 2,
+    "mac_reuse_overlap_minutes": 2
+  },
+  "simulated_user_roles": {
+    "netshield01": "administrator",
+    "analyst01": "analyst",
+    "responder01": "responder",
+    "trainee01": "viewer",
+    "unknown01": "unknown"
+  },
+  "endpoint_policy": {
+    "approved_stress_test_ids": [
+      "CPU-TEST-APPROVED-001"
+    ],
+    "approved_processes": [
+      "stress-ng",
+      "controlled_cpu_test"
+    ],
+    "unknown_process_severity": "High",
+    "unexpected_cpu_severity": "High",
+    "critical_cpu_severity": "Critical"
+  },
+  "wired_access_policy": {
+    "approved_zones": [
+      "Lab Zone A"
+    ],
+    "restricted_zones": [
+      "Server Room",
+      "Lab Zone B",
+      "Parking Lot",
+      "Public Area"
+    ],
+    "approved_roles_by_zone": {
+      "Lab Zone A": [
+        "viewer",
+        "analyst",
+        "responder",
+        "administrator"
+      ],
+      "Server Room": [
+        "responder",
+        "administrator"
+      ]
+    },
+    "required_fields": [
+      "mac_address",
+      "username",
+      "hostname",
+      "location",
+      "ip_address",
+      "event_time",
+      "connection_type"
+    ]
+  },
+  "correlation": {
+    "primary_device_identity": "mac_address",
+    "supporting_evidence": [
+      "username",
+      "hostname",
+      "ip_address",
+      "location",
+      "process_name",
+      "cpu_percent",
+      "event_time",
+      "event_type"
+    ],
+    "correlate_identity_alerts": true,
+    "correlate_network_alerts": true,
+    "detect_mac_reuse_or_spoofing": true,
+    "mac_reuse_requires_conflicting_hostname_or_user": true
+  },
+  "detection_rules": {
+    "unexpected_cpu_spike": true,
+    "repeated_high_cpu": true,
+    "unauthorised_cpu_stress_test": true,
+    "unknown_endpoint_process": true,
+    "restricted_wired_access": true,
+    "server_room_privilege_violation": true,
+    "endpoint_network_correlation": true,
+    "mac_reuse_or_spoofing": true
+  },
+  "sandbox_policy": {
+    "simulated_events_only": true,
+    "real_external_targets_allowed": false,
+    "real_device_quarantine_allowed": false,
+    "disruptive_actions_require_approval": true
+  }
+}

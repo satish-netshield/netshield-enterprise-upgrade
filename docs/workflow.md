@@ -188,8 +188,8 @@ The files remained separate because the existing collector requires the event so
 
 - Wi-Fi records were initially placed in a network-named file and were rejected by source verification.
 - The event generator was changed to create separate network and Wi-Fi files.
-- The detection runner initially supplied four files to a query with only two placeholders.
-- The runner was changed to create the correct number of SQL placeholders dynamically.
+- The detection runner initially supplied four source files to a query with only two placeholders.
+- The runner was changed to create the correct number of placeholders dynamically.
 - The Stage 3 initializer reset completed metadata while creating the Stage 4 table.
 - The initializer was changed to preserve the completed Stage 3 status.
 
@@ -216,4 +216,81 @@ Result: 44 unit tests passed. Stage 1 passed 12/12, Stage 2 passed 14/14, Stage 
 - MAC address is useful as the primary CYOD identity, but supporting evidence is still required.
 - A restricted location is evidence for investigation, not automatic proof of compromise.
 - Duplicate protection reduces alert noise but does not replace continuous monitoring.
-- The next stage should add wired LAN checks, restricted server-room privileges and endpoint CPU/process correlation.
+- Wired LAN checks, restricted server-room privileges and endpoint CPU correlation should be added in the next stage.
+
+## Stage 5 — Endpoint and wired-LAN detection
+
+Stage 5 used endpoint and wired network events to detect unusual CPU activity, unknown processes and restricted wired access.
+
+### Event preparation
+
+1. Generate controlled endpoint and wired-LAN events.
+2. Write endpoint events to `endpoint_stage5_events.jsonl`.
+3. Write wired events to `network_stage5_events.jsonl` so the source type matches the existing collector rules.
+4. Import both files into the shared `security_events` table.
+5. Preserve duplicate records and their rejection reasons when the same events are imported again.
+
+### Endpoint detection
+
+1. Load accepted endpoint and network events from SQLite.
+2. Compare CPU usage with the configured warning and critical thresholds.
+3. Ignore the approved CPU stress-test record.
+4. Detect unapproved CPU stress tests.
+5. Detect critical CPU activity.
+6. Group repeated high-CPU activity for the same MAC within the configured time window.
+7. Detect unknown endpoint processes.
+8. Preserve the related event evidence.
+
+### Wired access detection
+
+1. Check the wired connection location.
+2. Compare the observed user role with the approved role for that zone.
+3. Detect analyst access to the restricted Server Room.
+4. Allow approved responder access to the Server Room.
+5. Group repeated restricted wired observations only when the MAC address, detection type, location and time window match.
+6. Keep different MAC addresses as separate device investigations.
+
+### MAC correlation
+
+1. Use the MAC address as the primary device identity.
+2. Use hostname and username as conflicting identity evidence.
+3. Compare event times to confirm overlap.
+4. Do not create MAC-reuse alerts from a location change alone.
+5. Save one alert for each unique detection key.
+6. Record the detection run in the audit trail.
+
+### Problems found and solved
+
+- The initial wired filename did not match the `network` source type, so the generator was corrected to create `network_stage5_events.jsonl` directly.
+- The endpoint-alert table was initially created only by the Stage 5 initializer. It was added to the tracked database schema so clean setup creates the table as well.
+- Simulated endpoint roles were added because the application role table contains only the project administrator.
+- A location change alone initially risked creating a MAC-reuse alert. The rule was corrected to require conflicting hostname or username evidence with time overlap.
+- Repeated restricted wired events were initially separate alerts. They were grouped by MAC, detection type, location and time window.
+- Approved responder access was initially treated as unauthorised until the simulated role mapping was applied.
+- Re-imported Stage 5 events were rejected as duplicates, confirming source-file and event-ID protection.
+
+### Stage 5 validation
+
+1. Compile all project files.
+2. Run the Stage 1–5 unit tests.
+3. Run the Stage 1–5 validators.
+4. Confirm 14 accepted Stage 5 events.
+5. Confirm 10 endpoint alerts.
+6. Confirm repeated high-CPU activity was grouped.
+7. Confirm repeated restricted wired access was grouped.
+8. Confirm the approved CPU stress test created no alert.
+9. Confirm location change alone did not create MAC reuse.
+10. Run the detector again to confirm duplicate protection.
+11. Confirm Stage 5 audit records and metadata.
+
+Observed result: 52 unit tests passed. Stage 1 passed 12/12, Stage 2 passed 14/14, Stage 3 passed 12/12, Stage 4 passed 12/12 and Stage 5 passed 12/12.
+
+### What was learned
+
+- Endpoint activity adds useful context to network and identity alerts.
+- High CPU usage is not automatically malicious because approved stress testing must be recognised.
+- A restricted wired connection is evidence for investigation and requires user, role, zone and device context.
+- MAC address remains a useful baseline, but hostname, username and time are needed to assess possible spoofing.
+- Grouping repeated observations reduces alert noise without combining different devices.
+- A clean tracked schema is important because runtime initialization alone can hide setup problems.
+- The next stage should improve unresolved-condition tracking, inventory verification and controlled response.

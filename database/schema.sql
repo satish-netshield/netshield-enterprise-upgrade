@@ -148,6 +148,46 @@ CREATE TABLE IF NOT EXISTS network_alerts (
     investigation_notes TEXT
 );
 
+CREATE TABLE IF NOT EXISTS endpoint_alerts (
+    alert_id INTEGER PRIMARY KEY AUTOINCREMENT,
+    alert_key TEXT NOT NULL UNIQUE,
+    created_at TEXT NOT NULL,
+    detection_type TEXT NOT NULL,
+    severity TEXT NOT NULL
+        CHECK (
+            severity IN (
+                'Low',
+                'Medium',
+                'High',
+                'Critical'
+            )
+        ),
+    first_event_time TEXT NOT NULL,
+    last_event_time TEXT NOT NULL,
+    source_event_ids TEXT NOT NULL,
+    source_types TEXT NOT NULL,
+    ip_address TEXT,
+    mac_address TEXT,
+    hostname TEXT,
+    username TEXT,
+    location TEXT,
+    process_name TEXT,
+    cpu_percent REAL,
+    evidence TEXT NOT NULL,
+    status TEXT NOT NULL DEFAULT 'New'
+        CHECK (
+            status IN (
+                'New',
+                'Investigating',
+                'Confirmed',
+                'False Positive',
+                'Closed'
+            )
+        ),
+    classification TEXT,
+    investigation_notes TEXT
+);
+
 CREATE INDEX IF NOT EXISTS idx_security_events_time
 ON security_events(event_time);
 
@@ -189,3 +229,33 @@ ON network_alerts(mac_address);
 
 CREATE INDEX IF NOT EXISTS idx_network_alerts_ip
 ON network_alerts(ip_address);
+
+CREATE INDEX IF NOT EXISTS idx_endpoint_alerts_type
+ON endpoint_alerts(detection_type);
+
+CREATE INDEX IF NOT EXISTS idx_endpoint_alerts_severity
+ON endpoint_alerts(severity);
+
+CREATE INDEX IF NOT EXISTS idx_endpoint_alerts_status
+ON endpoint_alerts(status);
+
+CREATE INDEX IF NOT EXISTS idx_endpoint_alerts_mac
+ON endpoint_alerts(mac_address);
+
+CREATE INDEX IF NOT EXISTS idx_endpoint_alerts_ip
+ON endpoint_alerts(ip_address);
+
+CREATE INDEX IF NOT EXISTS idx_endpoint_alerts_hostname
+ON endpoint_alerts(hostname);
+
+CREATE INDEX IF NOT EXISTS idx_endpoint_alerts_username
+ON endpoint_alerts(username);
+
+CREATE INDEX IF NOT EXISTS idx_endpoint_alerts_process
+ON endpoint_alerts(process_name);
+
+CREATE INDEX IF NOT EXISTS idx_endpoint_alerts_cpu
+ON endpoint_alerts(cpu_percent);
+
+CREATE INDEX IF NOT EXISTS idx_endpoint_alerts_time
+ON endpoint_alerts(first_event_time);

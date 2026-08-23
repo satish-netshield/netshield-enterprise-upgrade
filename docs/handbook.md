@@ -8,7 +8,7 @@ This handbook explains the engineering approach used while building NetShield Ph
 
 It complements the README by focusing on the engineering journey rather than explaining every technical detail.
 
-This version records the work completed through Stage 4.
+This version records the work completed through Stage 5.
 
 ## Engineering Goals
 
@@ -24,7 +24,9 @@ Stage 3 added identity and authentication detection.
 
 Stage 4 added network, CYOD and Wi-Fi detection with MAC-based correlation.
 
-The remaining stages will add endpoint monitoring, further correlation, incident handling and controlled response.
+Stage 5 added endpoint monitoring, CPU checks and wired-LAN access detection.
+
+The remaining stages will add further correlation, incident handling and controlled response.
 
 ## Engineering Principles
 
@@ -114,6 +116,21 @@ The following components have been completed.
 - Duplicate-alert protection
 - Stage 4 tests and validation
 
+### Stage 5 — Endpoint and Wired-LAN Detection
+
+- Controlled endpoint and wired-LAN event generation
+- Endpoint CPU monitoring
+- Approved and unauthorised CPU stress-test handling
+- Repeated high-CPU activity detection
+- Unknown endpoint-process detection
+- Restricted wired-access detection
+- Simulated Server Room privilege checks
+- Endpoint-alert storage
+- MAC-based endpoint correlation
+- Repeated wired-observation grouping
+- Duplicate-alert protection
+- Stage 5 tests and validation
+
 ## Major Engineering Decisions
 
 The following decisions kept the project safe, simple and easy to test:
@@ -124,13 +141,15 @@ The following decisions kept the project safe, simple and easy to test:
 - JSON configuration keeps security rules separate from program logic.
 - Default deny prevents unknown roles, actions, sources and values from being trusted.
 - CYOD provides a controlled device inventory for testing.
-- The MAC address is the primary CYOD matching value, while IP, hostname, user and location provide supporting evidence.
+- The MAC address is the primary device-matching value, while IP, hostname, user and location provide supporting evidence.
 - JSONL allows one malformed record to be rejected without stopping the complete file.
-- Network and Wi-Fi files remain separate because the existing collector checks the event source against the filename.
-- Network and Wi-Fi evidence is correlated after successful validation and storage.
+- Network, Wi-Fi, endpoint and wired-LAN files follow the existing source-type validation rules.
+- Network and endpoint evidence is correlated after successful validation and storage.
 - UTC timestamps provide one timeline for events from different sources and locations.
 - Invalid input is preserved with a reason instead of being silently deleted.
 - Alert keys prevent repeated detector runs from creating duplicate alerts.
+- Repeated observations are grouped only when they belong to the same device and detection context.
+- Approved CPU stress testing is recognised so legitimate testing is not reported as suspicious.
 - Disruptive actions require verification and approval.
 - A rogue access point is detected but not automatically stopped because shutdown requires approval.
 
@@ -138,7 +157,7 @@ The following decisions kept the project safe, simple and easy to test:
 
 The project improved as each stage was added:
 
-- Expanded the SQLite schema for security events, identity alerts and network alerts.
+- Expanded the SQLite schema for security events, identity alerts, network alerts and endpoint alerts.
 - Added rejected-event and import-batch tracking.
 - Added validation for timestamps, IP addresses, MAC addresses and CPU values.
 - Added source-type verification.
@@ -148,11 +167,18 @@ The project improved as each stage was added:
 - Added MAC-focused alert correlation.
 - Added detection for MAC reuse or possible spoofing.
 - Added controlled test events for repeated connections and wireless policy violations.
+- Added endpoint CPU and process detection.
+- Added restricted wired-access detection.
+- Added simulated role mappings for endpoint and Server Room testing.
+- Added grouping for repeated restricted wired observations.
 - Corrected the Stage 2 validator scope after Stage 3 added authentication events.
 - Corrected Stage 4 file generation after Wi-Fi records were rejected from a mixed source file.
 - Corrected the Stage 4 SQL placeholder count when four source files were supplied.
 - Corrected Stage 3 initialisation so Stage 4 setup did not reset completed Stage 3 metadata.
-- Re-ran earlier tests and validators after the Stage 4 changes.
+- Corrected the Stage 5 wired-event filename so it matched the `network` source type.
+- Added the Stage 5 endpoint-alert table to the tracked database schema.
+- Corrected MAC-reuse logic so a location change alone does not create a spoofing alert.
+- Re-ran earlier tests and validators after the Stage 5 changes.
 
 ## Testing Results
 
@@ -163,50 +189,53 @@ The completed regression run produced these results:
 - 6 Stage 2 pipeline tests passed.
 - 11 Stage 3 identity-detection tests passed.
 - 5 Stage 4 network-correlation tests passed.
-- 44 unit tests passed in total.
+- 8 Stage 5 endpoint-detection tests passed.
+- 52 unit tests passed in total.
 - Stage 1 validation passed 12/12.
 - Stage 2 validation passed 14/14.
 - Stage 3 validation passed 12/12.
 - Stage 4 validation passed 12/12.
+- Stage 5 validation passed 12/12.
 
-Stage 4 accepted 23 events and produced 12 correlated network alerts.
+Stage 5 accepted 14 events and produced 10 endpoint alerts.
 
-The repeated detector run created no new duplicate alerts. MAC reuse, repeated connections, WPA3 and WPA2 checks, rogue access-point detection and audit records were verified.
+The repeated detector run created no new duplicate alerts. Approved CPU stress testing, repeated high-CPU activity, unknown processes, restricted wired access and MAC-reuse safeguards were verified.
 
 ## Lessons Learned
 
-The first four stages have provided several useful lessons:
+The first five stages have provided several useful lessons:
 
 - A safe foundation should be built before detection or automated response.
 - Normalised data is easier to search and compare than inconsistent raw data.
 - Source validation should happen before cross-source correlation.
-- Network and Wi-Fi sources can be correlated without placing them in the same input file.
-- A MAC address is useful for CYOD matching but can be copied or spoofed.
+- Network, Wi-Fi, endpoint and wired-LAN sources can be correlated without placing them in the same input file.
+- A MAC address is useful for device matching but can be copied or spoofed.
+- Hostname, username and event time are needed to support a MAC-reuse decision.
 - A restricted location is evidence for investigation, not automatic proof of compromise.
+- Approved activity must be represented in the test data so it is not incorrectly reported.
+- High CPU usage is not automatically malicious.
+- Repeated observations should be grouped without combining different devices.
 - A security alert is not always proof of malicious activity.
 - Duplicate protection reduces alert noise but does not replace continuous monitoring.
 - Real test failures show where components do not connect correctly.
 - Earlier validators must be checked when later stages add new data.
-- Initial severity should be reassessed when several strong detections occur together.
+- A tracked schema is important because runtime initialization alone can hide setup problems.
 - Documentation should be updated from the actual implementation and test results.
-- LAN access, restricted server-room privileges and endpoint CPU correlation require additional data that is not yet available in Stage 4.
 
 ## Future Expansion
 
-Stages 1–4 provide the foundation for the remaining NetShield Phase 3 work.
+Stages 1–5 provide the foundation for the remaining NetShield Phase 3 work.
 
 Future expansion will include:
 
-- Wired LAN checks for restricted areas
-- Server-room and physical-zone privileges
-- Switch-port or VLAN authorisation
-- Endpoint and high-CPU monitoring
-- Approved CPU stress-test records
+- Last-seen and observation-count tracking
+- Inventory verification requests
+- Switch-port and VLAN authorisation
+- More endpoint process baselines
 - Correlation between identity, network and endpoint evidence
 - Local SQL injection testing
 - Indicator of Compromise extraction
 - Incident records and evidence handling
-- Inventory verification requests
 - Controlled containment
 - Eradication and recovery
 - Complete clean-state project validation and sign-off

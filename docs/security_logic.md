@@ -15,6 +15,8 @@ Unknown roles, permissions, actions, event sources and invalid fields are denied
 
 Application RBAC controls NetShield decisions. It does not create separate Ubuntu users.
 
+Stage 5 uses simulated role mappings for endpoint and wired-LAN testing because the application role table contains only the project administrator.
+
 ## Automation-action ACL
 
 - Automatic: alert creation, evidence hashing, log preservation and simulated monitoring actions.
@@ -49,6 +51,8 @@ The event source type must match the source filename. Unsupported or incorrectly
 
 Network and Wi-Fi events are imported separately and correlated after validation.
 
+Stage 5 endpoint events use `endpoint_stage5_events.jsonl`. Wired-LAN events use the `network` source type and are stored in `network_stage5_events.jsonl`.
+
 ## Event validation
 
 Every accepted event requires:
@@ -73,6 +77,8 @@ The rejected record preserves its source filename, line number, original input a
 The source filename and source event ID must be unique.
 
 The first valid event is accepted. A later copy is rejected and preserved as a duplicate.
+
+Stage 5 re-import testing rejected all 14 repeated events and did not increase the accepted-event total.
 
 ## Identity detection logic
 
@@ -132,6 +138,66 @@ Conflicting identity evidence for one MAC can create a MAC-reuse or possible-spo
 
 High-impact detections such as port scanning, WPA3 violations, WPA2 downgrade attempts and rogue access points are preserved during correlation.
 
+## Endpoint and wired-LAN detection logic
+
+Stage 5 uses the MAC address as the primary endpoint identity.
+
+Supporting evidence includes:
+
+- Hostname
+- Username
+- Process name
+- CPU percentage
+- Location
+- Event time
+- Event type
+- Wired connection status
+- Switch port
+- VLAN
+
+The endpoint rules detect:
+
+- Unexpected CPU activity.
+- Repeated high CPU activity.
+- Unauthorised CPU stress tests.
+- Unknown endpoint processes.
+- Restricted wired access.
+- Possible MAC reuse or spoofing.
+
+Approved CPU stress tests are excluded when the approved test identifier and process match the configured policy.
+
+CPU activity is classified using the configured thresholds:
+
+- Warning CPU activity: 80 percent or higher.
+- Critical CPU activity: 95 percent or higher.
+- Repeated high CPU activity: three qualifying events within the configured time window.
+
+## Wired-LAN access rules
+
+`Lab Zone A` is approved for the simulated test roles.
+
+The simulated Server Room policy permits responder and administrator access.
+
+Analyst, trainee and unknown-user access to the Server Room creates a High severity restricted-wired-access alert.
+
+A restricted wired event is evidence for investigation. It is not automatic proof of compromise.
+
+Repeated restricted wired observations are grouped only when the MAC address, detection type, location and time window match.
+
+Different MAC addresses remain separate investigations.
+
+## Stage 5 MAC reuse rules
+
+A location change alone does not create a MAC-reuse alert.
+
+Possible MAC reuse requires:
+
+- The same MAC address.
+- Conflicting hostname or username evidence.
+- Overlapping event times within the configured window.
+
+This prevents a normal movement between zones from being treated as spoofing while still identifying conflicting device identity evidence.
+
 ## Correlated severity
 
 A single detection may require investigation before escalation.
@@ -141,6 +207,10 @@ Impossible travel combined with MFA failure, brute force, a suspicious successfu
 Suspicious role changes should be assessed according to the actual privilege change and authorisation rather than always being treated as Critical.
 
 A rogue access point is currently classified as Critical because it can expose devices to an unauthorised wireless network.
+
+Unexpected CPU activity is Critical when it reaches the configured critical threshold.
+
+Unauthorised CPU stress tests, unknown processes and restricted wired access are High severity in the current baseline.
 
 ## Alert protection
 
@@ -154,19 +224,25 @@ A new-device alert is not automatically proof of compromise.
 
 The replacement laptop was authorised but had not yet been registered in the CYOD inventory. The alert was preserved, investigated and classified as a false positive with an audit record.
 
-The correct follow-up is to verify and register the device, then recheck the detection.
+Approved CPU stress testing is also excluded from endpoint alerts when it matches the configured approval record.
+
+The correct follow-up is to verify the device or activity, update the inventory or approval record when appropriate, and recheck the detection.
 
 ## Raw events and evidence
 
 Accepted events retain normalised fields and their original JSON.
 
-Stage 1 evidence uses SHA-256 hashing and protected file permissions. Stage 3 and Stage 4 use SHA-256 alert keys for duplicate protection; they do not yet hash every alert as separate preserved evidence.
+Stage 1 evidence uses SHA-256 hashing and protected file permissions.
+
+Stage 3, Stage 4 and Stage 5 use SHA-256 alert keys for duplicate protection. They do not yet hash every alert as separate preserved evidence.
 
 ## Parameterised SQL
 
 Event values are passed separately from SQL statements.
 
 This treats input as data rather than executable SQL syntax.
+
+Stage 4 required dynamic SQL placeholders when several source files were queried together.
 
 ## Sandbox boundaries
 
@@ -185,13 +261,24 @@ This treats input as data rather than executable SQL syntax.
 - The Stage 3 initializer was corrected so Stage 4 setup did not reset completed Stage 3 metadata.
 - Stage 4 validation passed 12/12 and the full regression run passed 44 tests.
 
+## Stage 5 integration lessons
+
+- The initial wired event filename did not match the `network` source type.
+- The generator was corrected to create `network_stage5_events.jsonl` directly.
+- The endpoint-alert table was added to the tracked schema instead of relying only on runtime initialization.
+- Simulated role mappings were added for endpoint and wired-LAN testing.
+- A location-only MAC change was rejected as insufficient evidence for spoofing.
+- Repeated restricted wired observations were grouped by MAC, detection type, location and time.
+- Approved responder access was allowed while analyst access to the Server Room generated an alert.
+- Stage 5 validation passed 12/12 and the complete regression run passed 52 tests.
+
 ## Future expansion
 
 The next stage should add:
 
-- Wired LAN checks for restricted areas.
-- Server-room and physical-zone privileges.
-- Switch-port or VLAN authorisation.
-- Endpoint CPU and process correlation.
-- Approved CPU stress-test records.
-- Continued investigation of MAC reuse and possible spoofing.
+- Last-seen and observation-count tracking.
+- Inventory verification tasks for unresolved devices.
+- Switch-port and VLAN authorisation checks.
+- More endpoint process baselines.
+- Controlled containment workflows.
+- Incident records and approved response actions.

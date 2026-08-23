@@ -59,6 +59,31 @@
 - Stage 4 validation passed 12/12.
 - The complete regression run passed 44 tests.
 
+## Stage 5 observations
+
+- Stage 5 generated 10 endpoint events and 4 wired-LAN events.
+- The first wired file was named `wired_stage5_events.jsonl`, but its records used source type `network`.
+- The importer rejected the wired records because the source type did not match the filename.
+- The generator was corrected to create `network_stage5_events.jsonl` directly.
+- The corrected generator produced 14 events with the expected endpoint and network filenames.
+- The endpoint-alert table was initially created only by the Stage 5 initializer.
+- The tracked database schema was updated so clean initialization also creates `endpoint_alerts`.
+- The first detector run created a MAC-reuse alert from a location change alone.
+- The MAC-reuse rule was corrected to require conflicting hostname or username evidence with time overlap.
+- Simulated role mappings were added because the application role table contains only the project administrator.
+- Analyst access to the simulated Server Room created a High restricted-wired-access alert.
+- Approved responder access to the same zone did not create an alert.
+- The approved CPU stress test did not create an alert.
+- Unapproved CPU stress tests, unexpected CPU activity and unknown endpoint processes were detected.
+- Three high-CPU events from the same MAC were grouped as Repeated High CPU Activity.
+- Two restricted wired events from the same MAC, zone and time window were grouped into one alert.
+- Different MAC addresses remain separate investigations.
+- Re-importing the generated events rejected all 14 records as duplicates without increasing the accepted-event total.
+- A repeated detector run created zero new alerts and counted 10 existing alerts.
+- Eight Stage 5 detector tests passed.
+- Stage 5 validation passed 12/12.
+- The complete Stage 1–5 regression run passed 52 tests.
+
 ## Rejected records
 
 Stage 2 deliberately rejected:
@@ -70,7 +95,11 @@ Stage 2 deliberately rejected:
 | Endpoint | CPU percentage above 100 |
 | Network | Invalid IP address |
 
-The first mixed Stage 4 file also rejected six Wi-Fi records because the source type did not match the filename. These records remained available for troubleshooting and did not enter the accepted-event table.
+The first mixed Stage 4 file rejected six Wi-Fi records because the source type did not match the filename.
+
+The first Stage 5 wired file was also rejected because its `network` source type did not match the filename. The generator was corrected, and the repeated import was later rejected correctly as duplicate data.
+
+Rejected records remained available for troubleshooting and did not enter the accepted-event table.
 
 ## Engineering decisions
 
@@ -79,10 +108,14 @@ The first mixed Stage 4 file also rejected six Wi-Fi records because the source 
 - Source-type verification prevents incorrectly labelled data from entering detection.
 - Network and Wi-Fi files remain separate so the existing Stage 2 collector contract is preserved.
 - Network and Wi-Fi evidence is correlated after successful validation and storage.
+- Endpoint and network source files follow the same source-type rule.
 - Parameterised SQL treats event values as data rather than SQL instructions.
 - Original JSON is preserved alongside normalised fields for investigation.
 - A deterministic alert key prevents repeated detector runs from flooding the alert table.
 - MAC address is the primary CYOD identity; IP, hostname, user, location and time are supporting evidence.
+- MAC reuse requires conflicting identity evidence and time overlap, not a location change alone.
+- Repeated observations are grouped only when the device identity and detection context match.
+- Different MAC addresses remain separate so continuous monitoring does not combine unrelated devices.
 - Known VPN addresses are exceptions for selected identity checks.
 - A new-device alert is investigated rather than automatically treated as malicious.
 - An approved replacement device should be registered in the CYOD inventory after verification.
@@ -90,28 +123,30 @@ The first mixed Stage 4 file also rejected six Wi-Fi records because the source 
 - Impossible travel combined with MFA failures, brute force or unauthorised privilege escalation should receive stronger severity.
 - A restricted location is evidence for investigation, not automatic proof of compromise.
 - A rogue access point was detected but not stopped because shutdown requires approval.
+- Approved CPU stress testing is excluded only when it matches the configured approval record.
 - Future monitoring should track last-seen time, observation count and escalation state for unresolved conditions.
 
 ## Practical decisions
 
 - VirtualBox can test inventory logic but cannot provide real physical Wi-Fi heat-map data.
-- Wireless and location scenarios therefore use controlled simulated events.
+- Wireless, location, endpoint and wired-LAN scenarios therefore use controlled simulated events.
 - Documentation IP ranges are used for safe local testing.
 - Runtime databases, logs and evidence remain excluded from Git.
 - Re-running initialisation records another audit event rather than overwriting history.
-- Stage 4 changes were tested without changing the validated Stage 1 and Stage 2 controls.
-- Stage 4 uses simulated Wi-Fi zones rather than real physical boundaries.
-- LAN server-room access and endpoint CPU correlation are planned for the next stage.
+- Stage 5 schema changes were tested without changing the validated Stage 1–4 controls.
+- Stage 5 uses simulated Server Room privileges rather than real switch or physical access controls.
+- Endpoint CPU and process activity are correlated with network identity by MAC address and supporting fields.
 
 ## Known limitations
 
-- Stage 2, Stage 3 and Stage 4 use local simulated events rather than live feeds.
+- Stage 2, Stage 3, Stage 4 and Stage 5 use local simulated events rather than live feeds.
 - The CYOD inventory contains one primary local test asset.
 - The VPN exception is simulated and does not represent a production VPN.
 - MAC addresses can be spoofed.
 - Ping and traceroute do not prove a user’s physical location.
 - Alert-key deduplication does not yet track unresolved inventory conditions over time.
-- Stage 4 does not yet check wired switch ports, VLAN authorisation or server-room privileges.
-- Stage 4 does not yet correlate endpoint CPU and process activity with network access.
+- Stage 5 does not yet verify real switch ports, VLAN authorisation or physical server-room access.
+- Endpoint process baselines are limited to the controlled test configuration.
+- Approved CPU stress-test records are simulated.
 - SQLite is suitable for this single-VM lab but not distributed scaling.
-- Identity and network alerts use initial rule-based severity; later correlation and response stages will reassess combined risk.
+- Identity, network and endpoint alerts use initial rule-based severity; later correlation and response stages will reassess combined risk.
