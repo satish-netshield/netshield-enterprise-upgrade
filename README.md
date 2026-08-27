@@ -1,39 +1,74 @@
 # NetShield Phase 3 — Automation
 
-NetShield Automation is a Python cybersecurity project built inside an Ubuntu VirtualBox sandbox.
+NetShield Phase 3 is a Python security-automation project built inside an Ubuntu VirtualBox sandbox.
 
-The project is built in stages. Each stage adds one part of a controlled security-automation workflow: environment controls, data processing, identity detection, network and Wi-Fi detection, endpoint monitoring, wired-LAN checks, SQL injection detection and cross-source event correlation.
-
-The current implementation is complete through Stage 7.
+The project was built gradually. Each component was tested in isolation, checked with the existing project, corrected when problems were found, and then validated again. The project uses simulated security events and local test data. It does not contact external targets or use real accounts.
 
 ---
 
-## Stage 1 — Environment and Access Control
+## Stages 1 and 2 — Environment, Access Control and Security Data Pipeline
 
-### What the component does
+### What the components do
 
-Stage 1 creates the controlled foundation for later security components. It manages configuration, access decisions, logging, evidence protection and safe testing boundaries.
+Stages 1 and 2 created the controlled foundation for the rest of the project.
 
-### Why it exists and how it behaves
+Stage 1 manages configuration, roles, permissions, logging, evidence protection and safe testing boundaries.
 
-Security automation should not begin with unrestricted access or uncontrolled response actions. Stage 1 uses default deny, least privilege and approval controls before detection logic is added.
+Stage 2 receives simulated security events, validates them, normalises them and stores accepted events in SQLite for later detection.
 
-### What was built
+### Why they exist and how they behave
+
+Detection work should not begin with uncontrolled access or unreliable data.
+
+Stage 1 uses default deny and least privilege so unknown users, actions, devices and IP addresses are not trusted automatically. Disruptive actions require approval.
+
+Stage 2 validates data before it reaches the accepted-event table. This prevents malformed or incorrectly labelled records from influencing later detections.
+
+The pipeline keeps source files separate and checks that the declared source type matches the filename. This preserves the collector’s existing source-verification rules and prevents older processing logic from receiving data under the wrong source type.
+
+### Information, rules and capabilities
+
+Stage 1 provides:
 
 - Ubuntu VirtualBox sandbox
 - Python virtual environment
-- JSON project configuration
+- JSON configuration
 - SQLite database
 - Application and audit logging
-- File and directory permissions
 - Viewer, Analyst, Responder and Administrator roles
 - CYOD device allowlist
 - IP allowlist and simulated blocklist
 - Automation-action ACL
 - SHA-256 evidence protection
-- Safe test boundaries
+- Protected file and directory permissions
 
-### Observed Output
+Stage 2 provides:
+
+- Authentication, network, Wi-Fi, endpoint and application event sources
+- JSONL event collection
+- Timestamp conversion to UTC
+- IP, MAC and CPU validation
+- Accepted-event storage
+- Rejected-record storage
+- Import-batch tracking
+- Raw-event preservation
+- Duplicate-event protection
+
+### Workflow
+
+1. Load configuration and create the SQLite database.
+2. Apply roles, permissions and automation controls.
+3. Check devices and IP addresses against the configured lists.
+4. Generate controlled JSONL security events.
+5. Read one record at a time.
+6. Validate the JSON, source type, timestamp and required fields.
+7. Convert accepted timestamps to UTC.
+8. Store accepted records in SQLite.
+9. Preserve rejected records with their original input and reason.
+10. Reject duplicate source events.
+11. Check the stored records and import totals against the source files.
+
+### Observed example output
 
 ```text
 PASS: RBAC follows least privilege
@@ -43,51 +78,6 @@ PASS: Evidence hash and read-only protection is valid
 STAGE 1 VALIDATION: PASS (12/12)
 ```
 
-### Testing Notes
-
-- Eleven Stage 1 unit tests passed.
-- Stage 1 validation passed 12/12.
-- Configuration, database metadata, roles, audit records, permissions and evidence integrity were verified.
-
-### What I Learned
-
-A safe foundation makes later detection work easier to test and reduces the risk of accidentally creating disruptive automation.
-
----
-
-## Stage 2 — Security Data Pipeline
-
-### What the component does
-
-Stage 2 receives simulated security events, validates them, normalises them and stores them in SQLite for later detection.
-
-### Why it exists and how it behaves
-
-Security events may contain missing, invalid or inconsistent values. Detection becomes less reliable when data is not checked before storage.
-
-### Event sources
-
-- Authentication
-- Network
-- Wi-Fi and CYOD
-- Endpoint and CPU
-- Application
-
-### Pipeline workflow
-
-1. Generate safe simulated events.
-2. Write each source to a separate JSONL file.
-3. Read one record at a time.
-4. Parse and validate each JSON object.
-5. Confirm the source type matches the filename.
-6. Convert timestamps to UTC.
-7. Validate IP addresses, MAC addresses and CPU values.
-8. Store accepted events in SQLite.
-9. Preserve rejected records with their reasons.
-10. Record import totals and audit activity.
-
-### Observed Output
-
 ```text
 PASS: Generated 19 safe simulated records
 
@@ -96,19 +86,35 @@ STAGE 2 IMPORT: files=5 total=19 accepted=15 rejected=4
 
 ### Testing Notes
 
-- Eleven normalisation tests passed.
-- Six pipeline tests passed.
-- Stage 2 validation passed 14/14.
-- Fifteen records were accepted and four were rejected.
-- UTC conversion, raw-event preservation, duplicate protection and import totals were verified.
+Stage 1 validation passed `12/12`. Eleven Stage 1 unit tests passed.
 
-### Engineering Observation
+Stage 2 validation passed `14/14`. Eleven normalisation tests and six pipeline tests passed.
 
-The Stage 2 validator initially counted new Stage 3 authentication events. It was corrected to check only the original Stage 2 source files.
+The tests checked:
+
+- Required directories and configuration
+- SQLite tables and audit records
+- File permissions and evidence protection
+- Five source files containing 19 records
+- Fifteen accepted and four rejected records
+- UTC timestamp conversion
+- Invalid IP, MAC and CPU rejection
+- Raw-event preservation
+- Duplicate-event protection
+- Import totals against the stored database records
+
+The accepted-event table, rejected-event records and import-batch totals were checked directly rather than relying only on the printed script summary.
+
+### Engineering observations
+
+- The Stage 2 validator initially counted later Stage 3 authentication events as original Stage 2 data.
+- The validator was changed to check only the original Stage 2 source files.
+- Invalid JSON, missing event IDs, invalid IP addresses and CPU values above 100 were rejected.
+- Rejected records remained available for troubleshooting and did not enter the accepted-event table.
 
 ### What I Learned
 
-JSONL allows one malformed record to be rejected without stopping the rest of the file.
+A controlled environment and reliable input are needed before detection logic can be trusted. JSONL is useful because one bad record can be rejected without stopping the rest of the file.
 
 ---
 
@@ -116,40 +122,43 @@ JSONL allows one malformed record to be rejected without stopping the rest of th
 
 ### What the component does
 
-Stage 3 groups authentication events by user, address, device, location and time window, then creates alerts when activity matches an identity rule.
+Stage 3 analyses authentication events and creates alerts for suspicious identity activity.
 
-### Why it exists and how it behaves
+### Why it exists or how it behaves
 
-Identity attacks can provide early evidence of account compromise. Detecting suspicious login behaviour supports earlier investigation and controlled response.
+Repeated login failures, unusual locations and unexpected role changes can provide early evidence of account compromise. The detector groups authentication events by user, address, device, location and time window before applying the rules.
 
-### Detection rules
+Known VPN activity is handled as an exception for the relevant checks. An alert is treated as evidence for investigation, not automatic proof of compromise.
+
+### Information, rules and capabilities
+
+The detector checks for:
 
 - Repeated failed logins
 - Possible brute force
 - Successful login after repeated failures
-- MFA failure anomaly
-- Login from a new device
-- Login from an unusual location
+- MFA failure anomalies
+- Logins from new devices
+- Unusual locations
 - Impossible travel
-- Suspicious role change
+- Suspicious role changes
 - Known VPN exceptions
 
-### Initial severity
+A deterministic alert key prevents the same detection pattern from creating duplicate alert rows.
 
-| Detection | Initial severity |
-| --- | --- |
-| Repeated Failed Logins | Medium |
-| Possible Brute Force | High |
-| Successful Login After Failures | High |
-| MFA Failure Anomaly | High |
-| Login From New Device | Medium |
-| Login From Unusual Location | Medium |
-| Impossible Travel | High |
-| Suspicious Role Change | Critical in the current baseline |
+### Workflow
 
-These are initial labels, not a final numerical risk score.
+1. Import authentication events.
+2. Load identity rules and baselines.
+3. Group events by user, address and time.
+4. Apply identity-detection rules.
+5. Apply approved VPN exceptions.
+6. Create unique alerts.
+7. Preserve supporting evidence and audit activity.
+8. Investigate and classify possible false positives.
+9. Run the detector again to check duplicate protection.
 
-### Observed Output
+### Observed example output
 
 ```text
 [High] Possible Brute Force | user=analyst01
@@ -160,82 +169,98 @@ These are initial labels, not a final numerical risk score.
 STAGE 3 DETECTION: events=19 detections=11 new=11 existing=0 vpn_exceptions=2
 ```
 
-### Duplicate protection
-
-A deterministic SHA-256 alert key prevents the same detection pattern from creating duplicate alert records.
+A repeated run produced:
 
 ```text
 STAGE 3 DETECTION: events=19 detections=11 new=0 existing=11 vpn_exceptions=2
 ```
 
-### False-positive investigation
-
-The replacement laptop created a new-device alert because it was authorised but not yet registered in the CYOD inventory.
-
-The alert was preserved, investigated, classified as a false positive and recorded in the audit trail.
-
 ### Testing Notes
 
-- Sixteen Stage 3 authentication events were imported.
-- Eleven identity-detection tests passed.
-- The full Stage 3 regression run passed 39 tests.
-- Stage 1, Stage 2 and Stage 3 validation passed.
-- VPN exceptions and the false-positive audit record were verified.
+Sixteen Stage 3 authentication events were imported. Stage 3 validation passed `12/12`, and the complete Stage 3 regression run passed 39 tests.
+
+The tests checked:
+
+- Expected identity detection types
+- VPN exceptions
+- Duplicate alert protection
+- Alert totals against stored records
+- Audit records
+- False-positive classification
+
+The replacement laptop was authorised but had not yet been registered in the CYOD inventory. Its new-device alert was preserved, investigated and classified as a false positive.
+
+### Engineering observations
+
+The Stage 2 validator needed to be corrected after Stage 3 added new authentication data. This showed that later stages can affect earlier validation assumptions.
 
 ### What I Learned
 
-A detection is not always proof of malicious activity. A legitimate device can still require investigation when inventory information is incomplete.
+A detection is not always proof of malicious activity. Device inventory, approval records and supporting evidence must be reviewed before deciding what an alert means.
 
 ---
 
-## Stage 4 — Network, CYOD and Wi-Fi Detection
+## Stages 4 and 5 — Network, Wi-Fi, Endpoint and Wired-LAN Detection
 
-### What the component does
+### What the components do
 
-Stage 4 checks network connections, CYOD device identity, Wi-Fi policy and repeated activity. Related alerts are correlated using the MAC address and supporting evidence.
+Stages 4 and 5 add network, Wi-Fi, endpoint and wired-LAN context to the earlier identity detections.
 
-### Why it exists and how it behaves
+Stage 4 checks network connections, CYOD device identity and Wi-Fi policy.
 
-Identity events show account activity, but they do not show how a device connects to the network. Stage 4 adds network and Wi-Fi context while preserving source validation.
+Stage 5 checks endpoint CPU activity, endpoint processes and wired access in restricted zones.
 
-The MAC address is the primary device identity. IP address, hostname, username, location, event time and event type provide supporting evidence.
+### Why they exist and how they behave
 
-### Detection rules
+Identity events show account activity but do not show how a device connects or what is happening on the endpoint.
 
-- Suspicious IP address
+The MAC address is used as the primary device identity because the CYOD inventory is based on approved device MAC addresses. Hostname, username, IP address, process, CPU, location, role, switch port, VLAN and event time provide supporting evidence.
+
+Network and Wi-Fi files remain separate because the collector verifies that the source type matches the filename. Combining the files would cause valid records to be rejected or processed under the wrong rules. Correlation therefore occurs only after source validation and database storage.
+
+A location change alone does not create a MAC-reuse alert. Conflicting hostname or username evidence with overlapping event times is required.
+
+### Information, rules and capabilities
+
+Stage 4 detects:
+
+- Suspicious IP addresses
 - Repeated connection attempts
 - Port scanning
-- Unknown CYOD device
-- Unregistered MAC address
-- MAC reuse or possible spoofing
-- Wi-Fi zone violation
-- WPA3 policy violation
-- WPA2 downgrade attempt
-- Rogue access point
+- Unknown CYOD devices
+- Unregistered MAC addresses
+- Possible MAC reuse or spoofing
+- Wi-Fi zone violations
+- WPA3 policy violations
+- WPA2 downgrade attempts
+- Rogue access points
+
+Stage 5 detects:
+
+- Unexpected CPU activity
+- Repeated high CPU activity
+- Unauthorised CPU stress tests
+- Unknown endpoint processes
+- Restricted wired access
+- Possible MAC reuse or spoofing
+
+Approved CPU stress testing is excluded only when the configured approval, test identifier and process match.
 
 ### Workflow
 
-1. Generate controlled network and Wi-Fi events.
-2. Keep network and Wi-Fi records in separate source files.
-3. Validate each source before storage.
-4. Import both sources into `security_events`.
+1. Generate controlled network, Wi-Fi, endpoint and wired-LAN events.
+2. Write each source to the correct filename.
+3. Validate the source type before import.
+4. Store accepted events in the shared `security_events` table.
 5. Compare MAC addresses with the CYOD inventory.
-6. Apply network and Wi-Fi rules.
-7. Group related evidence by MAC address.
-8. Preserve high-impact detections.
-9. Save unique alerts.
-10. Record the detection run.
+6. Apply network, Wi-Fi, CPU, process and wired-zone rules.
+7. Compare hostname, username, location and event time for possible MAC reuse.
+8. Correlate related observations by MAC address and detection context.
+9. Group repeated matching observations.
+10. Save unique alerts and record the detection run.
+11. Re-import and rerun detection to check duplicate protection.
 
-### Wi-Fi zones
-
-- `Lab Zone A`: approved test zone
-- `Lab Zone B`: restricted test zone
-- `Parking Lot`: restricted test zone
-- `Public Area`: restricted test zone
-
-A restricted-zone event is evidence for investigation, not automatic proof of compromise.
-
-### Observed Output
+### Observed example output
 
 ```text
 [High] MAC Address Reuse or Possible Spoofing | mac=08:00:27:cf:49:71
@@ -247,115 +272,52 @@ STAGE 4 DETECTION: events=23 raw_detections=43
 correlated_alerts=12 new_alerts=12 existing_alerts=0
 ```
 
-### Testing Notes
-
-- Twenty-three Stage 4 events were accepted.
-- Twelve correlated network alerts were produced.
-- MAC reuse, port scanning, repeated connections, WPA3, WPA2 and rogue access-point detections were verified.
-- A repeated run created zero new alerts and counted 12 existing alerts.
-- Stage 4 validation passed 12/12.
-
-### Engineering Observations
-
-- A mixed network and Wi-Fi file initially caused six Wi-Fi records to fail source verification.
-- Separate source files preserved the existing collector rules.
-- The detection runner initially used the wrong SQL placeholder count.
-- The Stage 3 initializer initially reset completed metadata during Stage 4 setup.
-- Each issue was corrected and retested.
-
-### What I Learned
-
-Network and Wi-Fi sources can be correlated without placing them in the same input file. Source validation must happen before correlation.
-
----
-
-## Stage 5 — Endpoint and Wired-LAN Detection
-
-### What the component does
-
-Stage 5 monitors endpoint CPU activity, endpoint processes and wired-LAN access. It uses the MAC address as the primary device identity and adds endpoint and physical-zone evidence.
-
-### Why it exists and how it behaves
-
-Network and Wi-Fi alerts do not show what is happening on the endpoint or whether a wired connection is allowed in a restricted area. Stage 5 adds CPU, process, user, role and wired-zone checks.
-
-Approved CPU stress testing is recognised so authorised testing is not reported as suspicious.
-
-### Detection rules
-
-- Unexpected CPU activity
-- Repeated high CPU activity
-- Unauthorised CPU stress tests
-- Unknown endpoint processes
-- Restricted wired access
-- MAC reuse or possible spoofing
-
-### Workflow
-
-1. Generate endpoint and wired-LAN events.
-2. Store endpoint events in `endpoint_stage5_events.jsonl`.
-3. Store wired events in `network_stage5_events.jsonl`.
-4. Validate both sources before storage.
-5. Apply CPU and process rules.
-6. Check wired access against zone and role rules.
-7. Correlate supporting evidence by MAC address.
-8. Group repeated observations from the same device and context.
-9. Save unique alerts.
-10. Record the detection run.
-
-### Wired-LAN rules
-
-- `Lab Zone A` is approved for the simulated test roles.
-- The simulated Server Room permits responder and administrator access.
-- Analyst access to the Server Room creates a High alert.
-- Approved responder access does not create an alert.
-- Different MAC addresses remain separate investigations.
-- A restricted wired event is evidence for investigation, not automatic proof of compromise.
-
-### MAC-reuse rule
-
-A location change alone does not create a MAC-reuse alert.
-
-Possible MAC reuse requires the same MAC, conflicting hostname or username evidence and overlapping event times.
-
-### Observed Output
-
 ```text
 [High] Repeated High CPU Activity | identity=02:42:ac:11:00:25
 [Critical] Unexpected CPU Activity | identity=02:42:ac:11:00:25
 [High] Unauthorised CPU Stress Test | identity=02:42:ac:11:00:77
 [High] Unknown Endpoint Process | identity=02:42:ac:11:00:99
 [High] Restricted Wired Access | identity=02:42:ac:11:00:25
-events=LAN5-002, LAN5-003
 
 STAGE 5 DETECTION: events=14 detections=10 new_alerts=10 existing_alerts=0
 ```
 
 ### Testing Notes
 
-- Ten endpoint events and four wired-LAN events were generated.
-- Fourteen Stage 5 events were accepted.
-- Ten endpoint alerts were produced.
-- Approved CPU stress testing created no alert.
-- Repeated high-CPU activity and restricted wired access were grouped.
-- Location change alone did not create MAC reuse.
-- Re-importing the same events rejected all 14 duplicates.
-- A repeated run created zero new alerts and counted 10 existing alerts.
-- Eight Stage 5 detector tests passed.
-- Stage 5 validation passed 12/12.
+Stage 4 validation passed `12/12`. Twenty-three Stage 4 events were accepted and twelve correlated alerts were produced.
 
-### Engineering Observations
+Stage 5 validation passed `12/12`. Fourteen Stage 5 events were accepted and ten alerts were produced.
 
-- The first wired filename did not match its `network` source type.
-- The generator was corrected to create `network_stage5_events.jsonl` directly.
+The tests checked:
+
+- Accepted-event totals and source counts
+- MAC-based correlation
+- Port scanning and rogue access-point detection
+- WPA3 and WPA2 policy checks
+- CPU thresholds and process detection
+- Approved CPU testing creating no alert
+- Restricted wired access
+- Location-only movement not creating MAC reuse
+- Repeated wired observations being grouped
+- Duplicate imports and repeated detector runs
+- Endpoint-alert storage and database records
+
+Re-importing the Stage 5 events rejected all fourteen records as duplicates. A repeated detector run created zero new alerts and counted ten existing alerts.
+
+### Engineering observations
+
+- Wi-Fi records were initially placed in a network-named file and six records were rejected by source validation.
+- The generator was changed to create separate network and Wi-Fi files.
+- The Stage 4 runner supplied more files than its SQL query accepted. Dynamic SQL placeholders were added for the changing file list.
+- Stage 4 setup initially reset completed Stage 3 metadata. The initializer was corrected to preserve earlier status.
+- The Stage 5 wired filename initially did not match the `network` source type. The generator was corrected.
 - The endpoint-alert table was added to the tracked schema.
-- Simulated role mappings were needed because the application role table contains only the project administrator.
-- MAC-reuse logic was corrected to require conflicting identity evidence with time overlap.
-- Repeated wired observations were grouped by MAC, detection type, location and time window.
+- The first MAC-reuse rule treated a location change alone as spoofing. It was changed to require conflicting identity evidence and time overlap.
+- Simulated role mappings were added because the application role table contains only the project administrator.
 
 ### What I Learned
 
-High CPU usage is not automatically malicious because approved testing must be recognised. MAC address is useful as a baseline, but hostname, username and event time are needed to assess possible spoofing.
+Source validation must happen before correlation. CPU activity and MAC address are useful evidence, but neither should be interpreted without supporting device, identity, approval and time information.
 
 ---
 
@@ -363,72 +325,43 @@ High CPU usage is not automatically malicious because approved testing must be r
 
 ### What the component does
 
-Stage 6 creates an isolated local application and SQLite database to demonstrate SQL injection detection and secure query remediation.
+Stage 6 uses an isolated local Python application and SQLite database to demonstrate SQL injection detection and secure-code remediation.
 
-### Why it exists and how it behaves
+### Why it exists or how it behaves
 
-Network and endpoint detections do not show whether an application safely handles user input before sending it to a database.
+The lab shows how a vulnerable query can change authentication behaviour when user input is joined directly into SQL. The same input is then tested against a parameterised query.
 
-Stage 6 compares a deliberately vulnerable query with a corrected parameterised query.
+The lab uses one test account and controlled local requests. No external target, public system or real account is used.
 
-### What was built
+### Information, rules and capabilities
 
-- Separate SQL injection lab
-- Separate SQLite test database
-- Local Python test application
-- One isolated test account
-- Vulnerable string-concatenated login query
-- Corrected parameterised login query
+The lab demonstrates:
+
+- Safe local SQL injection testing
 - Suspicious-input detection
+- Repeated abnormal requests
+- Authentication-bypass attempts
+- Database-error monitoring
 - Source-IP tracking
-- Database-error logging
-- Repeated abnormal-request analysis
-- JSONL request evidence
-- Structured application-event logging
-- Detection report generation
-- Remediation retesting
+- Vulnerable query behaviour
+- Parameterised-query remediation
+- Retesting after remediation
 - Database-integrity verification
 
-### Safety boundary
+### Workflow
 
-- Testing uses only the local Ubuntu application.
-- The lab database is separate from the main NetShield database.
-- No external target is contacted.
-- No public system is tested.
-- No real account or credential is used.
-- The vulnerable function is used only for controlled demonstration.
+1. Create the isolated SQLite database.
+2. Create the local test account.
+3. Run normal and controlled injection requests.
+4. Record authentication results, returned rows and database errors.
+5. Track suspicious patterns and source IP addresses.
+6. Archive the previous cumulative application log.
+7. Run the clean seven-request set.
+8. Test the same injection input against the parameterised query.
+9. Check the raw request evidence, application log and SQLite users table.
+10. Write and validate the detection report.
 
-### Vulnerable query behaviour
-
-The vulnerable function joins username and password values directly into the SQL statement.
-
-The controlled input:
-
-```text
-' OR 1=1 --
-```
-
-changed the query behaviour and caused the vulnerable function to authenticate incorrectly.
-
-### Secure remediation
-
-The corrected function uses:
-
-```sql
-WHERE username = ? AND password = ?
-```
-
-The same injection input failed against the corrected function.
-
-### Observed Output
-
-```text
-PASS: Generated 7 local SQL test requests
-VULNERABLE_AUTHENTICATION_BYPASSES: 4
-DATABASE_ERRORS: 1
-PARAMETERISED_REMEDIATION_BLOCKS: 1
-REQUEST_FILE: /home/netshield01/netshield-phase3/lab/sql_injection/data/stage6_requests.jsonl
-```
+### Observed example output
 
 ```text
 STAGE 6 SQL INJECTION DETECTION
@@ -438,120 +371,90 @@ DATABASE ERRORS: 1
 REMEDIATION RETESTS BLOCKED: 1
 REPEATED ABNORMAL SOURCES: 1
 LOGGED EVENTS: 7
-REPORT: /home/netshield01/netshield-phase3/lab/sql_injection/outputs/stage6_detection_report.json
 ```
-
-### Clean evidence
-
-```text
-Vulnerable request IDs:
-SQL6-002
-SQL6-003
-SQL6-004
-SQL6-005
-
-Database-error request ID:
-SQL6-006
-
-Blocked parameterised retest:
-SQL6-007
-
-Repeated abnormal source:
-192.0.2.44
-```
-
-### Problems discovered and fixed
-
-- The first bypass summary counted two events although four vulnerable requests authenticated. The summary logic was corrected.
-- One test did not genuinely verify the application log because the application used a fixed path. The application and test were corrected to accept an isolated log path.
-- Earlier test runs left 36 cumulative application events in the log. The previous log was archived.
-- The clean run then produced seven requests and seven application events.
 
 ### Testing Notes
 
-- Seven Stage 6 unit tests passed.
-- Four vulnerable authentication bypasses were demonstrated.
-- One malformed vulnerable request produced a database error.
-- Three abnormal requests from `192.0.2.44` were identified as repeated activity.
-- One parameterised retest blocked the bypass.
-- The SQLite users table remained present.
-- Stage 6 validation passed 15/15.
+Seven Stage 6 unit tests passed. Stage 6 validation passed `15/15`.
+
+The clean run produced:
+
+- Seven controlled requests
+- Four vulnerable authentication bypasses
+- One database error
+- One repeated abnormal source IP
+- One blocked parameterised-query retest
+- Seven application events
+
+The raw request evidence, application-event log and detection report were checked. The SQLite users table remained present and the test account remained available.
+
+### Engineering observations
+
+- The first request summary reported two vulnerable bypasses although four vulnerable requests authenticated.
+- The summary logic was corrected to count actual vulnerable authentication results.
+- One test used a fixed application-log path.
+- The application and test were changed to accept an isolated log path.
+- The previous application log contained 36 cumulative events.
+- The old log was archived before the clean run so historical events did not contaminate the new totals.
 
 ### What I Learned
 
-Secure query construction should be tested by demonstrating the original weakness, applying the correction and repeating the same controlled test after remediation.
+Secure SQL testing should demonstrate the original weakness, the correction and the retest. Parameterised queries treat input as data instead of executable SQL syntax.
 
 ---
 
-## Stage 7 — Event Correlation, Risk Scoring and IoC Extraction
+## Stage 7 — Event Correlation, Risk Scoring and IoCs
 
 ### What the component does
 
-Stage 7 connects related security events from earlier stages and turns them into context-rich incidents.
+Stage 7 combines related events into context-rich incidents, calculates a risk score and extracts observable Indicators of Compromise.
 
-### Why it exists and how it behaves
+### Why it exists or how it behaves
 
-Earlier stages produced alerts from individual security areas. Stage 7 combines related identity, network, endpoint and application evidence so risk can be assessed with more context.
+An isolated alert may have limited meaning. Several related indicators from identity, network, endpoint and application sources can provide stronger evidence.
+
+The engine groups events using shared identity and context. It applies approved-device and known-VPN exceptions, separates suspicious behaviours from IoCs and leaves automatic containment disabled.
+
+### Information, rules and capabilities
 
 Events are correlated using:
 
 - Username
 - IP address
 - MAC address
+- Device approval status
 - Hostname
-- Event time
+- Process
+- Time window
+- Location
+- Detection type
+- Source type
 
-Process, location, source type and detection type provide supporting context.
+The engine:
 
-### What was built
+- Combines related events.
+- Reduces isolated low-value activity.
+- Increases risk when indicators appear together.
+- Assigns Low, Medium, High or Critical severity.
+- Extracts observable IP, MAC, hostname and process values.
+- Keeps username as context rather than automatically treating it as an IoC.
+- Separates suspicious behaviours from IoCs.
+- Does not perform automatic containment.
 
-- Stage 7 correlation configuration
-- Controlled cross-source events
-- Time-window matching
-- Shared-identity field matching
-- Multi-source event grouping
-- Risk-score calculation
-- Low, Medium, High and Critical severity bands
-- Approved-device exceptions
-- Known-VPN exceptions
-- IoC extraction
-- Behaviour classification
-- Separation of IoCs from behaviours
-- Isolated low-value alert reduction
-- Deterministic incident keys
-- JSON correlation report
-- Stage 7 tests and validation
+### Workflow and scoring model
 
-### Correlation behaviour
+1. Load the controlled Stage 7 events.
+2. Validate fields and timestamps.
+3. Group events sharing device, user, address, location and time context.
+4. Apply detection severity and supporting indicators.
+5. Increase risk for related multi-source evidence.
+6. Reduce risk for approved-device and known-VPN exceptions.
+7. Extract observable IoCs.
+8. Record suspicious behaviours separately.
+9. Create one incident for each related event group.
+10. Validate the incident count, severity, IoCs and boundaries.
 
-Related events are combined when they share configured identity evidence and occur within the configured time window.
-
-Unrelated events remain separate investigations.
-
-### Risk-scoring behaviour
-
-Risk points are added for detection severity and stronger conditions such as:
-
-- Authentication-bypass evidence
-- Database errors
-- Repeated abnormal activity
-- Unknown endpoint processes
-- Suspicious IP activity
-- Evidence from multiple source types
-
-Approved-device and known-VPN exceptions reduce risk when the activity has a known explanation.
-
-One isolated Low or Medium event is reduced when stronger related evidence is absent.
-
-### IoC and behaviour separation
-
-Observable values such as IP address, MAC address, hostname and process name are extracted as IoCs.
-
-Usernames remain incident context.
-
-Repeated failed logins and repeated connection attempts are classified as behaviours rather than IoCs.
-
-### Observed Output
+### Observed example output
 
 ```text
 STAGE 7 CORRELATION
@@ -560,54 +463,36 @@ INCIDENTS CREATED: 3
 [Critical] score=30 events=4 iocs=4 behaviours=1
 [Low] score=1 events=2 iocs=0 behaviours=0
 [Low] score=3 events=1 iocs=0 behaviours=1
-REPORT: /home/netshield01/netshield-phase3/lab/sql_injection/outputs/stage7_correlation_report.json
 ```
-
-### Correlation evidence
-
-```text
-Main incident:
-events=4
-source types=authentication, network, endpoint, application
-severity=Critical
-risk score=30
-IoCs=4
-behaviours=1
-
-Approved-device and known-VPN incident:
-events=2
-severity=Low
-risk score=1
-
-Isolated low-value network event:
-events=1
-severity=Low
-risk score=3
-```
-
-### Problems discovered and fixed
-
-- The first IoC extraction included the username. The extraction logic was corrected so usernames remain incident context.
-- An isolated medium network event was initially scored too strongly. The scoring logic was corrected to reduce isolated low-value activity.
-- The corrected engine preserved the Critical multi-source incident while applying the approved-device and VPN exceptions.
 
 ### Testing Notes
 
-- Seven controlled events were analysed.
+Five Stage 7 correlation tests passed. Stage 7 validation passed `15/15`.
+
+The validation confirmed:
+
+- Seven events were analysed.
 - Three incidents were created.
-- Four related events were combined into one multi-source incident.
-- Four observable IoCs were extracted from the main incident.
-- Repeated failed logins remained a behaviour.
-- Approved-device and known-VPN exceptions reduced risk.
+- Four related events were combined.
+- Identity, network, endpoint and application evidence formed one Critical incident.
+- Four observable IoCs were extracted.
+- Username remained context rather than an IoC.
+- Approved-device and VPN exceptions reduced risk.
+- Isolated low-value activity was reduced to Low.
+- Suspicious behaviours remained separate from IoCs.
+- No external targets were used.
 - Automatic containment remained disabled.
-- Five Stage 7 correlation tests passed.
-- Stage 7 validation passed 15/15.
+
+### Engineering observations
+
+- The first engine incorrectly extracted username as an IoC. Username was kept as context instead.
+- The first scoring version rated an isolated Medium event too high. Isolated low-value activity was reduced to Low.
+- Direct execution of the Stage 7 runner initially failed because the project root was not available on the import path.
+- The runner was corrected so it could import the correlation engine when executed directly.
 
 ### What I Learned
 
-Several related alerts can provide stronger context than disconnected alerts, but one isolated low-value event should not automatically become high risk.
-
-IoCs and behaviours should be kept separate because they support different investigation decisions.
+Correlation makes an incident easier to understand, but it should not turn every suspicious value into an IoC or automatically trigger containment.
 
 ---
 
@@ -615,25 +500,22 @@ IoCs and behaviours should be kept separate because they support different inves
 
 ### Clean-state validation workflow
 
-1. Activate the Python virtual environment.
-2. Compile the project and Stage 6–7 lab files.
-3. Run the complete Stage 1–7 unit-test set.
-4. Run the Stage 1–7 validators.
-5. Check duplicate imports and repeated detector runs.
-6. Check VPN exceptions and false-positive classification.
-7. Check MAC correlation and repeated wired grouping.
-8. Check the Stage 6 vulnerable and parameterised query comparison.
-9. Check the clean Stage 6 application log.
-10. Check the Stage 6 database remains intact.
-11. Check Stage 7 event grouping and risk scoring.
-12. Check IoC and behaviour separation.
-13. Check approved-device and VPN exceptions.
-14. Check isolated low-value alert reduction.
-15. Check that automatic containment remains disabled.
-16. Check documentation and schema consistency.
-17. Run `git diff --check`.
+The final validation followed the complete engineering loop:
 
-### Observed Results
+1. Activate the Python virtual environment.
+2. Compile the source, script, test and lab files.
+3. Run the combined Stage 1–7 test set.
+4. Run every stage validator.
+5. Check duplicate imports and repeated detector runs.
+6. Check accepted, rejected and raw database records.
+7. Check the clean Stage 6 log after archiving the historical log.
+8. Check the Stage 6 users table and test account.
+9. Check Stage 7 incidents, risk scores, IoCs and behaviours.
+10. Run `git diff --check`.
+11. Review the documentation against the actual implementation and output.
+12. Commit the Stage 6 and Stage 7 work together.
+
+### Genuine end-to-end results
 
 ```text
 Ran 64 tests
@@ -649,86 +531,56 @@ STAGE 6 VALIDATION: PASS (15/15)
 STAGE 7 VALIDATION: PASS (15/15)
 ```
 
-### Stage 6 results
+Stage 6 and Stage 7 were committed together:
 
 ```text
-requests analysed=7
-vulnerable bypasses=4
-database errors=1
-repeated abnormal sources=1
-parameterised remediation blocks=1
-logged events=7
-users table intact
+dfa2e39 Build Stage 6 SQL injection and Stage 7 correlation
 ```
 
-### Stage 7 results
+The commit was pushed successfully to GitHub.
 
-```text
-events analysed=7
-incidents created=3
-main incident severity=Critical
-main incident score=30
-main incident IoCs=4
-isolated low-value severity=Low
-approved-device and VPN exception applied
-automatic containment disabled
-```
+### Problems discovered and how they were fixed
 
-### Problems discovered and fixed
+- The Stage 2 validator counted later-stage events and was limited to the original Stage 2 files.
+- Wi-Fi records were rejected from a mixed source file and were moved to a separate source file.
+- Dynamic SQL placeholders were added for changing Stage 4 file lists.
+- Stage metadata preservation was corrected after Stage 4 setup reset earlier completion data.
+- The Stage 5 wired filename was corrected to match its `network` source type.
+- The Stage 5 endpoint-alert table was added to the tracked schema.
+- MAC-reuse logic was strengthened to require conflicting identity evidence and overlapping times.
+- The Stage 6 bypass summary was corrected to count actual authenticated vulnerable requests.
+- Stage 6 logging was changed to support an isolated log path.
+- The cumulative 36-event log was archived before the clean Stage 6 run.
+- Stage 7 IoC extraction was corrected so username remained context.
+- Stage 7 isolated-event scoring was reduced to Low.
+- The Stage 7 import path was corrected for direct script execution.
 
-- The Stage 2 validator initially counted new Stage 3 authentication events.
-- Wi-Fi records were initially placed in a network-named file and rejected.
-- The Stage 4 runner initially had the wrong SQL placeholder count.
-- The Stage 3 initializer reset completed metadata during Stage 4 setup.
-- Stage 5 wired events initially used the wrong filename for their source type.
-- The Stage 5 endpoint-alert table was missing from the tracked schema.
-- MAC-reuse logic initially treated a location change as sufficient evidence.
-- The Stage 6 bypass summary initially undercounted authenticated vulnerable requests.
-- The Stage 6 application log initially mixed previous test runs with the current run.
-- Stage 7 initially classified username as an IoC.
-- Stage 7 initially scored an isolated medium event too strongly.
-- Each issue was corrected and retested.
+### Engineering observations
 
-### Engineering Observations
+The project remains inside the Ubuntu VirtualBox sandbox and uses simulated events and local test applications.
 
-- Complete regression testing exposed integration issues not visible in isolated tests.
-- The shared event model allows validated sources to be examined together later.
-- Duplicate protection prevents repeated imports and detector runs from increasing totals.
-- Application-layer testing adds visibility that network and endpoint events cannot provide by themselves.
-- Cross-source correlation provides more context than disconnected alerts.
-- Risk scoring is useful for prioritisation but depends on the quality of the rules and evidence.
-- IoC extraction and behaviour classification should remain separate.
-- The project still uses simulated events and local testing rather than live feeds.
+The main NetShield database was kept separate from the Stage 6 SQL injection database. Database files, logs, generated reports, raw runtime data and cache files were not added to Git.
+
+The Stage 7 correlation engine combines evidence but does not perform automatic containment. Disruptive response remains outside the completed scope.
 
 ### What I Learned
 
-Testing each component separately is important, but full regression testing shows whether the stages work together.
+A script passing its own checks is not enough. The underlying database records, raw evidence, log state, duplicate behaviour and repeated-run results also need to be checked.
 
-Small integration problems can remain hidden until the complete workflow is run again.
+Full regression testing found integration problems that isolated tests did not show. File routing, schema setup, SQL placeholders, import paths, historical logs and scoring assumptions all affected the final result.
 
-Security results must be checked against the underlying records, not only the summary printed by a script.
+### Next expansion scope
 
-### Known Limitations
-
-- Stages 1–5 use local simulated events rather than live feeds.
-- Stage 6 uses a deliberately vulnerable local function for demonstration.
-- Pattern-based input detection may not identify every injection technique.
-- Source IP does not prove the identity of the requester.
-- Stage 7 risk scoring uses the current learning-project rules and requires further tuning.
-- Stage 7 does not yet create incidents in the main NetShield database.
-- The project does not yet use a production web server or password-hashing system.
-- Incident response, containment, eradication and recovery are not yet implemented.
-
-### Next Expansion Scope
-
-The next stage should add:
+The next stage can build on the completed events, alerts and incidents by adding:
 
 - Incident records
-- Evidence references and preservation
-- Investigation status
+- Evidence references and handling
+- Last-seen and observation-count tracking
+- Inventory verification requests
+- Switch-port and VLAN authorisation
+- Stronger endpoint process baselines
 - Controlled containment requests
 - Approval handling
-- Simulated containment
 - Eradication records
 - Recovery records
-- Final clean-state project validation and sign-off
+- Final clean-state project sign-off
