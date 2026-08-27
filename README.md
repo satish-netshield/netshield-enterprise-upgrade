@@ -2,9 +2,9 @@
 
 NetShield Automation is a Python cybersecurity project built inside an Ubuntu VirtualBox sandbox.
 
-The project is built in stages. Each stage adds one part of a controlled security-automation workflow: environment controls, data processing, identity detection, network and Wi-Fi detection, endpoint monitoring and wired-LAN checks.
+The project is built in stages. Each stage adds one part of a controlled security-automation workflow: environment controls, data processing, identity detection, network and Wi-Fi detection, endpoint monitoring, wired-LAN checks, SQL injection detection and cross-source event correlation.
 
-The current implementation is complete through Stage 5.
+The current implementation is complete through Stage 7.
 
 ---
 
@@ -32,14 +32,6 @@ Security automation should not begin with unrestricted access or uncontrolled re
 - Automation-action ACL
 - SHA-256 evidence protection
 - Safe test boundaries
-
-### Access and response rules
-
-- Unknown roles and permissions are denied.
-- Unknown devices and IP addresses are not automatically trusted.
-- Low-risk actions may run automatically.
-- Disruptive actions require approval.
-- Physical and infrastructure changes remain manual.
 
 ### Observed Output
 
@@ -367,24 +359,284 @@ High CPU usage is not automatically malicious because approved testing must be r
 
 ---
 
+## Stage 6 — SQL Injection Detection
+
+### What the component does
+
+Stage 6 creates an isolated local application and SQLite database to demonstrate SQL injection detection and secure query remediation.
+
+### Why it exists and how it behaves
+
+Network and endpoint detections do not show whether an application safely handles user input before sending it to a database.
+
+Stage 6 compares a deliberately vulnerable query with a corrected parameterised query.
+
+### What was built
+
+- Separate SQL injection lab
+- Separate SQLite test database
+- Local Python test application
+- One isolated test account
+- Vulnerable string-concatenated login query
+- Corrected parameterised login query
+- Suspicious-input detection
+- Source-IP tracking
+- Database-error logging
+- Repeated abnormal-request analysis
+- JSONL request evidence
+- Structured application-event logging
+- Detection report generation
+- Remediation retesting
+- Database-integrity verification
+
+### Safety boundary
+
+- Testing uses only the local Ubuntu application.
+- The lab database is separate from the main NetShield database.
+- No external target is contacted.
+- No public system is tested.
+- No real account or credential is used.
+- The vulnerable function is used only for controlled demonstration.
+
+### Vulnerable query behaviour
+
+The vulnerable function joins username and password values directly into the SQL statement.
+
+The controlled input:
+
+```text
+' OR 1=1 --
+```
+
+changed the query behaviour and caused the vulnerable function to authenticate incorrectly.
+
+### Secure remediation
+
+The corrected function uses:
+
+```sql
+WHERE username = ? AND password = ?
+```
+
+The same injection input failed against the corrected function.
+
+### Observed Output
+
+```text
+PASS: Generated 7 local SQL test requests
+VULNERABLE_AUTHENTICATION_BYPASSES: 4
+DATABASE_ERRORS: 1
+PARAMETERISED_REMEDIATION_BLOCKS: 1
+REQUEST_FILE: /home/netshield01/netshield-phase3/lab/sql_injection/data/stage6_requests.jsonl
+```
+
+```text
+STAGE 6 SQL INJECTION DETECTION
+REQUESTS ANALYSED: 7
+VULNERABLE BYPASSES: 4
+DATABASE ERRORS: 1
+REMEDIATION RETESTS BLOCKED: 1
+REPEATED ABNORMAL SOURCES: 1
+LOGGED EVENTS: 7
+REPORT: /home/netshield01/netshield-phase3/lab/sql_injection/outputs/stage6_detection_report.json
+```
+
+### Clean evidence
+
+```text
+Vulnerable request IDs:
+SQL6-002
+SQL6-003
+SQL6-004
+SQL6-005
+
+Database-error request ID:
+SQL6-006
+
+Blocked parameterised retest:
+SQL6-007
+
+Repeated abnormal source:
+192.0.2.44
+```
+
+### Problems discovered and fixed
+
+- The first bypass summary counted two events although four vulnerable requests authenticated. The summary logic was corrected.
+- One test did not genuinely verify the application log because the application used a fixed path. The application and test were corrected to accept an isolated log path.
+- Earlier test runs left 36 cumulative application events in the log. The previous log was archived.
+- The clean run then produced seven requests and seven application events.
+
+### Testing Notes
+
+- Seven Stage 6 unit tests passed.
+- Four vulnerable authentication bypasses were demonstrated.
+- One malformed vulnerable request produced a database error.
+- Three abnormal requests from `192.0.2.44` were identified as repeated activity.
+- One parameterised retest blocked the bypass.
+- The SQLite users table remained present.
+- Stage 6 validation passed 15/15.
+
+### What I Learned
+
+Secure query construction should be tested by demonstrating the original weakness, applying the correction and repeating the same controlled test after remediation.
+
+---
+
+## Stage 7 — Event Correlation, Risk Scoring and IoC Extraction
+
+### What the component does
+
+Stage 7 connects related security events from earlier stages and turns them into context-rich incidents.
+
+### Why it exists and how it behaves
+
+Earlier stages produced alerts from individual security areas. Stage 7 combines related identity, network, endpoint and application evidence so risk can be assessed with more context.
+
+Events are correlated using:
+
+- Username
+- IP address
+- MAC address
+- Hostname
+- Event time
+
+Process, location, source type and detection type provide supporting context.
+
+### What was built
+
+- Stage 7 correlation configuration
+- Controlled cross-source events
+- Time-window matching
+- Shared-identity field matching
+- Multi-source event grouping
+- Risk-score calculation
+- Low, Medium, High and Critical severity bands
+- Approved-device exceptions
+- Known-VPN exceptions
+- IoC extraction
+- Behaviour classification
+- Separation of IoCs from behaviours
+- Isolated low-value alert reduction
+- Deterministic incident keys
+- JSON correlation report
+- Stage 7 tests and validation
+
+### Correlation behaviour
+
+Related events are combined when they share configured identity evidence and occur within the configured time window.
+
+Unrelated events remain separate investigations.
+
+### Risk-scoring behaviour
+
+Risk points are added for detection severity and stronger conditions such as:
+
+- Authentication-bypass evidence
+- Database errors
+- Repeated abnormal activity
+- Unknown endpoint processes
+- Suspicious IP activity
+- Evidence from multiple source types
+
+Approved-device and known-VPN exceptions reduce risk when the activity has a known explanation.
+
+One isolated Low or Medium event is reduced when stronger related evidence is absent.
+
+### IoC and behaviour separation
+
+Observable values such as IP address, MAC address, hostname and process name are extracted as IoCs.
+
+Usernames remain incident context.
+
+Repeated failed logins and repeated connection attempts are classified as behaviours rather than IoCs.
+
+### Observed Output
+
+```text
+STAGE 7 CORRELATION
+EVENTS ANALYSED: 7
+INCIDENTS CREATED: 3
+[Critical] score=30 events=4 iocs=4 behaviours=1
+[Low] score=1 events=2 iocs=0 behaviours=0
+[Low] score=3 events=1 iocs=0 behaviours=1
+REPORT: /home/netshield01/netshield-phase3/lab/sql_injection/outputs/stage7_correlation_report.json
+```
+
+### Correlation evidence
+
+```text
+Main incident:
+events=4
+source types=authentication, network, endpoint, application
+severity=Critical
+risk score=30
+IoCs=4
+behaviours=1
+
+Approved-device and known-VPN incident:
+events=2
+severity=Low
+risk score=1
+
+Isolated low-value network event:
+events=1
+severity=Low
+risk score=3
+```
+
+### Problems discovered and fixed
+
+- The first IoC extraction included the username. The extraction logic was corrected so usernames remain incident context.
+- An isolated medium network event was initially scored too strongly. The scoring logic was corrected to reduce isolated low-value activity.
+- The corrected engine preserved the Critical multi-source incident while applying the approved-device and VPN exceptions.
+
+### Testing Notes
+
+- Seven controlled events were analysed.
+- Three incidents were created.
+- Four related events were combined into one multi-source incident.
+- Four observable IoCs were extracted from the main incident.
+- Repeated failed logins remained a behaviour.
+- Approved-device and known-VPN exceptions reduced risk.
+- Automatic containment remained disabled.
+- Five Stage 7 correlation tests passed.
+- Stage 7 validation passed 15/15.
+
+### What I Learned
+
+Several related alerts can provide stronger context than disconnected alerts, but one isolated low-value event should not automatically become high risk.
+
+IoCs and behaviours should be kept separate because they support different investigation decisions.
+
+---
+
 ## System Validation
 
 ### Clean-state validation workflow
 
 1. Activate the Python virtual environment.
-2. Compile all source, script and test files.
-3. Run the complete Stage 1–5 unit-test set.
-4. Run the Stage 1–5 validators.
+2. Compile the project and Stage 6–7 lab files.
+3. Run the complete Stage 1–7 unit-test set.
+4. Run the Stage 1–7 validators.
 5. Check duplicate imports and repeated detector runs.
 6. Check VPN exceptions and false-positive classification.
 7. Check MAC correlation and repeated wired grouping.
-8. Check schema, filenames and stage metadata.
-9. Run `git diff --check`.
+8. Check the Stage 6 vulnerable and parameterised query comparison.
+9. Check the clean Stage 6 application log.
+10. Check the Stage 6 database remains intact.
+11. Check Stage 7 event grouping and risk scoring.
+12. Check IoC and behaviour separation.
+13. Check approved-device and VPN exceptions.
+14. Check isolated low-value alert reduction.
+15. Check that automatic containment remains disabled.
+16. Check documentation and schema consistency.
+17. Run `git diff --check`.
 
 ### Observed Results
 
 ```text
-Ran 52 tests
+Ran 64 tests
 
 OK
 
@@ -393,15 +645,33 @@ STAGE 2 VALIDATION: PASS (14/14)
 STAGE 3 VALIDATION: PASS (12/12)
 STAGE 4 VALIDATION: PASS (12/12)
 STAGE 5 VALIDATION: PASS (12/12)
+STAGE 6 VALIDATION: PASS (15/15)
+STAGE 7 VALIDATION: PASS (15/15)
 ```
 
-Stage 5 also verified:
+### Stage 6 results
 
 ```text
-accepted events=14
-endpoint alerts=10
-duplicate re-imports rejected=14
-new alerts on repeated detection=0
+requests analysed=7
+vulnerable bypasses=4
+database errors=1
+repeated abnormal sources=1
+parameterised remediation blocks=1
+logged events=7
+users table intact
+```
+
+### Stage 7 results
+
+```text
+events analysed=7
+incidents created=3
+main incident severity=Critical
+main incident score=30
+main incident IoCs=4
+isolated low-value severity=Low
+approved-device and VPN exception applied
+automatic containment disabled
 ```
 
 ### Problems discovered and fixed
@@ -413,32 +683,52 @@ new alerts on repeated detection=0
 - Stage 5 wired events initially used the wrong filename for their source type.
 - The Stage 5 endpoint-alert table was missing from the tracked schema.
 - MAC-reuse logic initially treated a location change as sufficient evidence.
-- Each problem was corrected and retested.
+- The Stage 6 bypass summary initially undercounted authenticated vulnerable requests.
+- The Stage 6 application log initially mixed previous test runs with the current run.
+- Stage 7 initially classified username as an IoC.
+- Stage 7 initially scored an isolated medium event too strongly.
+- Each issue was corrected and retested.
 
 ### Engineering Observations
 
 - Complete regression testing exposed integration issues not visible in isolated tests.
-- The main problems were file routing, SQL parameter handling, schema setup and stage orchestration.
-- The shared `security_events` table allows sources to be validated separately and correlated later.
-- Duplicate protection prevents repeated imports and detector runs from increasing alert totals.
-- Endpoint and wired-LAN evidence adds useful context to identity and network detections.
-- The project still uses simulated events and zones rather than live feeds.
+- The shared event model allows validated sources to be examined together later.
+- Duplicate protection prevents repeated imports and detector runs from increasing totals.
+- Application-layer testing adds visibility that network and endpoint events cannot provide by themselves.
+- Cross-source correlation provides more context than disconnected alerts.
+- Risk scoring is useful for prioritisation but depends on the quality of the rules and evidence.
+- IoC extraction and behaviour classification should remain separate.
+- The project still uses simulated events and local testing rather than live feeds.
 
 ### What I Learned
 
-Testing each component separately is important, but full regression testing shows whether the stages work together. Small integration problems can remain hidden until the complete workflow is run again.
+Testing each component separately is important, but full regression testing shows whether the stages work together.
+
+Small integration problems can remain hidden until the complete workflow is run again.
+
+Security results must be checked against the underlying records, not only the summary printed by a script.
+
+### Known Limitations
+
+- Stages 1–5 use local simulated events rather than live feeds.
+- Stage 6 uses a deliberately vulnerable local function for demonstration.
+- Pattern-based input detection may not identify every injection technique.
+- Source IP does not prove the identity of the requester.
+- Stage 7 risk scoring uses the current learning-project rules and requires further tuning.
+- Stage 7 does not yet create incidents in the main NetShield database.
+- The project does not yet use a production web server or password-hashing system.
+- Incident response, containment, eradication and recovery are not yet implemented.
 
 ### Next Expansion Scope
 
 The next stage should add:
 
-- Last-seen and observation-count tracking
-- Inventory verification requests
-- Switch-port and VLAN authorisation
-- More endpoint process baselines
-- Correlation between identity, network and endpoint evidence
-- Indicator of Compromise extraction
-- Incident records and evidence handling
-- Controlled containment
-- Eradication and recovery
-- Complete clean-state project sign-off
+- Incident records
+- Evidence references and preservation
+- Investigation status
+- Controlled containment requests
+- Approval handling
+- Simulated containment
+- Eradication records
+- Recovery records
+- Final clean-state project validation and sign-off

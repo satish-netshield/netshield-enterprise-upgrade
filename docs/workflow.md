@@ -2,11 +2,11 @@
 
 ## Stage 1 — Environment and access control
 
-Stage 1 created the safe foundation before detection work began.
+Stage 1 created the controlled foundation before detection work began.
 
 ### Foundation
 
-1. Load the project settings.
+1. Load project settings.
 2. Create the SQLite database from the tracked schema.
 3. Save project metadata and assign the project-owner role.
 4. Configure application and audit logging.
@@ -20,77 +20,51 @@ Stage 1 created the safe foundation before detection work began.
 4. Require approval for disruptive actions.
 5. Deny unknown roles, permissions and actions.
 
-### Device and IP decisions
+### Device, IP and evidence decisions
 
-1. Compare observed devices with the CYOD inventory.
-2. Check whether the device is approved.
-3. Validate the IP address.
-4. Check the blocklist before the allowlist.
-5. Send unknown devices and IP addresses for investigation.
-
-### Evidence
-
-1. Preserve the evidence.
-2. Calculate its SHA-256 hash.
-3. Store the expected hash.
-4. Protect the preserved file from casual modification.
-5. Recalculate the hash during validation.
-
-Result: a controlled sandbox with default-deny access and protected evidence.
+1. Compare devices with the CYOD inventory.
+2. Validate IP addresses.
+3. Check the blocklist before the allowlist.
+4. Preserve evidence and calculate its SHA-256 hash.
+5. Protect the evidence and verify its hash during validation.
 
 ## Stage 2 — Security data pipeline
 
 Stage 2 prepared consistent events for later detection.
 
-### Event generation
+### Event workflow
 
 1. Generate safe simulated authentication, network, Wi-Fi, endpoint and application events.
-2. Add deliberate malformed records for testing.
-3. Write each source to a separate JSONL file.
+2. Write each source to a separate JSONL file.
+3. Create an import batch.
+4. Read one record at a time.
+5. Parse and validate each record.
+6. Confirm the source type matches the filename.
+7. Convert timestamps to UTC.
+8. Validate IP addresses, MAC addresses and CPU values.
+9. Store accepted events in SQLite.
+10. Preserve rejected records and their reasons.
 
-### Import and normalisation
-
-1. Create an import batch for each source file.
-2. Read one JSONL record at a time.
-3. Parse and validate the JSON object.
-4. Confirm required fields and the approved source type.
-5. Convert timestamps to UTC.
-6. Validate IP addresses, MAC addresses and CPU values.
-7. Store accepted events in SQLite.
-
-### Rejected data
-
-1. Keep malformed data out of the accepted-event table.
-2. Preserve the original input, filename and line number.
-3. Record the exact rejection reason.
-4. Include rejected records in the batch totals.
-
-### Duplicate events
+### Duplicate handling
 
 1. Compare the source filename and source event ID.
 2. Accept the first valid occurrence.
 3. Reject later duplicates.
-4. Preserve the duplicate and its rejection reason.
+4. Include duplicate records in the import totals.
 
-### Stage 2 validation
+### Problems and lesson
 
-1. Compile the project files.
-2. Run the Stage 1 and Stage 2 tests.
-3. Confirm the five source files and 19 simulated records.
-4. Reconcile accepted and rejected totals.
-5. Confirm normalisation, raw-event preservation and audit logging.
-
-Result: 15 accepted events and 4 rejected records were stored with their reasons.
+Malformed data, invalid values and duplicate records were deliberately tested. JSONL allowed one bad record to be rejected without stopping the rest of the file.
 
 ## Stage 3 — Identity and authentication detection
 
 Stage 3 used accepted authentication events to identify suspicious identity activity.
 
-### Detection
+### Detection workflow
 
-1. Load the identity rules and user baselines.
-2. Read accepted authentication events from SQLite.
-3. Group related events by user, IP address and time.
+1. Load identity rules and user baselines.
+2. Read accepted authentication events.
+3. Group events by user, IP address and time.
 4. Detect repeated failures and possible brute force.
 5. Detect successful login after repeated failures.
 6. Detect MFA anomalies.
@@ -99,198 +73,209 @@ Stage 3 used accepted authentication events to identify suspicious identity acti
 9. Detect suspicious role changes.
 10. Apply known VPN exceptions.
 
-### Alert handling
+### Alert and investigation workflow
 
 1. Create a deterministic alert key.
-2. Store the detection type, severity, events and evidence.
-3. Ignore duplicate copies of the same alert.
-4. Record detection activity in the audit trail.
-5. Keep alerts available for investigation and later correlation.
+2. Store the detection, severity, event IDs and evidence.
+3. Ignore duplicate alerts.
+4. Review suspicious activity.
+5. Confirm whether the activity is authorised.
+6. Classify legitimate activity as a false positive.
+7. Record the investigation and audit event.
 
-### False-positive investigation
-
-1. Review the alert and supporting event evidence.
-2. Confirm whether the device or activity is authorised.
-3. Classify legitimate activity as a false positive.
-4. Preserve the investigation note.
-5. Record the decision in the audit trail.
-
-The replacement laptop was authorised but missing from the CYOD inventory, so its new-device alert was classified as a false positive.
-
-### Engineering observations
-
-- A five-minute failure window may be too broad and should be reviewed during later tuning.
-- Severity should increase when strong detections occur together.
-- An approved device can still create a valid new-device alert when inventory registration is incomplete.
-- Duplicate protection prevents alert flooding but does not track unresolved conditions over time.
-- Later stages should correlate identity alerts with CYOD, Wi-Fi, network and endpoint evidence.
-
-### Stage 3 validation
-
-1. Compile all project files.
-2. Run the Stage 1–3 unit tests.
-3. Re-run the Stage 1 and Stage 2 validators.
-4. Confirm 16 Stage 3 events were imported.
-5. Confirm 11 identity alerts were created.
-6. Run the detector again to confirm duplicate protection.
-7. Confirm VPN exceptions were recorded.
-8. Confirm the false-positive investigation and audit record.
-9. Run the Stage 3 validator.
-
-Result: 39 unit tests passed, Stage 1 passed 12/12, Stage 2 passed 14/14 and Stage 3 passed 12/12.
+The replacement laptop showed that a legitimate device can still create an alert when inventory information is incomplete.
 
 ## Stage 4 — Network, CYOD and Wi-Fi detection
 
-Stage 4 used accepted network and Wi-Fi events to detect suspicious device and wireless activity.
+Stage 4 added network and wireless context to the identity detections.
 
-### Event preparation
+### Event workflow
 
 1. Generate controlled network and Wi-Fi events.
-2. Keep network and Wi-Fi records in separate source files.
-3. Import both sources into the shared `security_events` table.
-4. Generate additional events for repeated connections and MAC reuse.
-5. Import the correlation events without changing the earlier pipeline rules.
+2. Keep network and Wi-Fi files separate.
+3. Validate each source before storage.
+4. Import accepted records into `security_events`.
+5. Compare MAC addresses with the CYOD inventory.
+6. Apply network and Wi-Fi detection rules.
+7. Group related activity by MAC address.
+8. Preserve the original evidence.
+9. Save unique alerts.
+10. Record the detection run.
 
-The files remained separate because the existing collector requires the event source type to match the source filename. Correlation takes place after both sources have been validated and stored.
+### Detection workflow
 
-### Network and device detection
+1. Check suspicious IP addresses.
+2. Detect repeated connections.
+3. Detect port scanning.
+4. Check unknown and unregistered devices.
+5. Check Wi-Fi zones.
+6. Check WPA3 and AES compliance.
+7. Detect WPA2 downgrade attempts.
+8. Detect rogue access points.
+9. Check for conflicting MAC identity evidence.
 
-1. Load accepted Stage 4 events from SQLite.
-2. Compare MAC addresses with the CYOD inventory.
-3. Check suspicious IP addresses.
-4. Detect repeated connection attempts.
-5. Detect port-scanning behaviour.
-6. Detect unknown or unregistered devices.
-7. Preserve the related source-event evidence.
+### Problems and solutions
 
-### Wi-Fi detection
+- Wi-Fi records were initially placed in a network-named file and rejected. Separate source files were created.
+- The detection runner supplied more source files than its SQL statement accepted. Dynamic placeholders were added.
+- Stage 4 setup initially reset Stage 3 metadata. The initializer was corrected to preserve earlier status.
+- Repeated activity initially produced separate alerts. MAC-based correlation grouped related activity while keeping different devices separate.
 
-1. Check whether the MAC address is registered.
-2. Check the observed Wi-Fi zone.
-3. Check WPA3 and AES compliance.
-4. Detect WPA3 policy violations.
-5. Detect WPA2 downgrade attempts.
-6. Detect unauthorised or open access points.
-7. Detect rogue access points.
-8. Preserve the original event evidence.
-
-### Alert correlation
-
-1. Group related alerts by MAC address.
-2. Compare IP address, hostname, username, location and event time.
-3. Preserve high-impact detections such as port scanning, WPA3 violations, WPA2 downgrade attempts and rogue access points.
-4. Detect conflicting use of the same MAC address.
-5. Create a MAC-reuse or possible-spoofing alert when the evidence supports it.
-6. Save one correlated alert for each unique alert key.
-7. Record the detection run in the audit trail.
-
-### Problems found and solved
-
-- Wi-Fi records were initially placed in a network-named file and were rejected by source verification.
-- The event generator was changed to create separate network and Wi-Fi files.
-- The detection runner initially supplied four source files to a query with only two placeholders.
-- The runner was changed to create the correct number of placeholders dynamically.
-- The Stage 3 initializer reset completed metadata while creating the Stage 4 table.
-- The initializer was changed to preserve the completed Stage 3 status.
-
-### Stage 4 validation
-
-1. Compile all project files.
-2. Run the Stage 1–4 unit tests.
-3. Run the Stage 1, Stage 2, Stage 3 and Stage 4 validators.
-4. Confirm 23 accepted Stage 4 events.
-5. Confirm the expected network and Wi-Fi source totals.
-6. Confirm 12 correlated network alerts.
-7. Confirm MAC reuse detection.
-8. Confirm repeated connections were grouped.
-9. Confirm the rogue access point was classified as Critical.
-10. Run the detector again to confirm duplicate protection.
-11. Confirm Stage 4 audit records and metadata.
-
-Result: 44 unit tests passed. Stage 1 passed 12/12, Stage 2 passed 14/14, Stage 3 passed 12/12 and Stage 4 passed 12/12.
-
-### What was learned
-
-- Network and Wi-Fi sources can be correlated without placing them in the same input file.
-- Source validation should be completed before cross-source correlation.
-- MAC address is useful as the primary CYOD identity, but supporting evidence is still required.
-- A restricted location is evidence for investigation, not automatic proof of compromise.
-- Duplicate protection reduces alert noise but does not replace continuous monitoring.
-- Wired LAN checks, restricted server-room privileges and endpoint CPU correlation should be added in the next stage.
+The main lesson was that source validation must happen before correlation.
 
 ## Stage 5 — Endpoint and wired-LAN detection
 
-Stage 5 used endpoint and wired network events to detect unusual CPU activity, unknown processes and restricted wired access.
+Stage 5 extended monitoring to endpoint activity and wired connections.
 
-### Event preparation
+### Endpoint workflow
 
 1. Generate controlled endpoint and wired-LAN events.
-2. Write endpoint events to `endpoint_stage5_events.jsonl`.
-3. Write wired events to `network_stage5_events.jsonl` so the source type matches the existing collector rules.
-4. Import both files into the shared `security_events` table.
-5. Preserve duplicate records and their rejection reasons when the same events are imported again.
+2. Store endpoint events in `endpoint_stage5_events.jsonl`.
+3. Store wired events in `network_stage5_events.jsonl`.
+4. Validate both sources.
+5. Compare CPU activity with configured thresholds.
+6. Exclude approved CPU stress testing.
+7. Detect unapproved stress tests and unknown processes.
+8. Preserve endpoint evidence.
 
-### Endpoint detection
+### Wired-LAN workflow
 
-1. Load accepted endpoint and network events from SQLite.
-2. Compare CPU usage with the configured warning and critical thresholds.
-3. Ignore the approved CPU stress-test record.
-4. Detect unapproved CPU stress tests.
-5. Detect critical CPU activity.
-6. Group repeated high-CPU activity for the same MAC within the configured time window.
-7. Detect unknown endpoint processes.
-8. Preserve the related event evidence.
+1. Check the connection type.
+2. Check the wired zone.
+3. Check the user’s simulated role.
+4. Check approval status.
+5. Detect restricted access.
+6. Group repeated observations only when the device and context match.
+7. Keep different MAC addresses as separate investigations.
 
-### Wired access detection
+### MAC-reuse workflow
 
-1. Check the wired connection location.
-2. Compare the observed user role with the approved role for that zone.
-3. Detect analyst access to the restricted Server Room.
-4. Allow approved responder access to the Server Room.
-5. Group repeated restricted wired observations only when the MAC address, detection type, location and time window match.
-6. Keep different MAC addresses as separate device investigations.
+1. Group events by MAC address.
+2. Compare hostnames and usernames.
+3. Compare event times.
+4. Ignore a location change by itself.
+5. Create a possible-spoofing alert only when conflicting identity evidence overlaps.
 
-### MAC correlation
+### Problems and solutions
 
-1. Use the MAC address as the primary device identity.
-2. Use hostname and username as conflicting identity evidence.
-3. Compare event times to confirm overlap.
-4. Do not create MAC-reuse alerts from a location change alone.
-5. Save one alert for each unique detection key.
-6. Record the detection run in the audit trail.
+- The first wired filename did not match its `network` source type. The generator was corrected.
+- The endpoint-alert table was initially created only by the initializer. It was added to the tracked schema.
+- A location change initially created a MAC-reuse alert. The rule was changed to require conflicting identity evidence with time overlap.
+- The application role table contained only the project administrator. Simulated role mappings were added.
+- Repeated wired observations were grouped by MAC, detection type, location and time window.
 
-### Problems found and solved
+The main lesson was that CPU activity and MAC address require supporting context before they can be treated as suspicious.
 
-- The initial wired filename did not match the `network` source type, so the generator was corrected to create `network_stage5_events.jsonl` directly.
-- The endpoint-alert table was initially created only by the Stage 5 initializer. It was added to the tracked database schema so clean setup creates the table as well.
-- Simulated endpoint roles were added because the application role table contains only the project administrator.
-- A location change alone initially risked creating a MAC-reuse alert. The rule was corrected to require conflicting hostname or username evidence with time overlap.
-- Repeated restricted wired events were initially separate alerts. They were grouped by MAC, detection type, location and time window.
-- Approved responder access was initially treated as unauthorised until the simulated role mapping was applied.
-- Re-imported Stage 5 events were rejected as duplicates, confirming source-file and event-ID protection.
+## Stage 6 — SQL injection detection
 
-### Stage 5 validation
+Stage 6 added application-layer testing inside a separate local lab.
 
-1. Compile all project files.
-2. Run the Stage 1–5 unit tests.
-3. Run the Stage 1–5 validators.
-4. Confirm 14 accepted Stage 5 events.
-5. Confirm 10 endpoint alerts.
-6. Confirm repeated high-CPU activity was grouped.
-7. Confirm repeated restricted wired access was grouped.
-8. Confirm the approved CPU stress test created no alert.
-9. Confirm location change alone did not create MAC reuse.
-10. Run the detector again to confirm duplicate protection.
-11. Confirm Stage 5 audit records and metadata.
+### Lab workflow
 
-Observed result: 52 unit tests passed. Stage 1 passed 12/12, Stage 2 passed 14/14, Stage 3 passed 12/12, Stage 4 passed 12/12 and Stage 5 passed 12/12.
+1. Create the isolated SQL injection lab.
+2. Create a separate SQLite database.
+3. Create one local test account.
+4. Confirm that no external target or real account is used.
+5. Generate controlled requests.
+6. Run the requests against the vulnerable and corrected functions.
+7. Record authentication results, source IPs and database errors.
+8. Save the request evidence and application events.
+9. Generate the detection report.
 
-### What was learned
+### Vulnerable-query workflow
 
-- Endpoint activity adds useful context to network and identity alerts.
-- High CPU usage is not automatically malicious because approved stress testing must be recognised.
-- A restricted wired connection is evidence for investigation and requires user, role, zone and device context.
-- MAC address remains a useful baseline, but hostname, username and time are needed to assess possible spoofing.
-- Grouping repeated observations reduces alert noise without combining different devices.
-- A clean tracked schema is important because runtime initialization alone can hide setup problems.
-- The next stage should improve unresolved-condition tracking, inventory verification and controlled response.
+1. Send a normal login request.
+2. Send controlled injection input to the vulnerable function.
+3. Check whether authentication succeeds incorrectly.
+4. Record suspicious input patterns.
+5. Track repeated abnormal requests by source IP.
+6. Record database errors.
+
+The vulnerable function uses string concatenation only for local demonstration and is not suitable for real use.
+
+### Remediation workflow
+
+1. Replace string concatenation with parameterised SQL.
+2. Run the same injection input against the corrected function.
+3. Confirm the bypass fails.
+4. Confirm the corrected query does not produce a database error.
+5. Confirm the users table remains intact.
+6. Record the retest result.
+
+### Problems and solutions
+
+- The first summary counted two vulnerable bypasses although four vulnerable requests authenticated. The summary was corrected to use the actual query result.
+- One test did not genuinely verify the application log because the application used a fixed path. The application and test were corrected to accept an isolated log path.
+- Earlier runs left 36 cumulative events in the log. The old log was archived before the clean run.
+- The clean run produced seven requests and seven application events.
+
+The main lesson was that secure query construction must be tested before and after remediation.
+
+## Stage 7 — Event correlation, risk scoring and IoC extraction
+
+Stage 7 connected related events from earlier stages.
+
+### Correlation workflow
+
+1. Load the Stage 7 correlation configuration.
+2. Load controlled identity, network, endpoint and application events.
+3. Compare username, IP address, MAC address and hostname.
+4. Check the configured time window.
+5. Use process, location, source type and detection type as supporting context.
+6. Group related events into one incident.
+7. Keep unrelated events separate.
+8. Create a deterministic incident key.
+9. Write the correlation report.
+
+### Risk-scoring workflow
+
+1. Assign points from the detection severity.
+2. Add points for strong indicators.
+3. Add points when several source types are involved.
+4. Apply approved-device and known-VPN exceptions.
+5. Reduce isolated low-value activity.
+6. Map the final score to Low, Medium, High or Critical.
+7. Preserve the reasons for the score.
+
+### IoC and behaviour workflow
+
+1. Extract observable values such as IP address, MAC address, hostname and process name.
+2. Keep username as identity context.
+3. Classify repeated failures and repeated connections as behaviours.
+4. Keep IoCs separate from behaviours.
+5. Preserve the source event ID for each extracted IoC.
+
+### Problems and solutions
+
+- The first engine treated username as an IoC. The extraction logic was corrected so username remained context.
+- An isolated medium event was initially treated too strongly. Its risk was reduced to Low when no stronger related evidence existed.
+- The corrected engine preserved the Critical multi-source incident while applying the approved-device and VPN exceptions.
+
+The main lesson was that several related alerts can provide stronger context, but one isolated low-value event should not automatically become high risk.
+
+## Complete validation principle
+
+Each stage follows the same cycle:
+
+1. Build a limited component.
+2. Test the component in isolation.
+3. Run it with the existing project.
+4. Record genuine output.
+5. Investigate failures.
+6. Correct the implementation.
+7. Re-run affected tests.
+8. Run the complete regression set.
+9. Review the documentation against the actual work.
+10. Sign off only after clean validation passes.
+
+For Stage 7, clean validation must also confirm:
+
+- Related events are combined.
+- Unrelated events remain separate.
+- Risk increases when several indicators appear together.
+- Approved-device and VPN exceptions are applied.
+- Isolated low-value activity is reduced.
+- IoCs are separated from behaviours.
+- Automatic containment remains disabled.
+
+The project remains inside the Ubuntu VirtualBox sandbox. Current detections use controlled simulated data, and disruptive or external actions remain outside scope.

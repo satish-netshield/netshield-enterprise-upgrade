@@ -2,240 +2,217 @@
 
 ## Welcome
 
-Welcome to the NetShield Phase 3 Engineering Handbook.
+This handbook explains the engineering journey behind NetShield Phase 3.
 
-This handbook explains the engineering approach used while building NetShield Phase 3. It is written in plain English for learners who want to understand the important decisions, lessons and improvements without reading every project file.
+It is written for learners who want to understand the important decisions, improvements and lessons without reading every project file.
 
-It complements the README by focusing on the engineering journey rather than explaining every technical detail.
+It complements the README. The README explains the project components and results, while this handbook focuses on how the project was built and what the work taught me.
 
-This version records the work completed through Stage 5.
+The current implementation is complete through Stage 7.
 
 ## Engineering Goals
 
-The goal of NetShield Phase 3 is to build a security automation platform inside a controlled Ubuntu sandbox.
+The goal of NetShield Phase 3 is to build a security automation project inside a controlled Ubuntu VirtualBox sandbox.
 
-The project is developed one stage at a time. Each stage is built, tested, understood, documented and validated before the next stage begins.
+The project is built one stage at a time. Each stage is tested, corrected, understood, documented and validated before the next stage begins.
 
-Stage 1 created the safe environment and access controls.
+The phase gradually added:
 
-Stage 2 created the security data pipeline needed to collect, validate, normalise and store events.
+- A controlled security environment
+- Security event processing
+- Identity and authentication detection
+- Network and Wi-Fi detection
+- Endpoint and wired-LAN monitoring
+- SQL injection detection and secure query remediation
+- Event correlation, risk scoring and IoC extraction
 
-Stage 3 added identity and authentication detection.
-
-Stage 4 added network, CYOD and Wi-Fi detection with MAC-based correlation.
-
-Stage 5 added endpoint monitoring, CPU checks and wired-LAN access detection.
-
-The remaining stages will add further correlation, incident handling and controlled response.
+The aim is not to create a production security platform. The aim is to build a practical learning project that demonstrates security controls, detection logic, testing discipline and engineering decisions.
 
 ## Engineering Principles
 
-The following principles guide the project:
+The following principles guided the work:
 
-- Understand before changing.
 - Build one stage at a time.
-- Test every component.
-- Use default deny.
-- Follow least privilege.
+- Keep testing inside the controlled sandbox.
+- Test components before relying on their results.
+- Use default deny and least privilege.
 - Keep disruptive actions controlled.
-- Preserve original evidence.
+- Preserve original evidence where possible.
 - Reject invalid or inconsistent data.
 - Prevent duplicate records and alert flooding.
-- Revalidate earlier work after changes.
-- Fix genuine issues only.
-- Record meaningful engineering decisions.
+- Revalidate earlier work after later changes.
+- Fix genuine problems found during testing.
+- Record meaningful engineering observations.
 - Keep documentation aligned with the implementation.
-- Let Git history reflect the engineering process.
-- Write as the engineer who built the project.
+- Use Git history to show real project progress.
+- Write documentation as the engineer who built the project.
 - Keep the writing simple, honest and technically accurate.
 
-## What Was Built
+A result is not treated as complete only because a script runs. It must also match the evidence, tests and expected behaviour.
 
-The following components have been completed.
+## What Was Built
 
 ### Stage 1 — Environment and Access Control
 
 - Ubuntu VirtualBox sandbox
-- Python virtual environment
+- Python environment
 - Project configuration
 - SQLite database
 - Application and audit logging
-- File and directory permissions
-- Viewer, Analyst, Responder and Administrator roles
-- Role-Based Access Control
-- CYOD device allowlist
-- IP allowlist and simulated blocklist
+- Application roles and permissions
+- CYOD and IP controls
 - Automation-action ACL
 - Evidence hashing and protection
-- Stage 1 tests and validation
 
 ### Stage 2 — Security Data Pipeline
 
-- Safe simulated security events
-- Authentication, network, Wi-Fi, endpoint and application sources
-- JSONL event collector
+- Simulated security events
+- JSONL event collection
 - Event validation and normalisation
 - UTC timestamp handling
-- Accepted-event storage
-- Rejected-event storage
+- Accepted and rejected event storage
 - Duplicate-event protection
 - Import-batch tracking
 - Raw-event preservation
-- Stage 2 tests and validation
 
 ### Stage 3 — Identity and Authentication Detection
 
-- Configurable identity-detection rules
-- Repeated failed-login detection
-- Possible brute-force detection
-- Successful login after repeated failures
-- MFA failure anomaly detection
-- New-device detection
-- Unusual-location detection
+- Failed-login and brute-force detection
+- Successful login after failures
+- MFA anomaly detection
+- New-device and unusual-location detection
 - Impossible-travel detection
 - Suspicious role-change detection
-- Known VPN exceptions
-- Duplicate-alert protection
+- VPN exceptions
 - False-positive investigation
-- Identity-alert storage and audit records
-- Stage 3 tests and validation
+- Identity-alert storage
 
 ### Stage 4 — Network, CYOD and Wi-Fi Detection
 
-- Controlled network and Wi-Fi event generation
-- Suspicious IP detection
-- Repeated connection detection
+- Network and Wi-Fi event generation
+- Suspicious IP and repeated-connection detection
 - Port-scanning detection
-- Unknown CYOD and unregistered MAC detection
-- MAC reuse or possible spoofing detection
+- Unknown-device and MAC-reuse detection
 - Wi-Fi zone checks
-- WPA3 policy checks
-- WPA2 downgrade detection
+- WPA3 and WPA2 policy checks
 - Rogue access-point detection
 - MAC-based alert correlation
-- Duplicate-alert protection
-- Stage 4 tests and validation
 
 ### Stage 5 — Endpoint and Wired-LAN Detection
 
-- Controlled endpoint and wired-LAN event generation
 - Endpoint CPU monitoring
-- Approved and unauthorised CPU stress-test handling
-- Repeated high-CPU activity detection
-- Unknown endpoint-process detection
+- Approved and unauthorised stress-test handling
+- Repeated high-CPU detection
+- Unknown-process detection
 - Restricted wired-access detection
-- Simulated Server Room privilege checks
+- Simulated Server Room checks
 - Endpoint-alert storage
-- MAC-based endpoint correlation
 - Repeated wired-observation grouping
-- Duplicate-alert protection
-- Stage 5 tests and validation
+
+### Stage 6 — SQL Injection Detection
+
+- Separate local SQL injection lab
+- Separate SQLite test database
+- Vulnerable login query
+- Parameterised login query
+- Suspicious-input detection
+- Authentication-bypass testing
+- Database-error monitoring
+- Source-IP tracking
+- Remediation retesting
+
+### Stage 7 — Event Correlation, Risk Scoring and IoCs
+
+- Controlled cross-source events
+- Event correlation by identity and time
+- Multi-source incident grouping
+- Configurable risk scoring
+- Low, Medium, High and Critical severity
+- Approved-device and VPN exceptions
+- IoC extraction
+- Behaviour classification
+- Separation of IoCs from behaviours
+- Isolated low-value alert reduction
 
 ## Major Engineering Decisions
 
-The following decisions kept the project safe, simple and easy to test:
+The following decisions kept the project safe and understandable:
 
 - Ubuntu VirtualBox keeps testing separate from the Windows host and public systems.
-- The Python standard library keeps the foundation small and easy to inspect.
-- SQLite suits this single-VM learning environment.
-- JSON configuration keeps security rules separate from program logic.
+- SQLite suits the single-VM learning environment.
+- JSON configuration keeps rules separate from program logic.
 - Default deny prevents unknown roles, actions, sources and values from being trusted.
 - CYOD provides a controlled device inventory for testing.
-- The MAC address is the primary device-matching value, while IP, hostname, user and location provide supporting evidence.
+- The MAC address is used as the primary device identity, with other fields providing context.
 - JSONL allows one malformed record to be rejected without stopping the complete file.
-- Network, Wi-Fi, endpoint and wired-LAN files follow the existing source-type validation rules.
-- Network and endpoint evidence is correlated after successful validation and storage.
-- UTC timestamps provide one timeline for events from different sources and locations.
+- UTC timestamps provide one timeline for events from different sources.
 - Invalid input is preserved with a reason instead of being silently deleted.
-- Alert keys prevent repeated detector runs from creating duplicate alerts.
-- Repeated observations are grouped only when they belong to the same device and detection context.
-- Approved CPU stress testing is recognised so legitimate testing is not reported as suspicious.
-- Disruptive actions require verification and approval.
-- A rogue access point is detected but not automatically stopped because shutdown requires approval.
+- Separate source files preserve the existing validation rules.
+- Alert and incident keys prevent repeated processing from creating duplicates.
+- Approved activity is represented in test data so it is not incorrectly reported.
+- The SQL injection lab uses a separate database so it cannot affect the main NetShield data.
+- Parameterised SQL treats input as data instead of SQL instructions.
+- Correlation requires identity evidence and a time relationship.
+- IoCs are kept separate from behaviours because they support different investigation decisions.
+- Approved-device and VPN exceptions reduce risk without removing evidence.
+- Disruptive actions remain controlled and require approval.
 
 ## Improvements Made
 
-The project improved as each stage was added:
+The project improved as problems were found:
 
-- Expanded the SQLite schema for security events, identity alerts, network alerts and endpoint alerts.
-- Added rejected-event and import-batch tracking.
 - Added validation for timestamps, IP addresses, MAC addresses and CPU values.
-- Added source-type verification.
-- Added raw-event preservation.
-- Added identity detection and false-positive investigation.
-- Added network and Wi-Fi detection rules.
-- Added MAC-focused alert correlation.
-- Added detection for MAC reuse or possible spoofing.
-- Added controlled test events for repeated connections and wireless policy violations.
-- Added endpoint CPU and process detection.
-- Added restricted wired-access detection.
-- Added simulated role mappings for endpoint and Server Room testing.
-- Added grouping for repeated restricted wired observations.
-- Corrected the Stage 2 validator scope after Stage 3 added authentication events.
-- Corrected Stage 4 file generation after Wi-Fi records were rejected from a mixed source file.
-- Corrected the Stage 4 SQL placeholder count when four source files were supplied.
-- Corrected Stage 3 initialisation so Stage 4 setup did not reset completed Stage 3 metadata.
-- Corrected the Stage 5 wired-event filename so it matched the `network` source type.
-- Added the Stage 5 endpoint-alert table to the tracked database schema.
-- Corrected MAC-reuse logic so a location change alone does not create a spoofing alert.
-- Re-ran earlier tests and validators after the Stage 5 changes.
-
-## Testing Results
-
-The completed regression run produced these results:
-
-- 11 Stage 1 access-control tests passed.
-- 11 Stage 2 normalisation tests passed.
-- 6 Stage 2 pipeline tests passed.
-- 11 Stage 3 identity-detection tests passed.
-- 5 Stage 4 network-correlation tests passed.
-- 8 Stage 5 endpoint-detection tests passed.
-- 52 unit tests passed in total.
-- Stage 1 validation passed 12/12.
-- Stage 2 validation passed 14/14.
-- Stage 3 validation passed 12/12.
-- Stage 4 validation passed 12/12.
-- Stage 5 validation passed 12/12.
-
-Stage 5 accepted 14 events and produced 10 endpoint alerts.
-
-The repeated detector run created no new duplicate alerts. Approved CPU stress testing, repeated high-CPU activity, unknown processes, restricted wired access and MAC-reuse safeguards were verified.
+- Added rejected-event and import-batch tracking.
+- Added identity, network, Wi-Fi, endpoint and wired-LAN detection.
+- Added false-positive investigation.
+- Added MAC-based correlation.
+- Added approved CPU stress-test handling.
+- Corrected source filenames after records were rejected.
+- Corrected SQL placeholder handling.
+- Corrected stage initialisation so earlier metadata was preserved.
+- Added endpoint-alert storage to the tracked schema.
+- Corrected MAC-reuse logic so location change alone was not enough.
+- Corrected the Stage 6 bypass summary after it undercounted the evidence.
+- Corrected Stage 6 logging so tests could use an isolated log path.
+- Archived cumulative Stage 6 logs before the clean run.
+- Corrected Stage 7 IoC extraction so usernames remained context.
+- Corrected Stage 7 scoring so isolated low-value activity was reduced.
+- Re-ran tests and validators after each relevant correction.
 
 ## Lessons Learned
 
-The first five stages have provided several useful lessons:
+The project taught me that:
 
-- A safe foundation should be built before detection or automated response.
-- Normalised data is easier to search and compare than inconsistent raw data.
-- Source validation should happen before cross-source correlation.
-- Network, Wi-Fi, endpoint and wired-LAN sources can be correlated without placing them in the same input file.
-- A MAC address is useful for device matching but can be copied or spoofed.
-- Hostname, username and event time are needed to support a MAC-reuse decision.
-- A restricted location is evidence for investigation, not automatic proof of compromise.
-- Approved activity must be represented in the test data so it is not incorrectly reported.
+- A safe foundation should come before detection or response work.
+- Normalised data is easier to search and compare.
+- Source validation should happen before correlation.
+- A detection is evidence for investigation, not automatic proof of compromise.
+- A MAC address, username or source IP is not complete proof of identity.
+- Approved activity must be represented in test data.
 - High CPU usage is not automatically malicious.
-- Repeated observations should be grouped without combining different devices.
-- A security alert is not always proof of malicious activity.
-- Duplicate protection reduces alert noise but does not replace continuous monitoring.
+- SQL injection can occur when user input is joined directly into a query.
+- Parameterised queries treat input as data instead of executable SQL.
+- Database errors and failed injection attempts can still provide useful evidence.
+- Several related indicators can provide stronger context than one isolated alert.
+- IoCs and behaviours should not be mixed together.
+- Exceptions reduce risk but do not erase evidence.
+- Clean-run evidence is important because cumulative logs can produce misleading totals.
+- Summary output must be checked against the underlying records.
 - Real test failures show where components do not connect correctly.
-- Earlier validators must be checked when later stages add new data.
-- A tracked schema is important because runtime initialization alone can hide setup problems.
-- Documentation should be updated from the actual implementation and test results.
+- Documentation should reflect the actual implementation, problems, fixes and lessons.
 
 ## Future Expansion
 
-Stages 1–5 provide the foundation for the remaining NetShield Phase 3 work.
+Stages 1–7 provide a foundation for later security operations work.
 
-Future expansion will include:
+The next expansion can build on the existing events, alerts, incidents, risk scores and preserved evidence by adding:
 
-- Last-seen and observation-count tracking
-- Inventory verification requests
-- Switch-port and VLAN authorisation
-- More endpoint process baselines
-- Correlation between identity, network and endpoint evidence
-- Local SQL injection testing
-- Indicator of Compromise extraction
-- Incident records and evidence handling
-- Controlled containment
-- Eradication and recovery
-- Complete clean-state project validation and sign-off
+- Incident lifecycle tracking
+- Evidence references and handling
+- Investigation status changes
+- Controlled containment requests
+- Approval records
+- Simulated containment
+- Eradication records
+- Recovery records
+- Final clean-state project validation and sign-off

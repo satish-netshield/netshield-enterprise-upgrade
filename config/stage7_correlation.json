@@ -1,0 +1,91 @@
+{
+  "stage": 7,
+  "version": "0.1.0",
+  "environment": "sandbox",
+  "correlation": {
+    "time_window_minutes": 10,
+    "minimum_shared_fields": 1,
+    "primary_fields": [
+      "username",
+      "ip_address",
+      "mac_address",
+      "hostname"
+    ],
+    "supporting_fields": [
+      "process_name",
+      "location",
+      "detection_type",
+      "event_time",
+      "source_type"
+    ],
+    "approved_device_reduces_risk": true,
+    "known_vpn_reduces_network_risk": true
+  },
+  "risk_scoring": {
+    "base_score": 0,
+    "points": {
+      "low_detection": 1,
+      "medium_detection": 2,
+      "high_detection": 4,
+      "critical_detection": 6,
+      "multiple_sources": 2,
+      "authentication_bypass": 6,
+      "database_error": 3,
+      "repeated_abnormal_requests": 3,
+      "unknown_process": 3,
+      "restricted_location": 3,
+      "suspicious_ip": 2,
+      "known_vpn_exception": -2,
+      "approved_device_exception": -2
+    },
+    "severity_bands": {
+      "Low": {
+        "minimum": 0,
+        "maximum": 3
+      },
+      "Medium": {
+        "minimum": 4,
+        "maximum": 7
+      },
+      "High": {
+        "minimum": 8,
+        "maximum": 11
+      },
+      "Critical": {
+        "minimum": 12,
+        "maximum": 999
+      }
+    }
+  },
+  "ioc_fields": [
+    "ip_address",
+    "mac_address",
+    "hostname",
+    "process_name",
+    "username"
+  ],
+  "ioc_detection_types": [
+    "Suspicious IP Address",
+    "Port Scanning",
+    "Rogue Access Point",
+    "Unknown Endpoint Process",
+    "MAC Address Reuse or Possible Spoofing",
+    "Authentication Bypass Attempt",
+    "Database Error"
+  ],
+  "behaviour_types": [
+    "Repeated Failed Logins",
+    "Repeated Connection Attempts",
+    "Unexpected CPU Activity",
+    "Repeated High CPU Activity",
+    "Unusual Location",
+    "Impossible Travel",
+    "Suspicious Input",
+    "Repeated Abnormal Requests"
+  ],
+  "sandbox_policy": {
+    "simulated_events_only": true,
+    "real_external_targets_allowed": false,
+    "automatic_containment_allowed": false
+  }
+}

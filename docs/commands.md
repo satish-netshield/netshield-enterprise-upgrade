@@ -15,7 +15,7 @@ source .venv/bin/activate
 ## Compilation
 
 ```bash
-python -m compileall -q src scripts tests
+python -m compileall -q src scripts tests lab
 ```
 
 ## Stage 1
@@ -210,6 +210,139 @@ Validate Stage 5:
 python -m scripts.validate_stage5
 ```
 
+## Stage 6 — SQL injection detection
+
+Initialise the isolated local lab:
+
+```bash
+python -m lab.sql_injection.app
+```
+
+Run Stage 6 unit tests:
+
+```bash
+python -m unittest -v lab.sql_injection.test_lab
+```
+
+Compile the Stage 6 files:
+
+```bash
+python -m py_compile \
+  lab/sql_injection/app.py \
+  lab/sql_injection/test_lab.py \
+  lab/sql_injection/generate_requests.py \
+  lab/sql_injection/detect_stage6.py \
+  lab/sql_injection/validate_stage6.py
+```
+
+Generate controlled SQL injection requests:
+
+```bash
+python -m lab.sql_injection.generate_requests
+```
+
+Review request evidence:
+
+```bash
+cat lab/sql_injection/data/stage6_requests.jsonl
+```
+
+Run Stage 6 detection:
+
+```bash
+python -m lab.sql_injection.detect_stage6
+```
+
+Review the detection report:
+
+```bash
+cat lab/sql_injection/outputs/stage6_detection_report.json
+```
+
+Validate Stage 6:
+
+```bash
+python -m lab.sql_injection.validate_stage6
+```
+
+Archive a cumulative application log before a clean run:
+
+```bash
+mkdir -p lab/sql_injection/logs/archive
+
+mv lab/sql_injection/logs/application_events.jsonl \
+  lab/sql_injection/logs/archive/application_events_before_clean_run.jsonl
+```
+
+Run the clean Stage 6 evidence cycle:
+
+```bash
+python -m lab.sql_injection.generate_requests
+python -m lab.sql_injection.detect_stage6
+python -m lab.sql_injection.validate_stage6
+```
+
+Review clean application events:
+
+```bash
+cat lab/sql_injection/logs/application_events.jsonl
+```
+
+## Stage 7 — Event correlation, risk scoring and IoC extraction
+
+Validate the configuration:
+
+```bash
+python -m json.tool config/stage7_correlation.json > /dev/null
+```
+
+Compile the Stage 7 files:
+
+```bash
+python -m py_compile \
+  src/correlation/stage7_engine.py \
+  scripts/generate_stage7_events.py \
+  scripts/run_stage7_correlation.py \
+  scripts/validate_stage7.py \
+  tests/test_stage7_correlation.py
+```
+
+Generate controlled correlation events:
+
+```bash
+python scripts/generate_stage7_events.py
+```
+
+Review the generated events:
+
+```bash
+cat lab/sql_injection/data/stage7_correlation_events.jsonl
+```
+
+Run event correlation and risk scoring:
+
+```bash
+python scripts/run_stage7_correlation.py
+```
+
+Review the Stage 7 report:
+
+```bash
+cat lab/sql_injection/outputs/stage7_correlation_report.json
+```
+
+Run Stage 7 unit tests:
+
+```bash
+python -m unittest -v tests.test_stage7_correlation
+```
+
+Validate Stage 7:
+
+```bash
+python scripts/validate_stage7.py
+```
+
 ## Unit tests
 
 Stage 1:
@@ -248,6 +381,18 @@ Stage 5 endpoint detection:
 python -m unittest -v tests.test_stage5_endpoint_detector
 ```
 
+Stage 6 SQL injection lab:
+
+```bash
+python -m unittest -v lab.sql_injection.test_lab
+```
+
+Stage 7 correlation:
+
+```bash
+python -m unittest -v tests.test_stage7_correlation
+```
+
 All current tests:
 
 ```bash
@@ -257,34 +402,131 @@ python -m unittest -v \
   tests.test_stage2_pipeline \
   tests.test_stage3_identity_detector \
   tests.test_stage4_network_correlation \
-  tests.test_stage5_endpoint_detector
+  tests.test_stage5_endpoint_detector \
+  lab.sql_injection.test_lab \
+  tests.test_stage7_correlation
 ```
 
 ## Complete validation
 
-```bash
-python -m compileall -q src scripts tests
+Compile all project files:
 
+```bash
+python -m compileall -q src scripts tests lab
+```
+
+Run all tests:
+
+```bash
 python -m unittest -q \
   tests.test_stage1_controls \
   tests.test_stage2_normalizer \
   tests.test_stage2_pipeline \
   tests.test_stage3_identity_detector \
   tests.test_stage4_network_correlation \
-  tests.test_stage5_endpoint_detector
+  tests.test_stage5_endpoint_detector \
+  lab.sql_injection.test_lab \
+  tests.test_stage7_correlation
+```
 
+Run the Stage 1–5 validators:
+
+```bash
 python -m scripts.validate_stage1
 python -m scripts.validate_stage2
 python -m scripts.validate_stage3
 python -m scripts.validate_stage4
 python -m scripts.validate_stage5
+```
 
+Run the Stage 6 validator:
+
+```bash
+python -m lab.sql_injection.validate_stage6
+```
+
+Run the Stage 7 validator:
+
+```bash
+python scripts/validate_stage7.py
+```
+
+Check documentation and Git whitespace:
+
+```bash
 git diff --check
 ```
 
-## Database review
+## Stage 6 database review
 
-Open SQLite:
+Open the isolated Stage 6 database:
+
+```bash
+sqlite3 lab/sql_injection/data/sql_injection_lab.db
+```
+
+Useful commands:
+
+```text
+.tables
+.schema users
+SELECT * FROM users;
+.quit
+```
+
+Review Stage 6 request evidence:
+
+```bash
+cat lab/sql_injection/data/stage6_requests.jsonl
+```
+
+Review Stage 6 application events:
+
+```bash
+cat lab/sql_injection/logs/application_events.jsonl
+```
+
+Review Stage 6 detection report:
+
+```bash
+cat lab/sql_injection/outputs/stage6_detection_report.json
+```
+
+## Stage 7 report review
+
+Review the Stage 7 correlation report:
+
+```bash
+cat lab/sql_injection/outputs/stage7_correlation_report.json
+```
+
+Review only incident severity and scores:
+
+```bash
+python -c "
+import json
+from pathlib import Path
+
+report = json.loads(
+    Path(
+        'lab/sql_injection/outputs/stage7_correlation_report.json'
+    ).read_text(encoding='utf-8')
+)
+
+for incident in report['incidents']:
+    print(
+        incident['severity'],
+        incident['risk_score'],
+        incident['event_count'],
+        len(incident['iocs']),
+        len(incident['behaviours'])
+    )
+"
+```
+
+## Main database review
+
+Open the main NetShield database:
 
 ```bash
 sqlite3 database/netshield.db
@@ -404,41 +646,48 @@ FROM system_metadata
 ORDER BY key;
 ```
 
-Review Stage 5 accepted events:
-
-```sql
-SELECT
-    source_event_id,
-    event_time,
-    source_type,
-    event_type,
-    mac_address,
-    hostname,
-    username,
-    location,
-    process_name,
-    cpu_percent,
-    status
-FROM security_events
-WHERE source_file IN (
-    'endpoint_stage5_events.jsonl',
-    'network_stage5_events.jsonl'
-)
-ORDER BY event_time;
-```
-
 ## Evidence verification
+
+Verify the Stage 1 evidence hash:
 
 ```bash
 sha256sum --check evidence/stage1_permission_test.sha256
 ```
 
+Review the archived Stage 6 log:
+
+```bash
+cat lab/sql_injection/logs/archive/application_events_before_clean_run.jsonl
+```
+
 ## Git review
+
+Check repository status:
 
 ```bash
 git status
+```
+
+Review unstaged changes:
+
+```bash
 git diff
+```
+
+Check unstaged whitespace:
+
+```bash
 git diff --check
+```
+
+Check staged whitespace:
+
+```bash
 git diff --cached --check
+```
+
+Review recent commits:
+
+```bash
 git log --oneline --decorate -5
 ```
