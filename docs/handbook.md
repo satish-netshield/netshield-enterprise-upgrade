@@ -4,29 +4,31 @@
 
 This handbook explains the engineering journey behind NetShield Phase 3.
 
-It is written for learners who want to understand the important decisions, improvements and lessons without reading every project file.
+It is written for learners who want to understand the main decisions, improvements and lessons without reading every project file.
 
-It complements the README. The README explains the project components and results, while this handbook focuses on how the project was built and what the work taught me.
+It complements the README. The README explains the project components and evidence in more detail, while this handbook focuses on how the project was built and what the work taught me.
 
-The current implementation is complete through Stage 7.
+The current implementation is complete through Stage 9.
 
 ## Engineering Goals
 
-The goal of NetShield Phase 3 is to build a security automation project inside a controlled Ubuntu VirtualBox sandbox.
+The goal of NetShield Phase 3 is to build a security-automation project inside a controlled Ubuntu VirtualBox sandbox.
 
 The project is built one stage at a time. Each stage is tested, corrected, understood, documented and validated before the next stage begins.
 
 The phase gradually added:
 
 - A controlled security environment
-- Security event processing
+- Security-event processing
 - Identity and authentication detection
 - Network and Wi-Fi detection
 - Endpoint and wired-LAN monitoring
 - SQL injection detection and secure query remediation
 - Event correlation, risk scoring and IoC extraction
+- Incident management and evidence handling
+- Controlled containment automation
 
-The aim is not to create a production security platform. The aim is to build a practical learning project that demonstrates security controls, detection logic, testing discipline and engineering decisions.
+The aim is not to create a production security platform. The aim is to build a practical learning project that demonstrates security controls, detection logic, evidence handling, controlled response and engineering decisions.
 
 ## Engineering Principles
 
@@ -134,6 +136,36 @@ A result is not treated as complete only because a script runs. It must also mat
 - Separation of IoCs from behaviours
 - Isolated low-value alert reduction
 
+### Stage 8 — Incident Management and Evidence
+
+- Unique incident records
+- Detection name, severity and risk score
+- Controlled incident status lifecycle
+- Investigation notes
+- Analyst decisions
+- False-positive classification
+- Preserved Stage 7 evidence
+- SHA-256 evidence hashes
+- Incident timelines
+- IoC tables
+- JSON incident records
+- Human-readable incident reports
+- Complete audit trail
+
+### Stage 9 — Controlled Containment
+
+- Simulated IP blocklist action
+- Unknown CYOD device quarantine
+- Temporary account restriction
+- Simulated session revocation
+- Suspicious-process isolation
+- Non-compliant Wi-Fi rejection
+- Evidence preservation before each action
+- Approval checks for disruptive actions
+- Success and failure results
+- Containment audit trail
+- Controlled containment report
+
 ## Major Engineering Decisions
 
 The following decisions kept the project safe and understandable:
@@ -154,8 +186,11 @@ The following decisions kept the project safe and understandable:
 - Parameterised SQL treats input as data instead of SQL instructions.
 - Correlation requires identity evidence and a time relationship.
 - IoCs are kept separate from behaviours because they support different investigation decisions.
-- Approved-device and VPN exceptions reduce risk without removing evidence.
-- Disruptive actions remain controlled and require approval.
+- Incident records connect detections, evidence, decisions and timelines.
+- SHA-256 provides an integrity check for preserved evidence.
+- Evidence is preserved before containment actions.
+- Automatic blocklisting is separated from disruptive actions that require approval.
+- Containment remains simulated so the project does not change real devices, accounts or networks.
 
 ## Improvements Made
 
@@ -171,12 +206,18 @@ The project improved as problems were found:
 - Corrected SQL placeholder handling.
 - Corrected stage initialisation so earlier metadata was preserved.
 - Added endpoint-alert storage to the tracked schema.
-- Corrected MAC-reuse logic so location change alone was not enough.
+- Corrected MAC-reuse logic so a location change alone was not enough.
 - Corrected the Stage 6 bypass summary after it undercounted the evidence.
 - Corrected Stage 6 logging so tests could use an isolated log path.
 - Archived cumulative Stage 6 logs before the clean run.
 - Corrected Stage 7 IoC extraction so usernames remained context.
 - Corrected Stage 7 scoring so isolated low-value activity was reduced.
+- Added Stage 8 incident records and evidence references.
+- Added SHA-256 verification for preserved Stage 7 evidence.
+- Added incident timelines, analyst decisions and audit entries.
+- Added Stage 9 simulated containment actions.
+- Added approval handling for disruptive containment actions.
+- Added success and failure results for every containment action.
 - Re-ran tests and validators after each relevant correction.
 
 ## Lessons Learned
@@ -198,21 +239,23 @@ The project taught me that:
 - Exceptions reduce risk but do not erase evidence.
 - Clean-run evidence is important because cumulative logs can produce misleading totals.
 - Summary output must be checked against the underlying records.
+- Evidence should be preserved before incident handling or containment.
+- A containment action can fail safely when approval is missing.
+- Failed actions must remain visible in the audit trail.
 - Real test failures show where components do not connect correctly.
 - Documentation should reflect the actual implementation, problems, fixes and lessons.
 
 ## Future Expansion
 
-Stages 1–7 provide a foundation for later security operations work.
+Stages 1–9 provide a foundation for later security-operations work.
 
-The next expansion can build on the existing events, alerts, incidents, risk scores and preserved evidence by adding:
+The next expansion can build on the existing events, alerts, incidents, risk scores, preserved evidence and containment records by adding:
 
-- Incident lifecycle tracking
-- Evidence references and handling
-- Investigation status changes
-- Controlled containment requests
-- Approval records
-- Simulated containment
 - Eradication records
-- Recovery records
+- Malware and process-removal decisions
+- Root-cause investigation
+- Recovery actions
+- Service restoration checks
+- Post-incident review
+- Incident closure criteria
 - Final clean-state project validation and sign-off

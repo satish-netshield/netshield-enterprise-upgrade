@@ -486,7 +486,7 @@ The validation confirmed:
 ### Engineering observations
 
 - The first engine incorrectly extracted username as an IoC. Username was kept as context instead.
-- The first scoring version rated an isolated Medium event too high. Isolated low-value activity was reduced to Low.
+- The first scoring version rated an isolated Medium event too highly. Isolated low-value activity was reduced to Low.
 - Direct execution of the Stage 7 runner initially failed because the project root was not available on the import path.
 - The runner was corrected so it could import the correlation engine when executed directly.
 
@@ -496,29 +496,183 @@ Correlation makes an incident easier to understand, but it should not turn every
 
 ---
 
+## Stages 8 and 9 — Incident Management, Evidence and Controlled Containment
+
+### What the components do
+
+Stage 8 converts Stage 7 incidents into traceable incident records.
+
+Stage 9 uses those incident records to perform controlled, simulated containment actions.
+
+Together, these stages preserve the evidence, record the investigation, apply approval controls and document the result of each containment action.
+
+### Why they exist or how they behave
+
+A detection or correlated incident is not enough to show what happened during an investigation. Stage 8 adds incident IDs, statuses, investigation notes, analyst decisions, evidence references, integrity hashes and audit records.
+
+Containment can limit suspicious activity, but disruptive actions can affect legitimate users or systems. Stage 9 therefore preserves evidence before action, checks the existing automation ACL and requires approval for disruptive actions.
+
+The status lifecycle is:
+
+```text
+New → Investigating → Contained → Eradicated → Recovered → Closed
+```
+
+Stages 8 and 9 record the incident and simulated containment process. Eradication and recovery remain separate work.
+
+### Information, rules and capabilities
+
+Stage 8 provides:
+
+- Unique incident IDs
+- Detection name, severity and risk score
+- Controlled incident statuses
+- Investigation notes
+- Analyst decisions
+- False-positive classification
+- Preserved Stage 7 evidence
+- SHA-256 evidence hashes
+- Incident timelines
+- IoC references
+- JSON incident records
+- Human-readable incident reports
+- Audit entries
+
+Stage 9 provides:
+
+- Simulated IP blocklist action
+- Unknown CYOD device quarantine
+- Temporary account restriction
+- Simulated session revocation
+- Suspicious-process isolation
+- Non-compliant Wi-Fi rejection
+- Evidence preservation before action
+- Approval checks
+- Success and failure recording
+- Containment audit entries
+
+### Workflow
+
+1. Read the Stage 7 correlation report.
+2. Create one Stage 8 incident record for each correlated incident.
+3. Assign a unique incident ID.
+4. Preserve the Stage 7 report as evidence.
+5. Calculate and store its SHA-256 hash.
+6. Record the detection, severity, risk score and initial status.
+7. Record investigation notes, analyst decisions, IoCs and false-positive fields.
+8. Create the incident timeline and audit trail.
+9. Read the Stage 8 incident summary.
+10. Preserve the supporting evidence before containment.
+11. Check whether each containment action is allowed.
+12. Check whether approval is required.
+13. Run only the simulated action.
+14. Record the target, approval state, evidence hash and result.
+15. Write the containment audit entry and report.
+
+### Approval model
+
+- Adding an IP address to the simulated blocklist is allowed automatically.
+- Device quarantine requires approval.
+- Account restriction requires approval.
+- Session revocation requires approval.
+- Process isolation requires approval.
+- Non-compliant Wi-Fi rejection requires approval.
+- Undefined actions are denied.
+- An action without approval fails safely and remains in the audit trail.
+
+### Observed example output
+
+```text
+STAGE 8 INCIDENT MANAGEMENT
+STAGE 7 INCIDENTS RECEIVED: 3
+INCIDENT RECORDS CREATED: 3
+AUDIT ENTRIES: 9
+EVIDENCE SHA256: 10e94c774ace7897059c2a3713e1cb74697f3c1eb037efa98fcdd394e1a4efef
+AUTOMATIC CONTAINMENT: false
+```
+
+```text
+STAGE 9 CONTROLLED CONTAINMENT
+ACTIONS ATTEMPTED: 6
+ACTIONS SUCCEEDED: 5
+ACTIONS FAILED: 1
+EVIDENCE PRESERVED BEFORE ACTION: 10e94c774ace7897059c2a3713e1cb74697f3c1eb037efa98fcdd394e1a4efef
+EXTERNAL TARGETS USED: false
+REAL ACCOUNTS USED: false
+```
+
+The Wi-Fi rejection failed because approval was not granted. This was the expected controlled result.
+
+### Testing Notes
+
+Ten Stage 8 unit tests passed. Stage 8 validation confirmed:
+
+- Three incident records
+- Three human-readable reports
+- Unique incident IDs
+- Correct severity and risk values
+- Investigation notes and analyst decisions
+- False-positive fields
+- IoC tables
+- Valid evidence hashes
+- Nine audit entries
+- Incident timeline entries
+- Valid and invalid status-transition handling
+
+Eleven Stage 9 unit tests passed. Stage 9 validation confirmed:
+
+- Six containment actions
+- Five successful actions
+- One failed action
+- Evidence preservation before every action
+- SHA-256 integrity
+- Approval-required actions
+- Safe rejection without approval
+- One audit entry per action
+- No external targets or real accounts
+
+### Engineering observations
+
+- Stage 8 used the existing Stage 7 report instead of creating a separate, unrelated incident source.
+- The Stage 7 report was preserved as evidence for the incident records.
+- All three Stage 8 incidents initially started in `New` status.
+- Stage 9 preserved evidence before both successful and failed actions.
+- The automatic blocklist action succeeded without approval according to the existing ACL.
+- The Wi-Fi rejection failed safely because the required approval was not granted.
+- Stage 8 and Stage 9 kept containment simulated and did not change real devices, accounts or networks.
+
+### What I Learned
+
+Incident handling needs more than a detection result. Evidence, decisions, status, timelines and action outcomes must remain connected.
+
+Containment should be controlled and reversible where possible. A failed action is still an important result and must remain visible in the audit trail.
+
+---
+
 ## System Validation
 
 ### Clean-state validation workflow
 
-The final validation followed the complete engineering loop:
+The final validation followed the complete engineering cycle:
 
 1. Activate the Python virtual environment.
 2. Compile the source, script, test and lab files.
-3. Run the combined Stage 1–7 test set.
+3. Run the combined Stage 1–9 test set.
 4. Run every stage validator.
 5. Check duplicate imports and repeated detector runs.
 6. Check accepted, rejected and raw database records.
 7. Check the clean Stage 6 log after archiving the historical log.
 8. Check the Stage 6 users table and test account.
 9. Check Stage 7 incidents, risk scores, IoCs and behaviours.
-10. Run `git diff --check`.
-11. Review the documentation against the actual implementation and output.
-12. Commit the Stage 6 and Stage 7 work together.
+10. Check Stage 8 incident records, evidence hashes, reports and audit entries.
+11. Check Stage 9 approval decisions, action results and containment audit entries.
+12. Run `git diff --check`.
+13. Review the documentation against the actual implementation and output.
 
 ### Genuine end-to-end results
 
 ```text
-Ran 64 tests
+Ran 85 tests
 
 OK
 
@@ -529,17 +683,13 @@ STAGE 4 VALIDATION: PASS (12/12)
 STAGE 5 VALIDATION: PASS (12/12)
 STAGE 6 VALIDATION: PASS (15/15)
 STAGE 7 VALIDATION: PASS (15/15)
+STAGE 8 VALIDATION: PASS
+STAGE 9 VALIDATION: PASS
 ```
 
-Stage 6 and Stage 7 were committed together:
+The Stage 6 and Stage 7 work was previously committed and pushed. The Stage 8 and Stage 9 implementation and documentation are the next changes to be reviewed and committed.
 
-```text
-dfa2e39 Build Stage 6 SQL injection and Stage 7 correlation
-```
-
-The commit was pushed successfully to GitHub.
-
-### Problems discovered and how they were fixed
+### Problems discovered and how they were solved
 
 - The Stage 2 validator counted later-stage events and was limited to the original Stage 2 files.
 - Wi-Fi records were rejected from a mixed source file and were moved to a separate source file.
@@ -554,33 +704,32 @@ The commit was pushed successfully to GitHub.
 - Stage 7 IoC extraction was corrected so username remained context.
 - Stage 7 isolated-event scoring was reduced to Low.
 - The Stage 7 import path was corrected for direct script execution.
+- Stage 8 added incident records and evidence references based on the Stage 7 output.
+- Stage 9 added approval checks and recorded failed containment when approval was missing.
 
 ### Engineering observations
 
-The project remains inside the Ubuntu VirtualBox sandbox and uses simulated events and local test applications.
+The project uses simulated data and local applications rather than live feeds or external systems.
 
-The main NetShield database was kept separate from the Stage 6 SQL injection database. Database files, logs, generated reports, raw runtime data and cache files were not added to Git.
+The Stage 6 database is separate from the main NetShield database. Stage 8 preserves the Stage 7 report as evidence, and Stage 9 preserves evidence before simulated containment.
 
-The Stage 7 correlation engine combines evidence but does not perform automatic containment. Disruptive response remains outside the completed scope.
+Database files, logs, generated reports, raw runtime data and cache files remain outside the Git commit.
 
 ### What I Learned
 
-A script passing its own checks is not enough. The underlying database records, raw evidence, log state, duplicate behaviour and repeated-run results also need to be checked.
+Full regression testing found integration problems that isolated tests did not reveal. File naming, schema setup, SQL parameters, import paths, log state, evidence handling and approval decisions all affected the final result.
 
-Full regression testing found integration problems that isolated tests did not show. File routing, schema setup, SQL placeholders, import paths, historical logs and scoring assumptions all affected the final result.
+A printed summary is not enough evidence by itself. The underlying events, database records, logs, hashes, incident records, action results and audit entries must also be checked.
 
 ### Next expansion scope
 
-The next stage can build on the completed events, alerts and incidents by adding:
+The next stage can build on the completed events, alerts, incidents, preserved evidence and containment records by adding:
 
-- Incident records
-- Evidence references and handling
-- Last-seen and observation-count tracking
-- Inventory verification requests
-- Switch-port and VLAN authorisation
-- Stronger endpoint process baselines
-- Controlled containment requests
-- Approval handling
 - Eradication records
-- Recovery records
-- Final clean-state project sign-off
+- Malware and process-removal decisions
+- Root-cause investigation
+- Recovery actions
+- Service restoration checks
+- Post-incident review
+- Incident closure criteria
+- Final clean-state project validation and sign-off

@@ -26,7 +26,9 @@ Stage 1 created the controlled foundation before detection work began.
 2. Validate IP addresses.
 3. Check the blocklist before the allowlist.
 4. Preserve evidence and calculate its SHA-256 hash.
-5. Protect the evidence and verify its hash during validation.
+5. Protect the evidence and verify its hash.
+
+---
 
 ## Stage 2 — Security data pipeline
 
@@ -34,7 +36,7 @@ Stage 2 prepared consistent events for later detection.
 
 ### Event workflow
 
-1. Generate safe simulated authentication, network, Wi-Fi, endpoint and application events.
+1. Generate simulated authentication, network, Wi-Fi, endpoint and application events.
 2. Write each source to a separate JSONL file.
 3. Create an import batch.
 4. Read one record at a time.
@@ -52,9 +54,14 @@ Stage 2 prepared consistent events for later detection.
 3. Reject later duplicates.
 4. Include duplicate records in the import totals.
 
-### Problems and lesson
+### Problems and solutions
 
-Malformed data, invalid values and duplicate records were deliberately tested. JSONL allowed one bad record to be rejected without stopping the rest of the file.
+- Invalid JSON, missing event IDs, invalid IP addresses and invalid CPU values were rejected.
+- Rejected records were preserved with their original input and failure reason.
+- The Stage 2 validator initially counted later Stage 3 events as original Stage 2 data.
+- The validator was corrected to check only the original Stage 2 source files.
+
+---
 
 ## Stage 3 — Identity and authentication detection
 
@@ -64,7 +71,7 @@ Stage 3 used accepted authentication events to identify suspicious identity acti
 
 1. Load identity rules and user baselines.
 2. Read accepted authentication events.
-3. Group events by user, IP address and time.
+3. Group events by user, IP address and time window.
 4. Detect repeated failures and possible brute force.
 5. Detect successful login after repeated failures.
 6. Detect MFA anomalies.
@@ -84,6 +91,8 @@ Stage 3 used accepted authentication events to identify suspicious identity acti
 7. Record the investigation and audit event.
 
 The replacement laptop showed that a legitimate device can still create an alert when inventory information is incomplete.
+
+---
 
 ## Stage 4 — Network, CYOD and Wi-Fi detection
 
@@ -116,12 +125,16 @@ Stage 4 added network and wireless context to the identity detections.
 
 ### Problems and solutions
 
-- Wi-Fi records were initially placed in a network-named file and rejected. Separate source files were created.
-- The detection runner supplied more source files than its SQL statement accepted. Dynamic placeholders were added.
-- Stage 4 setup initially reset Stage 3 metadata. The initializer was corrected to preserve earlier status.
-- Repeated activity initially produced separate alerts. MAC-based correlation grouped related activity while keeping different devices separate.
+- Wi-Fi records were initially placed in a network-named file and rejected.
+- Separate source files were created to preserve source validation.
+- The detection runner supplied more source files than its SQL statement accepted.
+- Dynamic SQL placeholders were added for the changing file list.
+- Stage 4 setup initially reset Stage 3 metadata.
+- The initializer was corrected to preserve earlier completion status.
+- Repeated activity initially produced separate alerts.
+- MAC-based correlation grouped related activity while keeping different devices separate.
 
-The main lesson was that source validation must happen before correlation.
+---
 
 ## Stage 5 — Endpoint and wired-LAN detection
 
@@ -158,13 +171,17 @@ Stage 5 extended monitoring to endpoint activity and wired connections.
 
 ### Problems and solutions
 
-- The first wired filename did not match its `network` source type. The generator was corrected.
-- The endpoint-alert table was initially created only by the initializer. It was added to the tracked schema.
-- A location change initially created a MAC-reuse alert. The rule was changed to require conflicting identity evidence with time overlap.
-- The application role table contained only the project administrator. Simulated role mappings were added.
+- The first wired filename did not match its `network` source type.
+- The generator was corrected to create the correct filename.
+- The endpoint-alert table was initially created only by the initializer.
+- The table was added to the tracked schema.
+- A location change initially created a MAC-reuse alert.
+- The rule was changed to require conflicting hostname or username evidence with time overlap.
+- The application role table contained only the project administrator.
+- Simulated role mappings were added for endpoint and wired-LAN testing.
 - Repeated wired observations were grouped by MAC, detection type, location and time window.
 
-The main lesson was that CPU activity and MAC address require supporting context before they can be treated as suspicious.
+---
 
 ## Stage 6 — SQL injection detection
 
@@ -204,12 +221,15 @@ The vulnerable function uses string concatenation only for local demonstration a
 
 ### Problems and solutions
 
-- The first summary counted two vulnerable bypasses although four vulnerable requests authenticated. The summary was corrected to use the actual query result.
-- One test did not genuinely verify the application log because the application used a fixed path. The application and test were corrected to accept an isolated log path.
-- Earlier runs left 36 cumulative events in the log. The old log was archived before the clean run.
-- The clean run produced seven requests and seven application events.
+- The first summary counted two vulnerable bypasses although four vulnerable requests authenticated.
+- The summary was corrected to use the actual query result.
+- One test did not genuinely verify the application log because the application used a fixed path.
+- The application and test were corrected to accept an isolated log path.
+- Earlier runs left 36 cumulative events in the log.
+- The old log was archived before the clean run.
+- The clean run then produced seven requests and seven application events.
 
-The main lesson was that secure query construction must be tested before and after remediation.
+---
 
 ## Stage 7 — Event correlation, risk scoring and IoC extraction
 
@@ -229,7 +249,7 @@ Stage 7 connected related events from earlier stages.
 
 ### Risk-scoring workflow
 
-1. Assign points from the detection severity.
+1. Assign points from detection severity.
 2. Add points for strong indicators.
 3. Add points when several source types are involved.
 4. Apply approved-device and known-VPN exceptions.
@@ -241,41 +261,103 @@ Stage 7 connected related events from earlier stages.
 
 1. Extract observable values such as IP address, MAC address, hostname and process name.
 2. Keep username as identity context.
-3. Classify repeated failures and repeated connections as behaviours.
+3. Record repeated failures and repeated connections as behaviours.
 4. Keep IoCs separate from behaviours.
 5. Preserve the source event ID for each extracted IoC.
 
 ### Problems and solutions
 
-- The first engine treated username as an IoC. The extraction logic was corrected so username remained context.
-- An isolated medium event was initially treated too strongly. Its risk was reduced to Low when no stronger related evidence existed.
-- The corrected engine preserved the Critical multi-source incident while applying the approved-device and VPN exceptions.
+- The first engine treated username as an IoC.
+- The extraction logic was corrected so username remained context.
+- An isolated Medium event was initially treated too strongly.
+- Its risk was reduced to Low when no stronger related evidence existed.
+- The direct Stage 7 runner initially failed to import the project package.
+- The runner was corrected to load the project root.
 
-The main lesson was that several related alerts can provide stronger context, but one isolated low-value event should not automatically become high risk.
+---
 
-## Complete validation principle
+## Stage 8 — Incident management and evidence handling
 
-Each stage follows the same cycle:
+Stage 8 converted Stage 7 incidents into traceable incident records.
 
-1. Build a limited component.
-2. Test the component in isolation.
-3. Run it with the existing project.
-4. Record genuine output.
-5. Investigate failures.
-6. Correct the implementation.
-7. Re-run affected tests.
-8. Run the complete regression set.
-9. Review the documentation against the actual work.
-10. Sign off only after clean validation passes.
+### Incident workflow
 
-For Stage 7, clean validation must also confirm:
+1. Read the Stage 7 correlation report.
+2. Create one incident record for each Stage 7 incident.
+3. Assign a unique incident ID.
+4. Record the detection name, severity and risk score.
+5. Start each incident in `New` status.
+6. Preserve the Stage 7 report as evidence.
+7. Calculate and store its SHA-256 hash.
+8. Record investigation notes and analyst decisions.
+9. Record false-positive classification fields and IoCs.
+10. Create the incident timeline.
+11. Generate JSON incident records.
+12. Generate human-readable incident reports.
+13. Write the audit trail.
 
-- Related events are combined.
-- Unrelated events remain separate.
-- Risk increases when several indicators appear together.
-- Approved-device and VPN exceptions are applied.
-- Isolated low-value activity is reduced.
-- IoCs are separated from behaviours.
-- Automatic containment remains disabled.
+### Status workflow
 
-The project remains inside the Ubuntu VirtualBox sandbox. Current detections use controlled simulated data, and disruptive or external actions remain outside scope.
+1. Create the incident in `New` status.
+2. Move it to `Investigating` after review begins.
+3. Move it to `Contained` only after approved containment.
+4. Move it to `Eradicated` only after the cause has been removed.
+5. Move it to `Recovered` after normal operation is restored.
+6. Move it to `Closed` after the investigation is complete.
+
+Only valid status transitions are allowed.
+
+### Engineering reasoning
+
+Incident records keep the detection, evidence, decisions and actions connected. Evidence is preserved before later handling so the original report remains available for review.
+
+---
+
+## Stage 9 — Controlled containment automation
+
+Stage 9 added simulated containment actions for Stage 8 incidents.
+
+### Containment workflow
+
+1. Read the Stage 8 incident summary and supporting evidence.
+2. Preserve the evidence before taking action.
+3. Calculate the evidence SHA-256 hash.
+4. Check whether the requested action is allowed.
+5. Check whether approval is required.
+6. Run only the simulated containment action.
+7. Record the target and approval state.
+8. Record whether the action succeeded or failed.
+9. Write one audit entry for each action.
+10. Generate the containment report.
+
+### Containment actions
+
+1. Add a suspicious IP address to the simulated blocklist.
+2. Quarantine an unknown CYOD device.
+3. Restrict a suspicious account temporarily.
+4. Revoke a simulated user session.
+5. Isolate a suspicious process.
+6. Reject a non-compliant Wi-Fi connection.
+
+### Approval workflow
+
+1. Allow the simulated blocklist action according to the existing ACL.
+2. Require approval for device quarantine.
+3. Require approval for account restriction.
+4. Require approval for session revocation.
+5. Require approval for process isolation.
+6. Require approval before rejecting a Wi-Fi connection.
+7. Deny actions that are not defined in the allowed action list.
+8. Record failed actions when approval is missing.
+
+### Engineering reasoning
+
+Containment can limit suspicious activity, but disruptive actions can affect legitimate users or systems. Evidence is therefore preserved first, and approval is checked before disruptive actions.
+
+Stage 9 remains simulated. It does not change a real firewall, device, account, session, process or Wi-Fi network.
+
+### Problems and solutions
+
+The existing ACL did not contain a separate `reject_wifi_connection` entry. Because Wi-Fi rejection can disrupt access, Stage 9 treated it as an approval-required action and recorded the action as failed when approval was not granted.
+
+---

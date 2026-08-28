@@ -14,11 +14,9 @@
 - Fifteen records were accepted and four malformed records were rejected.
 - Rejected records retained their filename, line number, original input and failure reason.
 - Timestamps with a `+12:00` offset were converted to UTC.
-- Invalid IP, missing event ID, invalid JSON and CPU values above 100 were rejected.
+- Invalid IP addresses, missing event IDs, invalid JSON and CPU values above 100 were rejected.
 - Duplicate-event protection was confirmed with an isolated temporary database.
-- All 28 Stage 1 and Stage 2 unit tests passed.
-- Stage 1 validation remained 12/12.
-- Stage 2 validation passed 14/14.
+- Stage 2 validation passed `14/14`.
 
 ## Stage 3 observations
 
@@ -32,8 +30,7 @@
 - The replacement laptop generated a new-device alert because it was authorised but not yet registered in the CYOD inventory.
 - The alert was investigated and classified as a false positive with an audit record.
 - Eleven Stage 3 detector tests passed.
-- Stage 3 validation passed 12/12.
-- The full Stage 3 regression run passed 39 tests.
+- Stage 3 validation passed `12/12`.
 
 ## Stage 4 observations
 
@@ -52,8 +49,7 @@
 - Stage 4 setup initially reset completed Stage 3 metadata.
 - The initializer was corrected to preserve the earlier completion status.
 - Five Stage 4 correlation tests passed.
-- Stage 4 validation passed 12/12.
-- The complete regression run passed 44 tests.
+- Stage 4 validation passed `12/12`.
 
 ## Stage 5 observations
 
@@ -76,13 +72,12 @@
 - Re-importing the same events rejected all 14 records as duplicates.
 - A repeated detector run created zero new alerts and counted 10 existing alerts.
 - Eight Stage 5 detector tests passed.
-- Stage 5 validation passed 12/12.
-- The complete Stage 1–5 regression run passed 52 tests.
+- Stage 5 validation passed `12/12`.
 
 ## Stage 6 observations
 
 - Stage 6 was created as a separate local SQL injection lab.
-- The lab uses a separate SQLite database and one test account.
+- The lab used a separate SQLite database and one test account.
 - No external target, public system or real account was used.
 - The vulnerable login function demonstrated unsafe string-concatenated SQL.
 - The input `' OR 1=1 --` bypassed authentication in the vulnerable function.
@@ -101,7 +96,7 @@
 - Four vulnerable authentication bypasses were identified.
 - One parameterised retest blocked the bypass.
 - Seven Stage 6 unit tests passed.
-- Stage 6 validation passed 15/15.
+- Stage 6 validation passed `15/15`.
 
 ## Stage 7 observations
 
@@ -110,7 +105,7 @@
 - Four events sharing identity fields and a time window were combined into one incident.
 - The main incident contained four source types and received a Critical score of 30.
 - An approved-device and known-VPN group received a Low score of 1.
-- One isolated medium network event was initially scored too strongly.
+- One isolated Medium network event was initially scored too strongly.
 - Isolated low-value activity was reduced to Low with a score of 3.
 - The first IoC extraction included the username.
 - The extraction logic was corrected so usernames remain incident context.
@@ -119,8 +114,65 @@
 - Approved-device and known-VPN exceptions reduced risk without removing the original evidence.
 - Three incidents were created from seven events.
 - Five Stage 7 correlation tests passed.
-- Stage 7 validation passed 15/15.
+- Stage 7 validation passed `15/15`.
 - Automatic containment remained disabled.
+
+## Stage 8 observations
+
+- Stage 8 used the existing Stage 7 correlation report as its input.
+- Three Stage 7 incidents were converted into three incident records.
+- Each incident received a unique incident ID.
+- The incidents preserved the detection name, severity, risk score and source event IDs.
+- All three incidents started in `New` status.
+- The Stage 7 report was copied into the Stage 8 evidence directory.
+- The preserved evidence received the SHA-256 hash `10e94c774ace7897059c2a3713e1cb74697f3c1eb037efa98fcdd394e1a4efef`.
+- The same evidence hash was recorded in the incident records and reports.
+- Human-readable reports included investigation notes, analyst decisions, false-positive fields, IoCs, evidence and timelines.
+- Nine audit entries were created: three incident records, three evidence-preservation actions and three analyst-decision records.
+- Valid status transitions were accepted.
+- Invalid status transitions were rejected.
+- Ten Stage 8 unit tests passed.
+- Stage 8 validation passed.
+- Automatic containment was not performed in Stage 8.
+- Eradication and recovery were not performed in Stage 8.
+
+## Stage 9 observations
+
+- Stage 9 used the Stage 8 incident summary and preserved evidence.
+- Evidence was preserved before every simulated containment action.
+- The same SHA-256 hash was recorded with every action result.
+- Six containment actions were attempted.
+- Five actions succeeded and one action failed.
+- Adding the suspicious IP to the simulated blocklist succeeded without approval because it is defined as an automatic action.
+- Device quarantine succeeded after approval.
+- Account restriction succeeded after approval.
+- Simulated session revocation succeeded after approval.
+- Suspicious-process isolation succeeded after approval.
+- Non-compliant Wi-Fi rejection failed safely because approval was not granted.
+- Unknown containment actions were denied.
+- Every action recorded its target, approval state, evidence hash, timestamp and result.
+- Six containment audit entries were created.
+- Eleven Stage 9 unit tests passed.
+- Stage 9 validation passed.
+- No external targets or real accounts were used.
+- Automatic real-world containment remained disabled.
+- Eradication and recovery remained separate from Stage 9.
+
+## Combined validation observations
+
+- The complete Stage 1–9 regression run passed 85 tests.
+- Stage 1 validation passed `12/12`.
+- Stage 2 validation passed `14/14`.
+- Stage 3 validation passed `12/12`.
+- Stage 4 validation passed `12/12`.
+- Stage 5 validation passed `12/12`.
+- Stage 6 validation passed `15/15`.
+- Stage 7 validation passed `15/15`.
+- Stage 8 validation passed.
+- Stage 9 validation passed.
+- `git diff --check` passed.
+- Stage 6 and Stage 7 were committed together before Stage 8 and Stage 9 work was added.
+- Runtime data, logs and generated reports remained excluded from Git.
 
 ## Engineering lessons
 
@@ -132,5 +184,10 @@
 - Several related indicators can provide stronger context than one isolated alert.
 - IoCs and behaviours have different meanings and should remain separate.
 - Clean-run data is important because cumulative logs can produce misleading totals.
-- Each genuine test failure should be corrected and retested before sign-off.
-- The next response stage can build on the Stage 7 incidents, scores and preserved evidence.
+- Evidence must be preserved before incident handling or containment.
+- SHA-256 confirms whether preserved evidence has changed.
+- Disruptive containment actions require approval.
+- Failed containment actions must remain in the audit trail.
+- Incident status changes should follow a controlled lifecycle.
+- Full regression testing exposes integration problems that isolated tests may not show.
+- Each genuine failure should be corrected and retested.

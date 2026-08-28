@@ -21,8 +21,8 @@ Application RBAC controls NetShield decisions. It does not create separate Ubunt
 
 Actions use three control levels:
 
-- Automatic: alert creation, evidence hashing, log preservation and simulated monitoring.
-- Approval required: account restriction, session revocation, process termination, device quarantine and firewall changes.
+- Automatic: alert creation, evidence hashing, log preservation, simulated blocklisting and increased monitoring.
+- Approval required: account restriction, session revocation, process isolation, device quarantine and Wi-Fi rejection.
 - Manual only: credential resets, physical-device removal and infrastructure changes.
 
 Undefined actions are denied. Disruptive actions require approval.
@@ -90,7 +90,7 @@ These are rule-based detections and require investigation before a final conclus
 
 ## Network and Wi-Fi detection
 
-Stage 4 uses MAC address as the primary device identity. IP address, hostname, username, location, time and event type provide supporting evidence.
+Stage 4 uses the MAC address as the primary device identity. IP address, hostname, username, location, time and event type provide supporting evidence.
 
 It detects suspicious IPs, repeated connections, port scanning, unknown devices, MAC reuse, Wi-Fi zone violations, WPA3 violations, WPA2 downgrades and rogue access points.
 
@@ -98,7 +98,7 @@ A restricted location is evidence for investigation, not automatic proof of comp
 
 ## Endpoint and wired-LAN detection
 
-Stage 5 uses MAC address as the primary endpoint identity.
+Stage 5 uses the MAC address as the primary endpoint identity.
 
 CPU usage, process name, hostname, username, location, role, switch port, VLAN and event time provide supporting evidence.
 
@@ -112,13 +112,12 @@ Initial stages use rule-based severity labels.
 
 Stage 7 adds configured risk points for detection severity and stronger conditions such as:
 
-- Authentication-bypass evidence.
-- Database errors.
-- Repeated abnormal activity.
-- Unknown endpoint processes.
-- Suspicious IP activity.
-- Restricted locations.
-- Evidence from multiple source types.
+- Authentication-bypass evidence
+- Database errors
+- Repeated abnormal activity
+- Unknown endpoint processes
+- Suspicious IP activity
+- Evidence from multiple source types
 
 The final score maps to Low, Medium, High or Critical.
 
@@ -197,14 +196,115 @@ Behaviours are kept separate from IoCs.
 
 Examples include:
 
-- Repeated failed logins.
-- Repeated connection attempts.
-- Unexpected CPU activity.
-- Impossible travel.
-- Suspicious input.
-- Repeated abnormal requests.
+- Repeated failed logins
+- Repeated connection attempts
+- Unexpected CPU activity
+- Impossible travel
+- Suspicious input
+- Repeated abnormal requests
 
 An IoC is an observable value. A behaviour describes activity.
+
+## Stage 8 incident management
+
+Stage 8 creates a traceable incident record from each Stage 7 incident.
+
+Each record contains:
+
+- Unique incident ID
+- Detection name
+- Severity
+- Risk score
+- Incident status
+- Investigation note
+- Analyst decision
+- False-positive classification
+- IoC list
+- Evidence reference
+- Action timeline
+- Audit information
+
+The initial status is `New`. Status changes follow the controlled lifecycle:
+
+```text
+New → Investigating → Contained → Eradicated → Recovered → Closed
+```
+
+Invalid status changes are denied so an incident cannot skip required handling steps.
+
+## Stage 8 evidence decisions
+
+The Stage 7 report is preserved as Stage 8 evidence.
+
+A SHA-256 hash is calculated for the preserved file and stored with the incident record.
+
+The hash is used to confirm that the preserved evidence has not changed.
+
+Evidence preservation, investigation notes and analyst decisions remain linked to the incident ID.
+
+## Stage 8 false-positive decisions
+
+False-positive fields are recorded instead of silently deleting an alert.
+
+An analyst decision explains whether the activity is authorised, unresolved or still requires investigation.
+
+Stage 8 records the initial decision only. Containment, eradication and recovery are handled separately.
+
+## Stage 9 containment decisions
+
+Stage 9 performs controlled simulated containment for Stage 8 incidents.
+
+The supported actions are:
+
+- Add an IP address to the simulated blocklist.
+- Quarantine an unknown CYOD device.
+- Restrict an account temporarily.
+- Revoke a simulated user session.
+- Isolate a suspicious process.
+- Reject a non-compliant Wi-Fi connection.
+
+The action must be defined in the allowed action list. Undefined actions are denied.
+
+## Stage 9 approval decisions
+
+Adding an IP address to the simulated blocklist is permitted as an automatic action under the existing ACL.
+
+Device quarantine, account restriction, session revocation, process isolation and Wi-Fi rejection require approval because they can disrupt access or activity.
+
+An action without the required approval fails safely and is recorded as failed.
+
+## Stage 9 evidence-before-action decision
+
+Stage 9 preserves the supporting evidence before every containment action.
+
+The SHA-256 hash is recorded with the action result so the action can be linked to the evidence available before containment.
+
+Evidence preservation occurs whether the action later succeeds or fails.
+
+## Stage 9 action-result decisions
+
+Every containment attempt records:
+
+- Incident ID
+- Action name
+- Target
+- Approval requirement
+- Approval decision
+- Evidence path
+- Evidence SHA-256 hash
+- Timestamp
+- Success or failure result
+- Reason for the result
+
+A failed action remains in the audit trail. It is not treated as successful containment.
+
+## Stage 9 containment boundary
+
+Stage 9 actions are simulated inside the Ubuntu VirtualBox sandbox.
+
+The system does not change a real firewall, device, account, session, process or Wi-Fi network.
+
+Automatic real-world containment remains disabled. Eradication and recovery are separate stages.
 
 ## Evidence handling
 
@@ -214,19 +314,9 @@ Stage 1 uses SHA-256 evidence hashing and protected permissions.
 
 Stages 3–5 use deterministic alert keys. Stage 7 uses deterministic incident keys.
 
-Stage 6 and Stage 7 preserve their request, event and report files for review.
+Stage 8 preserves the Stage 7 report and records its hash with each incident.
 
-## Testing and engineering notes
-
-The security logic was tested through the existing stage validators and focused unit tests.
-
-Stage 6 validation confirmed the vulnerable query, parameterised remediation, source-IP logging, database-error detection and database integrity.
-
-Stage 7 validation confirmed event grouping, risk scoring, exceptions, IoC extraction and behaviour separation.
-
-During development, the Stage 6 bypass count and cumulative log total did not initially match the clean evidence. The counting logic was corrected and the earlier log was archived before the clean run.
-
-Stage 7 initially treated usernames as IoCs and scored an isolated medium event too strongly. The extraction and scoring logic were corrected before validation.
+Stage 9 preserves evidence again before simulated containment and records the result in the containment audit trail.
 
 ## Current limitations
 
@@ -235,14 +325,16 @@ Stage 7 initially treated usernames as IoCs and scored an isolated medium event 
 - Pattern-based input detection may not identify every injection technique.
 - Source IP does not prove the identity of the requester.
 - Risk scoring uses the current learning-project rules and requires further tuning.
-- Stage 7 does not yet create incidents in the main NetShield database.
-- Controlled incident response remains future project work.
+- Stage 8 incident records are currently generated from the Stage 7 report rather than a live incident database.
+- Stage 9 containment actions are simulated and do not change real systems.
+- Real switch-port, VLAN and physical access integrations are not available.
+- Eradication and recovery remain separate future project work.
 
 ## Sandbox boundaries
 
 - Testing remains inside Ubuntu VirtualBox.
 - External targets are not used.
 - Real accounts and credentials are not used.
-- Automatic containment is disabled.
+- The Stage 6 database is separate from the main NetShield database.
+- Automatic real-world containment is disabled.
 - Disruptive actions require verification and approval.
-- The Windows host and public systems remain outside scope.
