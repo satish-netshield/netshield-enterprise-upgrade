@@ -158,9 +158,42 @@
 - Automatic real-world containment remained disabled.
 - Eradication and recovery remained separate from Stage 9.
 
+## Stage 10 observations
+
+- Stage 10 used the Stage 9 containment report and preserved pre-eradication evidence.
+- Ten simulated eradication and recovery actions were attempted.
+- All ten actions succeeded.
+- The actions covered simulated credential reset, privilege removal, device registration, WPA3 correction, rogue access-point removal, suspicious-process removal, parameterised SQL remediation, service restoration and increased monitoring.
+- Evidence was preserved before every eradication or recovery action.
+- Four original-threat retests were performed after the actions.
+- All four retests were blocked.
+- The incident lifecycle progressed from `Contained` to `Eradicated`, `Recovered` and `Closed`.
+- The Stage 10 audit trail contained 14 entries: ten action records and four retest records.
+- Seven Stage 10 unit tests passed.
+- Stage 10 validation passed.
+- Real accounts, external targets and real-world eradication actions were not used.
+
+## Stage 11 observations
+
+- The first Stage 11 validator printed blank labels for several validator results.
+- The validator output was corrected so each Stage 1–10 validator has an explicit label.
+- The regression check was corrected to handle unittest output written to standard error.
+- Clean-state validation confirmed that the required project files and documentation were present.
+- Python syntax compilation passed for the project source, scripts, tests and lab files.
+- The complete Stage 1–10 regression run passed 92 tests.
+- Stage 1 through Stage 10 validators passed.
+- Stage 7 correlation evidence, incidents and IoCs remained available.
+- Stage 8 incident records and evidence hashes remained valid.
+- Stage 9 containment actions and approval rejection remained recorded.
+- Stage 10 eradication actions, blocked retests and the Closed lifecycle remained recorded.
+- Clean-state, normal-activity, confirmed-threat, false-positive, malformed-input, duplicate-event, ACL, evidence-integrity, containment, eradication, recovery, IoC and audit-trail checks passed.
+- Previous components remained operational after the later-stage work.
+- Documentation files were checked for presence.
+- Stage 11 validation passed.
+
 ## Combined validation observations
 
-- The complete Stage 1–9 regression run passed 85 tests.
+- The final combined Stage 1–10 regression run passed 92 tests.
 - Stage 1 validation passed `12/12`.
 - Stage 2 validation passed `14/14`.
 - Stage 3 validation passed `12/12`.
@@ -170,8 +203,9 @@
 - Stage 7 validation passed `15/15`.
 - Stage 8 validation passed.
 - Stage 9 validation passed.
+- Stage 10 validation passed.
+- Stage 11 full project validation passed.
 - `git diff --check` passed.
-- Stage 6 and Stage 7 were committed together before Stage 8 and Stage 9 work was added.
 - Runtime data, logs and generated reports remained excluded from Git.
 
 ## Engineering lessons
@@ -189,5 +223,10 @@
 - Disruptive containment actions require approval.
 - Failed containment actions must remain in the audit trail.
 - Incident status changes should follow a controlled lifecycle.
+- Eradication should be followed by retesting to confirm that the original threat no longer works.
+- Recovery actions should be recorded rather than assumed to be complete.
 - Full regression testing exposes integration problems that isolated tests may not show.
+- Validator output must identify each check clearly so a passing result can be trusted.
+- Documentation should be checked against the actual implementation and final validation evidence.
+- Later project phases can replace simulated response actions with approved integrations while preserving the same evidence and approval controls.
 - Each genuine failure should be corrected and retested.

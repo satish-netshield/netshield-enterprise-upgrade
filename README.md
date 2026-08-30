@@ -2,7 +2,7 @@
 
 NetShield Phase 3 is a Python security-automation project built inside an Ubuntu VirtualBox sandbox.
 
-The project was built gradually. Each component was tested in isolation, checked with the existing project, corrected when problems were found, and then validated again. The project uses simulated security events and local test data. It does not contact external targets or use real accounts.
+The project was built gradually. Each component was tested in isolation, checked with the existing project, corrected when problems were found, and validated again. The project uses simulated security events and local test data. It does not contact external targets or use real accounts.
 
 ---
 
@@ -88,7 +88,7 @@ STAGE 2 IMPORT: files=5 total=19 accepted=15 rejected=4
 
 Stage 1 validation passed `12/12`. Eleven Stage 1 unit tests passed.
 
-Stage 2 validation passed `14/14`. Eleven normalisation tests and six pipeline tests passed.
+Stage 2 validation passed `14/14`. The Stage 2 normalisation and pipeline tests passed.
 
 The tests checked:
 
@@ -177,7 +177,7 @@ STAGE 3 DETECTION: events=19 detections=11 new=0 existing=11 vpn_exceptions=2
 
 ### Testing Notes
 
-Sixteen Stage 3 authentication events were imported. Stage 3 validation passed `12/12`, and the complete Stage 3 regression run passed 39 tests.
+Sixteen Stage 3 authentication events were imported. Stage 3 validation passed `12/12`.
 
 The tests checked:
 
@@ -504,9 +504,9 @@ Stage 8 converts Stage 7 incidents into traceable incident records.
 
 Stage 9 uses those incident records to perform controlled, simulated containment actions.
 
-Together, these stages preserve the evidence, record the investigation, apply approval controls and document the result of each containment action.
+Together, these stages preserve evidence, record the investigation, apply approval controls and document the result of each containment action.
 
-### Why they exist or how they behave
+### Why they exist and how they behave
 
 A detection or correlated incident is not enough to show what happened during an investigation. Stage 8 adds incident IDs, statuses, investigation notes, analyst decisions, evidence references, integrity hashes and audit records.
 
@@ -518,7 +518,7 @@ The status lifecycle is:
 New → Investigating → Contained → Eradicated → Recovered → Closed
 ```
 
-Stages 8 and 9 record the incident and simulated containment process. Eradication and recovery remain separate work.
+Stages 8 and 9 record the incident and simulated containment process. Eradication and recovery are handled in Stage 10.
 
 ### Information, rules and capabilities
 
@@ -649,6 +649,196 @@ Containment should be controlled and reversible where possible. A failed action 
 
 ---
 
+## Stage 10 — Eradication and Recovery
+
+### What the component does
+
+Stage 10 moves the incident process beyond containment by recording simulated eradication and recovery actions.
+
+It removes or corrects the simulated causes identified in earlier stages, restores affected services and retests the original threats.
+
+### Why it exists or how it behaves
+
+Containment limits suspicious activity, but it does not remove the cause. Stage 10 records what was corrected, what was restored and whether the original threat still worked afterwards.
+
+The stage uses preserved evidence, records every action in an audit trail and progresses the incident through:
+
+```text
+Contained → Eradicated → Recovered → Closed
+```
+
+All actions remain simulated inside the project sandbox.
+
+### Information, rules and capabilities
+
+Stage 10 covers:
+
+- Simulated credential reset
+- Removal of unauthorised privileges
+- Registration of an unknown device
+- WPA3 configuration correction
+- Rogue access-point removal
+- Suspicious-process removal
+- Replacement of vulnerable SQL with parameterised SQL
+- Simulated account, device and service restoration
+- Increased monitoring after recovery
+- Threat retesting
+- Lessons-learned recording
+
+### Workflow
+
+1. Read the Stage 9 containment report.
+2. Preserve the pre-eradication evidence.
+3. Record the simulated eradication actions.
+4. Correct the simulated credentials, privileges, devices and network settings.
+5. Remove the simulated rogue access point and suspicious process.
+6. Confirm the parameterised SQL path.
+7. Restore the simulated account and services.
+8. Increase monitoring after recovery.
+9. Record every action in the audit trail.
+10. Retest the original SQL injection, network, endpoint and access conditions.
+11. Confirm that the original threats no longer succeed.
+12. Record the lifecycle through `Eradicated`, `Recovered` and `Closed`.
+13. Record lessons learned.
+
+### Observed example output
+
+```text
+STAGE 10 ERADICATION AND RECOVERY
+ACTIONS ATTEMPTED: 10
+ACTIONS SUCCEEDED: 10
+ACTIONS FAILED: 0
+ORIGINAL THREATS BLOCKED: true
+EXTERNAL TARGETS USED: false
+REAL ACCOUNTS USED: false
+```
+
+### Testing Notes
+
+Seven Stage 10 unit tests passed. Stage 10 validation passed.
+
+The validation confirmed:
+
+- Ten eradication and recovery actions
+- Ten successful actions
+- No failed actions
+- Four original-threat retests
+- All original threats blocked after remediation
+- Evidence preservation before every action
+- Fourteen audit entries
+- Lifecycle completion through `Closed`
+- Lessons learned recorded
+- No external targets or real accounts
+
+### Engineering observations
+
+The Stage 10 implementation keeps eradication and recovery separate from containment. This makes it possible to show that limiting activity is not the same as removing the cause.
+
+The retests are important because a successful action result alone does not prove that the original threat has been removed.
+
+### What I Learned
+
+Eradication should be followed by recovery checks and threat retesting. An incident should not be closed only because the response script completed successfully.
+
+---
+
+## Stage 11 — Full Project Validation
+
+### What the component does
+
+Stage 11 validates the complete NetShield Phase 3 project after the implementation stages are present.
+
+It combines syntax checks, regression tests, stage validators, evidence checks, response checks and documentation-presence checks.
+
+### Why it exists or how it behaves
+
+Individual stage tests can pass while integration problems remain. Stage 11 checks that earlier components still work after later stages have been added.
+
+The validator reports each check with a clear label so that a passing result can be understood and reviewed.
+
+### Validation workflow
+
+1. Check the required project files and current project state.
+2. Compile the source, scripts, tests and lab code.
+3. Run the combined Stage 1–10 regression.
+4. Run each Stage 1–10 validator.
+5. Check Stage 7 incidents and IoCs.
+6. Check Stage 8 evidence integrity.
+7. Check Stage 9 containment results.
+8. Check Stage 10 eradication and recovery results.
+9. Check normal, confirmed-threat, false-positive and malformed-input coverage.
+10. Check duplicate-event handling and ACL enforcement.
+11. Check evidence integrity and audit-trail outputs.
+12. Check that previous components remain operational.
+13. Check that the documentation files are present.
+14. Record the final validation result.
+
+### Observed example output
+
+```text
+STAGE 11 FULL PROJECT VALIDATION
+PASS: Python syntax compilation passed
+PASS: Combined Stage 1–10 regression passed
+PASS: Stage 1 validator passed
+PASS: Stage 2 validator passed
+PASS: Stage 3 validator passed
+PASS: Stage 4 validator passed
+PASS: Stage 5 validator passed
+PASS: Stage 6 validator passed
+PASS: Stage 7 validator passed
+PASS: Stage 8 validator passed
+PASS: Stage 9 validator passed
+PASS: Stage 10 validator passed
+PASS: Clean-state validation completed
+PASS: Normal activity checks completed
+PASS: Confirmed-threat checks completed
+PASS: False-positive checks completed
+PASS: Malformed-input checks completed
+PASS: Duplicate-event handling completed
+PASS: ACL enforcement completed
+PASS: Evidence-integrity checks completed
+PASS: Containment actions completed
+PASS: Eradication and recovery completed
+PASS: IoC extraction completed
+PASS: Audit-trail checks completed
+PASS: Previous components remain operational
+PASS: Documentation files remain present
+
+STAGE 11 VALIDATION: PASS
+```
+
+### Testing Notes
+
+The final Stage 1–10 regression run passed 92 tests.
+
+Stage 11 confirmed that:
+
+- Python syntax compilation passed.
+- All Stage 1–10 validators passed.
+- Stage 7 incidents and IoCs remained available.
+- Stage 8 incident records and evidence hashes remained valid.
+- Stage 9 containment actions and approval rejection remained recorded.
+- Stage 10 eradication actions and blocked retests remained recorded.
+- The incident lifecycle reached `Closed`.
+- Clean-state, normal-activity, confirmed-threat, false-positive and malformed-input checks passed.
+- Duplicate-event handling and ACL enforcement passed.
+- Evidence, IoC and audit-trail checks passed.
+- Earlier components remained operational.
+- The required documentation files were present.
+
+### Engineering observations
+
+- The first Stage 11 validator displayed blank validator names because it used incorrect command indexes.
+- The validator was corrected to print the actual validator name.
+- The regression check was corrected to handle unittest output written to standard error.
+- The corrected Stage 11 validation run passed.
+
+### What I Learned
+
+Full-project validation is different from running one script successfully. The complete system must be checked after later stages are added, including evidence, repeated processing, response boundaries and earlier functionality.
+
+---
+
 ## System Validation
 
 ### Clean-state validation workflow
@@ -657,22 +847,24 @@ The final validation followed the complete engineering cycle:
 
 1. Activate the Python virtual environment.
 2. Compile the source, script, test and lab files.
-3. Run the combined Stage 1–9 test set.
-4. Run every stage validator.
-5. Check duplicate imports and repeated detector runs.
-6. Check accepted, rejected and raw database records.
-7. Check the clean Stage 6 log after archiving the historical log.
-8. Check the Stage 6 users table and test account.
-9. Check Stage 7 incidents, risk scores, IoCs and behaviours.
-10. Check Stage 8 incident records, evidence hashes, reports and audit entries.
-11. Check Stage 9 approval decisions, action results and containment audit entries.
-12. Run `git diff --check`.
-13. Review the documentation against the actual implementation and output.
+3. Run the combined Stage 1–10 regression.
+4. Run every Stage 1–10 validator.
+5. Run the Stage 11 full-project validator.
+6. Check duplicate imports and repeated detector runs.
+7. Check accepted, rejected and raw database records.
+8. Check the clean Stage 6 log after archiving the historical log.
+9. Check the Stage 6 users table and test account.
+10. Check Stage 7 incidents, risk scores, IoCs and behaviours.
+11. Check Stage 8 incident records, evidence hashes, reports and audit entries.
+12. Check Stage 9 approval decisions, action results and containment audit entries.
+13. Check Stage 10 eradication actions, retests, recovery results and lifecycle closure.
+14. Check documentation files are present.
+15. Run `git diff --check`.
 
 ### Genuine end-to-end results
 
 ```text
-Ran 85 tests
+Ran 92 tests
 
 OK
 
@@ -685,14 +877,16 @@ STAGE 6 VALIDATION: PASS (15/15)
 STAGE 7 VALIDATION: PASS (15/15)
 STAGE 8 VALIDATION: PASS
 STAGE 9 VALIDATION: PASS
+STAGE 10 VALIDATION: PASS
+STAGE 11 VALIDATION: PASS
 ```
 
-The Stage 6 and Stage 7 work was previously committed and pushed. The Stage 8 and Stage 9 implementation and documentation are the next changes to be reviewed and committed.
+The final Stage 1–10 regression passed 92 tests. The Stage 11 full-project validation also passed.
 
 ### Problems discovered and how they were solved
 
 - The Stage 2 validator counted later-stage events and was limited to the original Stage 2 files.
-- Wi-Fi records were rejected from a mixed source file and were moved to a separate source file.
+- Wi-Fi records were rejected from a mixed source file and were moved to separate source files.
 - Dynamic SQL placeholders were added for changing Stage 4 file lists.
 - Stage metadata preservation was corrected after Stage 4 setup reset earlier completion data.
 - The Stage 5 wired filename was corrected to match its `network` source type.
@@ -706,30 +900,38 @@ The Stage 6 and Stage 7 work was previously committed and pushed. The Stage 8 an
 - The Stage 7 import path was corrected for direct script execution.
 - Stage 8 added incident records and evidence references based on the Stage 7 output.
 - Stage 9 added approval checks and recorded failed containment when approval was missing.
+- Stage 10 added simulated eradication, recovery and threat retesting.
+- Stage 11 validator labels were corrected so each validator result is identified clearly.
+- The Stage 11 regression check was corrected to handle unittest output correctly.
 
 ### Engineering observations
 
 The project uses simulated data and local applications rather than live feeds or external systems.
 
-The Stage 6 database is separate from the main NetShield database. Stage 8 preserves the Stage 7 report as evidence, and Stage 9 preserves evidence before simulated containment.
+The Stage 6 database is separate from the main NetShield database. Stage 8 preserves the Stage 7 report as evidence, Stage 9 preserves evidence before simulated containment and Stage 10 preserves evidence before simulated eradication.
 
 Database files, logs, generated reports, raw runtime data and cache files remain outside the Git commit.
 
+The final validation checks the project as a learning implementation. It does not replace production monitoring, enterprise change control or real incident-response procedures.
+
 ### What I Learned
 
-Full regression testing found integration problems that isolated tests did not reveal. File naming, schema setup, SQL parameters, import paths, log state, evidence handling and approval decisions all affected the final result.
+Full regression testing found integration problems that isolated tests did not reveal. File naming, schema setup, SQL parameters, import paths, log state, evidence handling, approval decisions and response retesting all affected the final result.
 
-A printed summary is not enough evidence by itself. The underlying events, database records, logs, hashes, incident records, action results and audit entries must also be checked.
+A printed summary is not enough evidence by itself. The underlying events, database records, logs, hashes, incident records, action results, retests and audit entries must also be checked.
+
+Containment, eradication and recovery are separate decisions. A threat should be retested after remediation before an incident is closed.
 
 ### Next expansion scope
 
-The next stage can build on the completed events, alerts, incidents, preserved evidence and containment records by adding:
+The next phase can build on the completed events, alerts, incidents, preserved evidence, containment records and recovery results by adding:
 
-- Eradication records
-- Malware and process-removal decisions
-- Root-cause investigation
-- Recovery actions
-- Service restoration checks
-- Post-incident review
-- Incident closure criteria
-- Final clean-state project validation and sign-off
+- Approved enterprise integrations
+- More realistic live-test data sources
+- A persistent incident-management database
+- Formal evidence-chain controls
+- Investigation ownership and case management
+- More detailed recovery dependencies
+- Longer-term monitoring and dashboards
+- Further risk-score tuning with a larger dataset
+- Cloud security operations using the same engineering principles

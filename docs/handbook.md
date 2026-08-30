@@ -8,7 +8,7 @@ It is written for learners who want to understand the main decisions, improvemen
 
 It complements the README. The README explains the project components and evidence in more detail, while this handbook focuses on how the project was built and what the work taught me.
 
-The current implementation is complete through Stage 9.
+The current implementation is complete through Stage 11.
 
 ## Engineering Goals
 
@@ -27,6 +27,8 @@ The phase gradually added:
 - Event correlation, risk scoring and IoC extraction
 - Incident management and evidence handling
 - Controlled containment automation
+- Simulated eradication and recovery
+- Full project validation
 
 The aim is not to create a production security platform. The aim is to build a practical learning project that demonstrates security controls, detection logic, evidence handling, controlled response and engineering decisions.
 
@@ -166,6 +168,39 @@ A result is not treated as complete only because a script runs. It must also mat
 - Containment audit trail
 - Controlled containment report
 
+### Stage 10 — Eradication and Recovery
+
+- Simulated credential reset
+- Removal of unauthorised privileges
+- Unknown-device registration
+- WPA3 configuration correction
+- Rogue access-point removal
+- Suspicious-process removal
+- Parameterised SQL remediation
+- Simulated account, device and service restoration
+- Increased monitoring after recovery
+- Threat retesting
+- Incident lifecycle closure
+- Lessons-learned recording
+
+### Stage 11 — Full Project Validation
+
+- Clean-state validation
+- Python syntax compilation
+- Combined Stage 1–10 regression testing
+- Individual stage validators
+- Normal-activity checks
+- Confirmed-threat checks
+- False-positive checks
+- Malformed-input checks
+- Duplicate-event checks
+- ACL enforcement checks
+- Evidence-integrity checks
+- Containment and eradication checks
+- IoC and audit-trail checks
+- Previous-component checks
+- Documentation presence checks
+
 ## Major Engineering Decisions
 
 The following decisions kept the project safe and understandable:
@@ -188,9 +223,11 @@ The following decisions kept the project safe and understandable:
 - IoCs are kept separate from behaviours because they support different investigation decisions.
 - Incident records connect detections, evidence, decisions and timelines.
 - SHA-256 provides an integrity check for preserved evidence.
-- Evidence is preserved before containment actions.
+- Evidence is preserved before containment, eradication and recovery actions.
 - Automatic blocklisting is separated from disruptive actions that require approval.
-- Containment remains simulated so the project does not change real devices, accounts or networks.
+- Eradication is followed by retesting so the original threat is not assumed to be removed.
+- The final validation stage checks the complete project after all components are present.
+- Containment, eradication and recovery remain simulated so the project does not change real devices, accounts or networks.
 
 ## Improvements Made
 
@@ -218,6 +255,11 @@ The project improved as problems were found:
 - Added Stage 9 simulated containment actions.
 - Added approval handling for disruptive containment actions.
 - Added success and failure results for every containment action.
+- Added Stage 10 eradication and recovery actions.
+- Added threat retesting after eradication.
+- Added Stage 10 lifecycle closure and lessons recording.
+- Corrected Stage 11 validator labels so every result is clearly identified.
+- Corrected the regression check so unittest output is handled correctly.
 - Re-ran tests and validators after each relevant correction.
 
 ## Lessons Learned
@@ -242,20 +284,24 @@ The project taught me that:
 - Evidence should be preserved before incident handling or containment.
 - A containment action can fail safely when approval is missing.
 - Failed actions must remain visible in the audit trail.
-- Real test failures show where components do not connect correctly.
+- Eradication should be followed by retesting.
+- Recovery should be recorded and checked rather than assumed to be complete.
+- Full regression testing exposes integration problems that isolated tests may not show.
+- Validator output must identify each check clearly.
 - Documentation should reflect the actual implementation, problems, fixes and lessons.
+- Each genuine failure should be corrected and retested.
 
 ## Future Expansion
 
-Stages 1–9 provide a foundation for later security-operations work.
+Stages 1–11 complete the current Phase 3 learning project.
 
-The next expansion can build on the existing events, alerts, incidents, risk scores, preserved evidence and containment records by adding:
+The project can support later work such as:
 
-- Eradication records
-- Malware and process-removal decisions
-- Root-cause investigation
-- Recovery actions
-- Service restoration checks
-- Post-incident review
-- Incident closure criteria
-- Final clean-state project validation and sign-off
+- Connecting similar controls to enterprise security platforms.
+- Replacing simulated events with approved live test sources.
+- Extending incident records into a more complete case-management system.
+- Adding formal evidence-chain and investigation ownership controls.
+- Testing recovery procedures with more realistic service dependencies.
+- Improving risk-score calibration with a larger test dataset.
+- Adding controlled dashboards and longer-term monitoring.
+- Applying the project concepts to cloud security operations.

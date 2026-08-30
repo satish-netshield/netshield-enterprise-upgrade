@@ -305,7 +305,7 @@ Stage 8 converted Stage 7 incidents into traceable incident records.
 5. Move it to `Recovered` after normal operation is restored.
 6. Move it to `Closed` after the investigation is complete.
 
-Only valid status transitions are allowed.
+The project defines the permitted lifecycle. Current Stage 8 creation starts incidents in `New`, and the implementation validates permitted transitions. Persistent lifecycle updates are handled by later response stages.
 
 ### Engineering reasoning
 
@@ -315,7 +315,7 @@ Incident records keep the detection, evidence, decisions and actions connected. 
 
 ## Stage 9 — Controlled containment automation
 
-Stage 9 added simulated containment actions for Stage 8 incidents.
+Stage 9 added simulated containment actions using Stage 8 evidence.
 
 ### Containment workflow
 
@@ -354,10 +354,104 @@ Stage 9 added simulated containment actions for Stage 8 incidents.
 
 Containment can limit suspicious activity, but disruptive actions can affect legitimate users or systems. Evidence is therefore preserved first, and approval is checked before disruptive actions.
 
-Stage 9 remains simulated. It does not change a real firewall, device, account, session, process or Wi-Fi network.
+The current runner applies the action plan to the primary Stage 8 incident record. Stage 9 remains simulated and does not change a real firewall, device, account, session, process or Wi-Fi network.
 
 ### Problems and solutions
 
 The existing ACL did not contain a separate `reject_wifi_connection` entry. Because Wi-Fi rejection can disrupt access, Stage 9 treated it as an approval-required action and recorded the action as failed when approval was not granted.
 
 ---
+
+## Stage 10 — Eradication and recovery
+
+Stage 10 moved the controlled incident process beyond containment.
+
+### Eradication workflow
+
+1. Read the Stage 9 containment report.
+2. Preserve the pre-eradication evidence.
+3. Record the simulated eradication actions.
+4. Reset the simulated compromised credentials.
+5. Remove simulated unauthorised privileges.
+6. Register the reviewed unknown device.
+7. Correct the simulated WPA3 and AES configuration.
+8. Remove the simulated rogue access point.
+9. Remove the suspicious simulated process.
+10. Confirm the parameterised SQL query path.
+11. Restore the simulated account and services.
+12. Increase post-recovery monitoring.
+13. Record each action in the audit trail.
+
+### Recovery and retest workflow
+
+1. Confirm that eradication actions completed.
+2. Restore the simulated affected services and accounts.
+3. Increase monitoring after recovery.
+4. Retest the original SQL injection input.
+5. Retest the contained source IP.
+6. Retest the suspicious endpoint process.
+7. Retest the rogue access-point condition.
+8. Confirm that the original threats no longer succeed.
+9. Record the lifecycle path through `Eradicated`, `Recovered` and `Closed`.
+10. Record lessons learned.
+
+### Engineering reasoning
+
+Containment limits activity, but eradication removes or corrects the cause. Recovery is not complete until the original threat is tested again.
+
+All Stage 10 actions are simulated. No real credentials, devices, wireless configuration, processes or services are changed.
+
+---
+
+## Stage 11 — Full project validation
+
+Stage 11 validated the complete project after the implementation stages were finished.
+
+### Validation workflow
+
+1. Check the required project files and current project state.
+2. Compile the source, scripts, tests and lab code.
+3. Run the combined Stage 1–10 regression.
+4. Run each Stage 1–10 validator.
+5. Check Stage 7 incidents and IoCs.
+6. Check Stage 8 evidence integrity.
+7. Check Stage 9 containment results.
+8. Check Stage 10 eradication and recovery results.
+9. Check normal, confirmed-threat, false-positive and malformed-input coverage.
+10. Check duplicate-event handling and ACL enforcement.
+11. Check audit-trail outputs.
+12. Check documentation files against the project structure.
+13. Record the final validation result.
+
+### Problems and solutions
+
+- The first Stage 11 validator displayed blank validator names because it used incorrect command indexes.
+- The validator was corrected to print the actual validator name.
+- The corrected Stage 11 validation run passed.
+
+### Engineering reasoning
+
+Earlier validators were retained because they make failures easier to locate. The combined regression checks integration that isolated tests may not show.
+
+Runtime databases, logs, generated reports and cache files remain outside Git tracking. Final sign-off is based on repeatable evidence rather than one successful command.
+
+The next improvement would be to replace selected simulated response actions with approved integrations in a later project phase, while keeping the same approval and evidence controls.
+
+---
+
+## Complete workflow
+
+Each stage follows the same operational cycle:
+
+1. Build a limited component.
+2. Test the component in isolation.
+3. Run it with the existing project.
+4. Review the actual output and stored evidence.
+5. Investigate genuine failures.
+6. Correct the implementation.
+7. Re-run the affected tests.
+8. Run the complete regression set.
+9. Review the documentation against the actual work.
+10. Sign off only after the required validation passes.
+
+The project continues to use controlled simulated data inside the Ubuntu VirtualBox environment. Real external targets, real accounts and real disruptive actions remain outside the project scope.

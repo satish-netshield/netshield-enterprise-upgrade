@@ -248,7 +248,7 @@ False-positive fields are recorded instead of silently deleting an alert.
 
 An analyst decision explains whether the activity is authorised, unresolved or still requires investigation.
 
-Stage 8 records the initial decision only. Containment, eradication and recovery are handled separately.
+Stage 8 records the initial incident decision. Later containment, eradication and recovery actions are recorded by their respective stages.
 
 ## Stage 9 containment decisions
 
@@ -304,7 +304,44 @@ Stage 9 actions are simulated inside the Ubuntu VirtualBox sandbox.
 
 The system does not change a real firewall, device, account, session, process or Wi-Fi network.
 
-Automatic real-world containment remains disabled. Eradication and recovery are separate stages.
+Automatic real-world containment remains disabled. Stage 10 performs simulated eradication and recovery separately.
+
+## Stage 10 eradication decisions
+
+Stage 10 records simulated actions intended to remove the cause of the incident after containment.
+
+The implemented actions cover:
+
+- Resetting simulated compromised credentials
+- Removing unauthorised privileges
+- Registering an unknown device
+- Correcting WPA3 configuration
+- Removing a simulated rogue access point
+- Terminating a suspicious test process
+- Replacing vulnerable SQL with parameterised SQL
+- Restoring simulated accounts, devices and services
+- Increasing monitoring after recovery
+
+Each action preserves the pre-eradication evidence, records its result and writes an audit entry.
+
+## Stage 10 recovery and retesting
+
+After the simulated eradication actions, the original threats are tested again.
+
+The test confirms that:
+
+- The vulnerable SQL injection bypass no longer succeeds.
+- The suspicious process is no longer active.
+- The unauthorised access conditions are no longer accepted.
+- The incident can progress through the controlled lifecycle.
+
+The Stage 10 lifecycle is:
+
+```text
+Contained → Eradicated → Recovered → Closed
+```
+
+Lessons learned are recorded with the Stage 10 results.
 
 ## Evidence handling
 
@@ -316,7 +353,9 @@ Stages 3–5 use deterministic alert keys. Stage 7 uses deterministic incident k
 
 Stage 8 preserves the Stage 7 report and records its hash with each incident.
 
-Stage 9 preserves evidence again before simulated containment and records the result in the containment audit trail.
+Stage 9 preserves evidence before simulated containment and records the result in the containment audit trail.
+
+Stage 10 preserves evidence before eradication and recovery actions and records the retest results.
 
 ## Current limitations
 
@@ -325,10 +364,11 @@ Stage 9 preserves evidence again before simulated containment and records the re
 - Pattern-based input detection may not identify every injection technique.
 - Source IP does not prove the identity of the requester.
 - Risk scoring uses the current learning-project rules and requires further tuning.
-- Stage 8 incident records are currently generated from the Stage 7 report rather than a live incident database.
+- Stage 8 incident records are generated from the Stage 7 report rather than a live incident database.
 - Stage 9 containment actions are simulated and do not change real systems.
-- Real switch-port, VLAN and physical access integrations are not available.
-- Eradication and recovery remain separate future project work.
+- Stage 10 eradication and recovery actions are simulated and do not modify real accounts, devices, networks or services.
+- Real switch-port, VLAN, physical access and enterprise identity integrations are not available.
+- Stage 11 validates the complete project through clean-state checks, regression tests, validators, evidence checks and documentation checks, but it does not replace production monitoring or operational change control.
 
 ## Sandbox boundaries
 
@@ -336,5 +376,5 @@ Stage 9 preserves evidence again before simulated containment and records the re
 - External targets are not used.
 - Real accounts and credentials are not used.
 - The Stage 6 database is separate from the main NetShield database.
-- Automatic real-world containment is disabled.
+- Automatic real-world containment and eradication are disabled.
 - Disruptive actions require verification and approval.

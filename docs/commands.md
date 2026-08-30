@@ -241,7 +241,56 @@ python -m unittest -v tests.test_stage9_containment
 python scripts/validate_stage9.py
 ```
 
-## Combined Stage 1–9 regression
+## Stage 10 — Eradication and recovery
+
+### Compile the Stage 10 files
+
+```bash
+python -m py_compile \
+  src/response/stage10_eradication.py \
+  tests/test_stage10_eradication.py \
+  scripts/validate_stage10.py
+```
+
+### Run simulated eradication and recovery
+
+```bash
+python -m src.response.stage10_eradication
+```
+
+### Review the Stage 10 outputs
+
+```bash
+find lab/sql_injection/outputs/stage10 -maxdepth 3 -type f -print | sort
+
+cat lab/sql_injection/outputs/stage10/stage10_eradication_report.json
+cat lab/sql_injection/outputs/stage10/eradication_audit.jsonl
+```
+
+### Run Stage 10 tests and validation
+
+```bash
+python -m unittest -v tests.test_stage10_eradication
+python scripts/validate_stage10.py
+```
+
+## Stage 11 — Full project validation
+
+### Compile the Stage 11 validator
+
+```bash
+python -m py_compile scripts/validate_stage11.py
+```
+
+### Run complete project validation
+
+```bash
+python scripts/validate_stage11.py
+```
+
+Stage 11 checks syntax, the combined Stage 1–10 regression, individual validators, evidence integrity, IoC extraction, audit records, response results, previous-stage outputs and documentation presence.
+
+## Combined Stage 1–10 regression
 
 ```bash
 python -m compileall -q src scripts tests lab
@@ -256,7 +305,8 @@ python -m unittest -q \
   lab.sql_injection.test_lab \
   tests.test_stage7_correlation \
   tests.test_stage8_incident_management \
-  tests.test_stage9_containment
+  tests.test_stage9_containment \
+  tests.test_stage10_eradication
 ```
 
 ## Run all validators
@@ -271,6 +321,8 @@ python -m lab.sql_injection.validate_stage6
 python scripts/validate_stage7.py
 python scripts/validate_stage8.py
 python scripts/validate_stage9.py
+python scripts/validate_stage10.py
+python scripts/validate_stage11.py
 ```
 
 ## Documentation and Git checks
