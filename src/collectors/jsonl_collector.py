@@ -5,7 +5,10 @@ from pathlib import Path
 from typing import Any
 from uuid import uuid4
 
-from src.collectors.event_normalizer import normalise_event
+from src.collectors.event_normalizer import (
+    ALLOWED_SOURCE_TYPES,
+    normalise_event,
+)
 from src.utils.database import (
     complete_import_batch,
     save_rejected_event,
@@ -16,7 +19,20 @@ from src.utils.database import (
 
 def identify_source_type(source_file: Path) -> str:
     """Identify the expected source type from the filename."""
-    return source_file.stem.split("_", maxsplit=1)[0].lower()
+    filename = source_file.stem.lower()
+
+    for source_type in sorted(
+        ALLOWED_SOURCE_TYPES,
+        key=len,
+        reverse=True,
+    ):
+        if (
+            filename == source_type
+            or filename.startswith(f"{source_type}_")
+        ):
+            return source_type
+
+    return filename.split("_", maxsplit=1)[0]
 
 
 def reject_record(
@@ -155,7 +171,7 @@ def import_jsonl_file(
             else "completed_with_rejections"
         )
 
-    except OSError:
+    except (OSError, UnicodeError):
         complete_import_batch(
             database_path,
             batch_id,

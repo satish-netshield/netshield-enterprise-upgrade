@@ -305,3 +305,13 @@ The project can support later work such as:
 - Improving risk-score calibration with a larger test dataset.
 - Adding controlled dashboards and longer-term monitoring.
 - Applying the project concepts to cloud security operations.
+
+## Phase 3A V2 — Enterprise Upgrade
+
+The enterprise upgrade continues from the completed Phase 3 project.
+
+The first combined block adds simulated enterprise context, retention settings, sensitive-field protection and six new event sources. Existing security events remain supported.
+
+The database is upgraded without deleting earlier data. Valid events are normalised and stored, malformed records are quarantined, duplicates are rejected and file failures are recorded.
+
+Microsoft enterprise-security products are design references only. The implementation remains Python and SQLite inside the controlled Ubuntu sandbox.

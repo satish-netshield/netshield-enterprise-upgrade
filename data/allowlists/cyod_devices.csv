@@ -1,2 +1,3 @@
 device_id,hostname,assigned_user,mac_address,device_type,manufacturer,connection_type,approval_status,registered_date
 CYOD-001,Ubuntu-NetShield,netshield01,08:00:27:cf:49:71,Virtual Machine,VirtualBox,Virtual NAT,approved,2026-08-16
+CYOD-002,Analyst-Laptop,analyst01,02:00:00:00:00:02,Laptop,Simulated,Enterprise LAN,approved,2026-09-07

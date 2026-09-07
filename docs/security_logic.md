@@ -378,3 +378,17 @@ Stage 10 preserves evidence before eradication and recovery actions and records 
 - The Stage 6 database is separate from the main NetShield database.
 - Automatic real-world containment and eradication are disabled.
 - Disruptive actions require verification and approval.
+
+## Phase 3A V2 enterprise foundation and pipeline
+
+Phase 3A V2 extends NetShield Automation rather than replacing it.
+
+Simulated users use the existing RBAC roles. A registered enterprise device must also appear in the authoritative CYOD inventory.
+
+Retention periods are configured for raw events, processed events, audit records and incident reports. Configured passwords, tokens, keys, secrets and session IDs can be masked before logging or reporting.
+
+V2 events identify their schema version, source type and source system. Shared fields connect events to devices, assets, applications, services, findings, incidents and response actions.
+
+Malformed records stay outside the accepted-event table and receive a quarantine status. File-level failures are recorded separately from record-level rejections.
+
+The original Phase 3 sources remain supported. Approved V2 sources extend the pipeline without weakening source verification.

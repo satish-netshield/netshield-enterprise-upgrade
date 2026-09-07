@@ -43,10 +43,22 @@ CREATE TABLE IF NOT EXISTS import_batches (
 CREATE TABLE IF NOT EXISTS security_events (
     event_key INTEGER PRIMARY KEY AUTOINCREMENT,
     source_event_id TEXT NOT NULL,
+    schema_version TEXT NOT NULL DEFAULT '1.0',
+    source_system TEXT NOT NULL DEFAULT 'unknown',
     event_time TEXT NOT NULL,
     received_time TEXT NOT NULL,
     source_type TEXT NOT NULL,
     event_type TEXT NOT NULL,
+    severity TEXT,
+    risk_score REAL,
+    decision TEXT,
+    device_id TEXT,
+    asset_id TEXT,
+    application_id TEXT,
+    service_id TEXT,
+    finding_id TEXT,
+    incident_id TEXT,
+    action_id TEXT,
     username TEXT,
     ip_address TEXT,
     mac_address TEXT,
@@ -70,6 +82,7 @@ CREATE TABLE IF NOT EXISTS rejected_events (
     batch_id TEXT NOT NULL,
     line_number INTEGER NOT NULL,
     reason TEXT NOT NULL,
+    quarantine_status TEXT NOT NULL DEFAULT 'quarantined',
     raw_event TEXT NOT NULL,
     FOREIGN KEY (batch_id) REFERENCES import_batches(batch_id)
 );
@@ -187,6 +200,18 @@ CREATE TABLE IF NOT EXISTS endpoint_alerts (
     classification TEXT,
     investigation_notes TEXT
 );
+
+CREATE INDEX IF NOT EXISTS idx_security_events_schema_version
+ON security_events(schema_version);
+
+CREATE INDEX IF NOT EXISTS idx_security_events_source
+ON security_events(source_type, source_system);
+
+CREATE INDEX IF NOT EXISTS idx_security_events_device
+ON security_events(device_id);
+
+CREATE INDEX IF NOT EXISTS idx_security_events_incident
+ON security_events(incident_id);
 
 CREATE INDEX IF NOT EXISTS idx_security_events_time
 ON security_events(event_time);

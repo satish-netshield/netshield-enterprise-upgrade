@@ -1,0 +1,41 @@
+{
+  "audit_entries": 9,
+  "automatic_containment": false,
+  "evidence_sha256": "10e94c774ace7897059c2a3713e1cb74697f3c1eb037efa98fcdd394e1a4efef",
+  "external_targets_used": false,
+  "incident_statuses": {
+    "Closed": 0,
+    "Contained": 0,
+    "Eradicated": 0,
+    "Investigating": 0,
+    "New": 3,
+    "Recovered": 0
+  },
+  "incidents_created": 3,
+  "records": [
+    {
+      "evidence_sha256": "10e94c774ace7897059c2a3713e1cb74697f3c1eb037efa98fcdd394e1a4efef",
+      "incident_id": "INC-ST8-001-0AFD600A25B0",
+      "risk_score": 30,
+      "severity": "Critical",
+      "status": "New"
+    },
+    {
+      "evidence_sha256": "10e94c774ace7897059c2a3713e1cb74697f3c1eb037efa98fcdd394e1a4efef",
+      "incident_id": "INC-ST8-002-AB0C455F584A",
+      "risk_score": 1,
+      "severity": "Low",
+      "status": "New"
+    },
+    {
+      "evidence_sha256": "10e94c774ace7897059c2a3713e1cb74697f3c1eb037efa98fcdd394e1a4efef",
+      "incident_id": "INC-ST8-003-000D64A5404D",
+      "risk_score": 3,
+      "severity": "Low",
+      "status": "New"
+    }
+  ],
+  "scope": "Incident management and evidence handling",
+  "source_report": "tests/fixtures/phase3_outputs/stage7_correlation_report.json",
+  "stage": 8
+}

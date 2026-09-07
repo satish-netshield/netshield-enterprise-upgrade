@@ -23,17 +23,16 @@ class Stage9ContainmentTests(unittest.TestCase):
         cls.project_root = Path(__file__).resolve().parents[1]
         cls.stage8_summary = (
             cls.project_root
-            / "lab"
-            / "sql_injection"
-            / "outputs"
-            / "stage8"
+            / "tests"
+            / "fixtures"
+            / "phase3_outputs"
             / "stage8_incident_summary.json"
         )
         cls.stage7_report = (
             cls.project_root
-            / "lab"
-            / "sql_injection"
-            / "outputs"
+            / "tests"
+            / "fixtures"
+            / "phase3_outputs"
             / "stage7_correlation_report.json"
         )
 

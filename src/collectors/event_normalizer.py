@@ -15,11 +15,27 @@ REQUIRED_FIELDS = (
 
 ALLOWED_SOURCE_TYPES = {
     "authentication",
+    "identity_risk",
+    "access_policy",
     "network",
     "wifi",
     "endpoint",
     "application",
+    "database",
+    "vulnerability",
+    "incident",
+    "response",
 }
+
+SUPPORTED_SCHEMA_VERSIONS = {"1.0", "2.0"}
+ALLOWED_SEVERITIES = {
+    "Informational",
+    "Low",
+    "Medium",
+    "High",
+    "Critical",
+}
+ALLOWED_DECISIONS = {"allow", "deny", "challenge", "restrict"}
 
 MAC_PATTERN = re.compile(
     r"^(?:[0-9A-Fa-f]{2}[:-]){5}[0-9A-Fa-f]{2}$"
@@ -126,6 +142,78 @@ def normalise_cpu_percent(event: dict[str, Any]) -> float | None:
     return cpu_percent
 
 
+
+def normalise_schema_version(event: dict[str, Any]) -> str:
+    """Validate the event schema version while supporting Phase 3 data."""
+    version = optional_text(event, "schema_version") or "1.0"
+
+    if version not in SUPPORTED_SCHEMA_VERSIONS:
+        raise ValueError(
+            f"Unsupported schema_version: {version}"
+        )
+
+    return version
+
+
+def normalise_severity(event: dict[str, Any]) -> str | None:
+    """Validate and standardise an optional severity."""
+    value = optional_text(event, "severity")
+
+    if value is None:
+        return None
+
+    severity = value.title()
+    if severity not in ALLOWED_SEVERITIES:
+        raise ValueError(
+            f"Unsupported severity: {value}"
+        )
+
+    return severity
+
+
+def normalise_risk_score(event: dict[str, Any]) -> float | None:
+    """Validate an optional risk score from 0 to 100."""
+    value = event.get("risk_score")
+
+    if value is None or value == "":
+        return None
+
+    if isinstance(value, bool):
+        raise ValueError(
+            "Field 'risk_score' must contain a number"
+        )
+
+    try:
+        score = float(value)
+    except (TypeError, ValueError) as error:
+        raise ValueError(
+            "Field 'risk_score' must contain a number"
+        ) from error
+
+    if not 0 <= score <= 100:
+        raise ValueError(
+            "Field 'risk_score' must be between 0 and 100"
+        )
+
+    return score
+
+
+def normalise_decision(event: dict[str, Any]) -> str | None:
+    """Validate an optional access or response decision."""
+    value = optional_text(event, "decision")
+
+    if value is None:
+        return None
+
+    decision = value.lower()
+    if decision not in ALLOWED_DECISIONS:
+        raise ValueError(
+            f"Unsupported decision: {value}"
+        )
+
+    return decision
+
+
 def normalise_event(event: dict[str, Any]) -> dict[str, Any]:
     """Validate one raw event and return the normalised event."""
     if not isinstance(event, dict):
@@ -143,6 +231,20 @@ def normalise_event(event: dict[str, Any]) -> dict[str, Any]:
 
     return {
         "source_event_id": require_text(event, "event_id"),
+        "schema_version": normalise_schema_version(event),
+        "source_system": (
+            optional_text(event, "source_system") or source_type
+        ),
+        "severity": normalise_severity(event),
+        "risk_score": normalise_risk_score(event),
+        "decision": normalise_decision(event),
+        "device_id": optional_text(event, "device_id"),
+        "asset_id": optional_text(event, "asset_id"),
+        "application_id": optional_text(event, "application_id"),
+        "service_id": optional_text(event, "service_id"),
+        "finding_id": optional_text(event, "finding_id"),
+        "incident_id": optional_text(event, "incident_id"),
+        "action_id": optional_text(event, "action_id"),
         "event_time": normalise_timestamp(
             require_text(event, "event_time")
         ),

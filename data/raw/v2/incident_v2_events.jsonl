@@ -1,0 +1,2 @@
+{"event_id": "V2-009", "event_time": "2026-09-07T09:09:00+12:00", "event_type": "incident_created", "incident_id": "INC-V2-001", "risk_score": 94, "schema_version": "2.0", "severity": "Critical", "source_system": "simulated_incident", "source_type": "incident", "status": "New"}
+{"event_id": "V2-010", "event_time": "2026-09-07T09:10:00+12:00", "event_type": "incident_triaged", "incident_id": "INC-V2-001", "risk_score": 94, "schema_version": "2.0", "severity": "Critical", "source_system": "simulated_incident", "source_type": "incident", "status": "Investigating"}

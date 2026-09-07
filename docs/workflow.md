@@ -455,3 +455,22 @@ Each stage follows the same operational cycle:
 10. Sign off only after the required validation passes.
 
 The project continues to use controlled simulated data inside the Ubuntu VirtualBox environment. Real external targets, real accounts and real disruptive actions remain outside the project scope.
+
+## Phase 3A V2 — Combined Stages 1 and 2
+
+The enterprise upgrade reuses the original controlled foundation and event pipeline.
+
+### Combined workflow
+
+1. Verify the completed Phase 3 project.
+2. Register simulated users, devices, applications and services.
+3. Apply retention and sensitive-field protection settings.
+4. Upgrade the existing database without removing stored data.
+5. Generate controlled V2 JSONL events.
+6. Validate schema versions, sources, data types and context.
+7. Store valid events and quarantine malformed records.
+8. Reject duplicates and record file-level failures.
+9. Record ingestion totals and audit events.
+10. Revalidate the original Phase 3 workflow.
+
+Stage 1 controls the environment. Stage 2 controls how enterprise-style security data enters and is stored.

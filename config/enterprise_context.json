@@ -1,0 +1,81 @@
+{
+  "simulation_only": true,
+  "users": [
+    {
+      "user_id": "USR-001",
+      "username": "viewer01",
+      "role": "viewer",
+      "status": "active"
+    },
+    {
+      "user_id": "USR-002",
+      "username": "analyst01",
+      "role": "analyst",
+      "status": "active"
+    },
+    {
+      "user_id": "USR-003",
+      "username": "responder01",
+      "role": "responder",
+      "status": "active"
+    },
+    {
+      "user_id": "USR-004",
+      "username": "admin01",
+      "role": "administrator",
+      "status": "active"
+    }
+  ],
+  "devices": [
+    {
+      "device_id": "CYOD-001",
+      "hostname": "Ubuntu-NetShield",
+      "assigned_user": "netshield01",
+      "registration_status": "registered",
+      "compliance_status": "compliant"
+    },
+    {
+      "device_id": "CYOD-002",
+      "hostname": "Analyst-Laptop",
+      "assigned_user": "analyst01",
+      "registration_status": "registered",
+      "compliance_status": "compliant"
+    },
+    {
+      "device_id": "CYOD-003",
+      "hostname": "Unknown-Test-Device",
+      "assigned_user": null,
+      "registration_status": "unregistered",
+      "compliance_status": "unknown"
+    }
+  ],
+  "applications": [
+    {
+      "application_id": "APP-001",
+      "name": "NetShield Console",
+      "sensitivity": "high"
+    },
+    {
+      "application_id": "APP-002",
+      "name": "Incident Reporting",
+      "sensitivity": "medium"
+    }
+  ],
+  "services": [
+    {
+      "service_id": "SVC-001",
+      "name": "Event Ingestion",
+      "criticality": "high"
+    },
+    {
+      "service_id": "SVC-002",
+      "name": "Detection Engine",
+      "criticality": "high"
+    },
+    {
+      "service_id": "SVC-003",
+      "name": "Report Generator",
+      "criticality": "medium"
+    }
+  ]
+}

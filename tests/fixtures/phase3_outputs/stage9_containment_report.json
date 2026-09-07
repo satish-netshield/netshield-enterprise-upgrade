@@ -1,0 +1,90 @@
+{
+  "actions": [
+    {
+      "action": "add_to_simulated_blocklist",
+      "approval_granted": false,
+      "approval_required": false,
+      "details": "Simulated containment action completed inside the sandbox.",
+      "evidence_preserved_before_action": true,
+      "evidence_sha256": "10e94c774ace7897059c2a3713e1cb74697f3c1eb037efa98fcdd394e1a4efef",
+      "reason": "Suspicious source IP from the Critical incident.",
+      "result": "succeeded",
+      "target": "192.0.2.44",
+      "timestamp": "2026-08-28T22:10:23.535335+00:00"
+    },
+    {
+      "action": "quarantine_device",
+      "approval_granted": true,
+      "approval_required": true,
+      "details": "Simulated containment action completed inside the sandbox.",
+      "evidence_preserved_before_action": true,
+      "evidence_sha256": "10e94c774ace7897059c2a3713e1cb74697f3c1eb037efa98fcdd394e1a4efef",
+      "reason": "Unknown endpoint evidence requires approved quarantine.",
+      "result": "succeeded",
+      "target": "02:42:ac:11:00:25",
+      "timestamp": "2026-08-28T22:10:23.535368+00:00"
+    },
+    {
+      "action": "restrict_account",
+      "approval_granted": true,
+      "approval_required": true,
+      "details": "Simulated containment action completed inside the sandbox.",
+      "evidence_preserved_before_action": true,
+      "evidence_sha256": "10e94c774ace7897059c2a3713e1cb74697f3c1eb037efa98fcdd394e1a4efef",
+      "reason": "Authentication-bypass evidence requires account review.",
+      "result": "succeeded",
+      "target": "analyst01",
+      "timestamp": "2026-08-28T22:10:23.535373+00:00"
+    },
+    {
+      "action": "revoke_session",
+      "approval_granted": true,
+      "approval_required": true,
+      "details": "Simulated containment action completed inside the sandbox.",
+      "evidence_preserved_before_action": true,
+      "evidence_sha256": "10e94c774ace7897059c2a3713e1cb74697f3c1eb037efa98fcdd394e1a4efef",
+      "reason": "Simulated session is linked to suspicious activity.",
+      "result": "succeeded",
+      "target": "analyst01-session-stage9",
+      "timestamp": "2026-08-28T22:10:23.535377+00:00"
+    },
+    {
+      "action": "terminate_process",
+      "approval_granted": true,
+      "approval_required": true,
+      "details": "Simulated containment action completed inside the sandbox.",
+      "evidence_preserved_before_action": true,
+      "evidence_sha256": "10e94c774ace7897059c2a3713e1cb74697f3c1eb037efa98fcdd394e1a4efef",
+      "reason": "Unknown endpoint process requires approved isolation.",
+      "result": "succeeded",
+      "target": "unknown_loader",
+      "timestamp": "2026-08-28T22:10:23.535380+00:00"
+    },
+    {
+      "action": "reject_wifi_connection",
+      "approval_granted": false,
+      "approval_required": true,
+      "details": "Approval is required before this disruptive action.",
+      "evidence_preserved_before_action": true,
+      "evidence_sha256": "10e94c774ace7897059c2a3713e1cb74697f3c1eb037efa98fcdd394e1a4efef",
+      "reason": "Non-compliant Wi-Fi access requires approval.",
+      "result": "failed",
+      "target": "02:42:ac:11:00:77",
+      "timestamp": "2026-08-28T22:10:23.535384+00:00"
+    }
+  ],
+  "actions_attempted": 6,
+  "actions_failed": 1,
+  "actions_succeeded": 5,
+  "audit_trail": "simulated/containment_audit.jsonl",
+  "automatic_containment": false,
+  "evidence": {
+    "path": "simulated/stage8-source_before_containment.json",
+    "sha256": "10e94c774ace7897059c2a3713e1cb74697f3c1eb037efa98fcdd394e1a4efef"
+  },
+  "external_targets_used": false,
+  "incident_id": "INC-ST8-001-0AFD600A25B0",
+  "real_accounts_used": false,
+  "scope": "Controlled containment automation",
+  "stage": 9
+}

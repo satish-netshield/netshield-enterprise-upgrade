@@ -22,10 +22,9 @@ class Stage10EradicationTests(unittest.TestCase):
         cls.project_root = Path(__file__).resolve().parents[1]
         cls.stage9_report = (
             cls.project_root
-            / "lab"
-            / "sql_injection"
-            / "outputs"
-            / "stage9"
+            / "tests"
+            / "fixtures"
+            / "phase3_outputs"
             / "stage9_containment_report.json"
         )
 

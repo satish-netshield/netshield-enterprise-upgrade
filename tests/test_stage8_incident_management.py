@@ -23,9 +23,9 @@ class Stage8IncidentManagementTests(unittest.TestCase):
         cls.project_root = Path(__file__).resolve().parents[1]
         cls.stage7_report = (
             cls.project_root
-            / "lab"
-            / "sql_injection"
-            / "outputs"
+            / "tests"
+            / "fixtures"
+            / "phase3_outputs"
             / "stage7_correlation_report.json"
         )
 

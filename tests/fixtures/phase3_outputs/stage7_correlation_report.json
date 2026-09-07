@@ -1,0 +1,186 @@
+{
+  "events_analysed": 7,
+  "incidents": [
+    {
+      "behaviours": [
+        "Repeated Failed Logins"
+      ],
+      "detection_types": [
+        "Authentication Bypass Attempt",
+        "Repeated Failed Logins",
+        "Suspicious IP Address",
+        "Unknown Endpoint Process"
+      ],
+      "event_count": 4,
+      "first_event_time": "2026-08-27T10:00:00+00:00",
+      "identity": {
+        "hostname": [
+          "Analyst-Laptop"
+        ],
+        "ip_address": [
+          "192.0.2.44"
+        ],
+        "location": [
+          "Auckland, NZ"
+        ],
+        "mac_address": [
+          "02:42:ac:11:00:25"
+        ],
+        "process_name": [
+          "unknown_loader"
+        ],
+        "username": [
+          "analyst01"
+        ]
+      },
+      "incident_key": "0afd600a25b0a1e92a57be656395d233032a24206d47edf71fb94a337cc72d6a",
+      "iocs": [
+        {
+          "source_event_id": "ST7-002",
+          "type": "mac_address",
+          "value": "02:42:ac:11:00:25"
+        },
+        {
+          "source_event_id": "ST7-002",
+          "type": "ip_address",
+          "value": "192.0.2.44"
+        },
+        {
+          "source_event_id": "ST7-002",
+          "type": "hostname",
+          "value": "Analyst-Laptop"
+        },
+        {
+          "source_event_id": "ST7-003",
+          "type": "process_name",
+          "value": "unknown_loader"
+        }
+      ],
+      "last_event_time": "2026-08-27T10:06:00+00:00",
+      "risk_reasons": [
+        "Authentication-bypass evidence",
+        "Critical detection: Authentication Bypass Attempt",
+        "Evidence from multiple sources",
+        "High detection: Unknown Endpoint Process",
+        "Medium detection: Repeated Failed Logins",
+        "Medium detection: Suspicious IP Address",
+        "Repeated abnormal activity",
+        "Suspicious source IP",
+        "Unknown endpoint process"
+      ],
+      "risk_score": 30,
+      "severity": "Critical",
+      "source_event_ids": [
+        "ST7-001",
+        "ST7-002",
+        "ST7-003",
+        "ST7-004"
+      ],
+      "source_types": [
+        "application",
+        "authentication",
+        "endpoint",
+        "network"
+      ]
+    },
+    {
+      "behaviours": [],
+      "detection_types": [
+        "Known VPN Activity",
+        "Login From New Device"
+      ],
+      "event_count": 2,
+      "first_event_time": "2026-08-27T11:00:00+00:00",
+      "identity": {
+        "hostname": [
+          "VPN-Laptop"
+        ],
+        "ip_address": [
+          "10.0.2.15"
+        ],
+        "location": [
+          "Auckland, NZ"
+        ],
+        "mac_address": [
+          "08:00:27:cf:49:71"
+        ],
+        "process_name": [],
+        "username": [
+          "vpnuser01"
+        ]
+      },
+      "incident_key": "ab0c455f584a70bea73eec81b9cabb907c85eb1e919693ff8769306820359b3b",
+      "iocs": [],
+      "last_event_time": "2026-08-27T11:03:00+00:00",
+      "risk_reasons": [
+        "Approved-device exception applied",
+        "Evidence from multiple sources",
+        "Known VPN exception applied",
+        "Low detection: Known VPN Activity",
+        "Medium detection: Login From New Device"
+      ],
+      "risk_score": 1,
+      "severity": "Low",
+      "source_event_ids": [
+        "ST7-005",
+        "ST7-006"
+      ],
+      "source_types": [
+        "authentication",
+        "network"
+      ]
+    },
+    {
+      "behaviours": [
+        "Repeated Connection Attempts"
+      ],
+      "detection_types": [
+        "Repeated Connection Attempts"
+      ],
+      "event_count": 1,
+      "first_event_time": "2026-08-27T12:00:00+00:00",
+      "identity": {
+        "hostname": [
+          "Unknown-Device"
+        ],
+        "ip_address": [
+          "198.51.100.77"
+        ],
+        "location": [
+          "Public Area"
+        ],
+        "mac_address": [
+          "02:42:ac:11:00:77"
+        ],
+        "process_name": [],
+        "username": [
+          "unknown01"
+        ]
+      },
+      "incident_key": "000d64a5404d21d24b55ead7b82a709fff99e1df2b9d94566830e05a47330ad5",
+      "iocs": [],
+      "last_event_time": "2026-08-27T12:00:00+00:00",
+      "risk_reasons": [
+        "Isolated low-value alert risk reduced",
+        "Medium detection: Repeated Connection Attempts",
+        "Repeated abnormal activity"
+      ],
+      "risk_score": 3,
+      "severity": "Low",
+      "source_event_ids": [
+        "ST7-007"
+      ],
+      "source_types": [
+        "network"
+      ]
+    }
+  ],
+  "incidents_created": 3,
+  "sandbox_boundary": {
+    "automatic_containment": false,
+    "external_targets_used": false,
+    "simulated_events_only": true
+  },
+  "scope": "Event correlation, risk scoring and IoC extraction",
+  "stage": 7
+}

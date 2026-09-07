@@ -150,60 +150,88 @@ def save_security_event(
     raw_event: dict[str, Any],
 ) -> bool:
     """Save a normalised event and return False for a duplicate."""
+    columns = (
+        "source_event_id",
+        "schema_version",
+        "source_system",
+        "event_time",
+        "received_time",
+        "source_type",
+        "event_type",
+        "severity",
+        "risk_score",
+        "decision",
+        "device_id",
+        "asset_id",
+        "application_id",
+        "service_id",
+        "finding_id",
+        "incident_id",
+        "action_id",
+        "username",
+        "ip_address",
+        "mac_address",
+        "hostname",
+        "process_name",
+        "cpu_percent",
+        "location",
+        "status",
+        "message",
+        "source_file",
+        "batch_id",
+        "raw_event",
+    )
+
+    values = (
+        event["source_event_id"],
+        event.get("schema_version", "1.0"),
+        event.get("source_system") or event["source_type"],
+        event["event_time"],
+        utc_now(),
+        event["source_type"],
+        event["event_type"],
+        event.get("severity"),
+        event.get("risk_score"),
+        event.get("decision"),
+        event.get("device_id"),
+        event.get("asset_id"),
+        event.get("application_id"),
+        event.get("service_id"),
+        event.get("finding_id"),
+        event.get("incident_id"),
+        event.get("action_id"),
+        event.get("username"),
+        event.get("ip_address"),
+        event.get("mac_address"),
+        event.get("hostname"),
+        event.get("process_name"),
+        event.get("cpu_percent"),
+        event.get("location"),
+        event.get("status"),
+        event.get("message"),
+        source_file,
+        batch_id,
+        json.dumps(
+            raw_event,
+            sort_keys=True,
+            separators=(",", ":"),
+        ),
+    )
+
+    placeholders = ", ".join("?" for _ in columns)
+    column_names = ", ".join(columns)
+
     with sqlite3.connect(database_path) as connection:
         connection.execute("PRAGMA foreign_keys = ON")
         cursor = connection.execute(
-            """
-            INSERT OR IGNORE INTO security_events (
-                source_event_id,
-                event_time,
-                received_time,
-                source_type,
-                event_type,
-                username,
-                ip_address,
-                mac_address,
-                hostname,
-                process_name,
-                cpu_percent,
-                location,
-                status,
-                message,
-                source_file,
-                batch_id,
-                raw_event
-            )
-            VALUES (
-                ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
-            )
+            f"""
+            INSERT OR IGNORE INTO security_events ({column_names})
+            VALUES ({placeholders})
             """,
-            (
-                event["source_event_id"],
-                event["event_time"],
-                utc_now(),
-                event["source_type"],
-                event["event_type"],
-                event["username"],
-                event["ip_address"],
-                event["mac_address"],
-                event["hostname"],
-                event["process_name"],
-                event["cpu_percent"],
-                event["location"],
-                event["status"],
-                event["message"],
-                source_file,
-                batch_id,
-                json.dumps(
-                    raw_event,
-                    sort_keys=True,
-                    separators=(",", ":"),
-                ),
-            ),
+            values,
         )
 
         return cursor.rowcount == 1
-
 
 def save_rejected_event(
     database_path: Path,

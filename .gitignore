@@ -40,3 +40,8 @@ Thumbs.db
 !outputs/incidents/.gitkeep
 !outputs/reports/.gitkeep
 !evidence/.gitkeep
+
+# Generated SQL injection lab runtime files
+lab/sql_injection/data/
+lab/sql_injection/logs/
+lab/sql_injection/outputs/

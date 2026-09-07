@@ -1,0 +1,2 @@
+{"application_id": "APP-001", "asset_id": "AST-DB-001", "event_id": "V2-005", "event_time": "2026-09-07T09:05:00+12:00", "event_type": "sql_query", "schema_version": "2.0", "severity": "Informational", "source_system": "simulated_database", "source_type": "database", "username": "analyst01"}
+{"asset_id": "AST-DB-001", "event_id": "V2-006", "event_time": "2026-09-07T09:06:00+12:00", "event_type": "schema_change", "schema_version": "2.0", "severity": "Medium", "source_system": "simulated_database", "source_type": "database", "status": "approved", "username": "admin01"}

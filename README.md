@@ -1,8 +1,31 @@
-# NetShield Phase 3 — Automation
+# NetShield Enterprise Upgrade — Phase 3A V2
 
-NetShield Phase 3 is a Python security-automation project built inside an Ubuntu VirtualBox sandbox.
+NetShield Enterprise Upgrade extends the completed Phase 3 Automation project.
 
-The project was built gradually. Each component was tested in isolation, checked with the existing project, corrected when problems were found, and validated again. The project uses simulated security events and local test data. It does not contact external targets or use real accounts.
+It remains a Python and SQLite security-automation project inside the controlled Ubuntu VirtualBox sandbox. Enterprise security concepts are added without using real external targets, accounts or production services.
+
+---
+
+## Phase 3A V2 — Combined Stages 1 and 2
+
+The first upgrade block adds:
+
+- Simulated enterprise users, devices, applications and services
+- Data-retention and sensitive-field protection settings
+- Identity-risk and access-policy events
+- Database, vulnerability, incident and response events
+- Schema-version and source-system identification
+- Malformed-event quarantine
+- Repeatable database migration
+- File-level failure reporting
+
+```text
+V2 STAGE 1 VALIDATION: PASS (12/12)
+V2 STAGE 2 VALIDATION: PASS (13/13)
+Ran 98 tests — OK
+```
+
+The original Phase 3 components and full-project validation remain operational.
 
 ---
 

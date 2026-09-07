@@ -29,12 +29,51 @@
     ],
     "allowed_source_types": [
       "authentication",
+      "identity_risk",
+      "access_policy",
       "network",
       "wifi",
       "endpoint",
-      "application"
+      "application",
+      "database",
+      "vulnerability",
+      "incident",
+      "response"
     ],
     "reject_malformed_events": true,
-    "preserve_raw_event": true
+    "preserve_raw_event": true,
+    "supported_schema_versions": [
+      "1.0",
+      "2.0"
+    ],
+    "default_schema_version": "1.0",
+    "quarantine_malformed_events": true,
+    "v2_raw_directory": "data/raw/v2"
+  },
+  "upgrade": {
+    "name": "NetShield Enterprise Upgrade",
+    "phase": "3A V2",
+    "version": "0.1.0",
+    "extends": "NetShield Automation"
+  },
+  "data_protection": {
+    "retention_days": {
+      "raw_events": 30,
+      "processed_events": 90,
+      "audit_records": 365,
+      "incident_reports": 365
+    },
+    "sensitive_field_masking": {
+      "enabled": true,
+      "replacement": "[REDACTED]",
+      "fields": [
+        "password",
+        "access_token",
+        "refresh_token",
+        "api_key",
+        "secret",
+        "session_id"
+      ]
+    }
   }
 }

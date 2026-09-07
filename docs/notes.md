@@ -230,3 +230,25 @@
 - Documentation should be checked against the actual implementation and final validation evidence.
 - Later project phases can replace simulated response actions with approved integrations while preserving the same evidence and approval controls.
 - Each genuine failure should be corrected and retested.
+
+## Phase 3A V2 Stage 1 observations
+
+- The original Phase 3 baseline passed 85 unit tests and all existing validators before the upgrade began.
+- Direct validator execution failed because the project package path was unavailable. Module execution with `python -m` worked correctly.
+- SQL injection lab runtime files appeared as untracked because the existing ignore rules covered only the main output directories. The nested lab paths were added to `.gitignore`.
+- `CYOD-002` was registered in the enterprise context but missing from the authoritative CYOD inventory. The inventory was corrected and a consistency test was added.
+- Sensitive-field masking protects configured nested values while leaving safe fields unchanged.
+- Repeated V2 initialisation kept one role assignment per simulated user.
+- The completed Stage 1 extension passed 91 unit tests, V2 validation and the original full-project validation.
+
+## Phase 3A V2 Stage 2 observations
+
+- The existing pipeline already provided JSONL processing, validation, UTC conversion, rejected-event storage, raw preservation and duplicate protection.
+- Compound sources such as `identity_risk` were initially reduced to the first filename word. Source identification was corrected to recognise the complete source name.
+- The tracked schema and existing database both required updating. A repeatable migration extended the database without removing Phase 3 data.
+- Six V2 source files produced 14 records. Twelve were accepted and two malformed records were quarantined.
+- Repeated imports accepted zero duplicate events.
+- The first V2 validator counted repeated copies of the same malformed input. It was corrected to count distinct malformed evidence.
+- The original validator required exactly five source types. It was corrected to preserve those sources while allowing approved V2 additions.
+- A temporary unreadable file confirmed that file-level failures are recorded as failed batches.
+- A source-only repository copy lacked ignored Stage 7–10 runtime evidence required by older tests. Sanitised test fixtures were added so all 98 unit tests can run without those runtime outputs.

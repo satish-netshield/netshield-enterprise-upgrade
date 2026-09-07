@@ -112,8 +112,12 @@ def check_pipeline_configuration() -> None:
     if pipeline["accepted_extensions"] != [".jsonl"]:
         raise AssertionError("Only JSONL input should be accepted")
 
-    if set(pipeline["allowed_source_types"]) != expected_sources:
-        raise AssertionError("Unexpected pipeline source types")
+    if not expected_sources.issubset(
+        set(pipeline["allowed_source_types"])
+    ):
+        raise AssertionError(
+            "Original pipeline source types must remain enabled"
+        )
 
     if not pipeline["reject_malformed_events"]:
         raise AssertionError("Malformed events must be rejected")

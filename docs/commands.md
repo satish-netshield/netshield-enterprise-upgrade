@@ -365,3 +365,21 @@ git diff --cached --name-only | \
   && echo "ERROR: Runtime files are staged" \
   || echo "PASS: No runtime files are staged"
 ```
+
+## Phase 3A V2 — Combined Stages 1 and 2
+
+```bash
+python -m scripts.initialize_v2_stage1
+python -m scripts.validate_v2_stage1
+
+python -m scripts.initialize_v2_stage2
+python -m scripts.generate_v2_stage2_events
+python -m scripts.import_v2_stage2_events
+python -m scripts.validate_v2_stage2
+
+python -m unittest discover -s tests
+python -m scripts.validate_stage11
+git diff --check
+```
+
+The database migration is safe to rerun. Repeated event imports are rejected as duplicates.
