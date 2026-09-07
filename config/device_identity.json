@@ -1,0 +1,28 @@
+{
+  "inventory_path": "data/allowlists/cyod_devices.csv",
+  "stale_device_days": 30,
+  "registration_statuses": [
+    "registered",
+    "unregistered",
+    "removed"
+  ],
+  "compliance_statuses": [
+    "compliant",
+    "non_compliant",
+    "unknown"
+  ],
+  "risk_statuses": [
+    "low",
+    "medium",
+    "high",
+    "critical",
+    "unknown"
+  ],
+  "criticality_levels": [
+    "low",
+    "medium",
+    "high",
+    "critical"
+  ],
+  "mac_address_identity": "supporting_evidence_only"
+}

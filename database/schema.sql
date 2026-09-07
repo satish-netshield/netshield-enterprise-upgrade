@@ -284,3 +284,149 @@ ON endpoint_alerts(cpu_percent);
 
 CREATE INDEX IF NOT EXISTS idx_endpoint_alerts_time
 ON endpoint_alerts(first_event_time);
+
+CREATE TABLE IF NOT EXISTS device_inventory (
+    inventory_id INTEGER PRIMARY KEY AUTOINCREMENT,
+    asset_id TEXT NOT NULL UNIQUE,
+    device_id TEXT NOT NULL UNIQUE,
+    hostname TEXT NOT NULL,
+    assigned_user TEXT,
+    ownership TEXT NOT NULL,
+    device_type TEXT NOT NULL,
+    manufacturer TEXT NOT NULL,
+    operating_system TEXT NOT NULL,
+    os_version TEXT,
+    mac_address TEXT,
+    ip_address TEXT,
+    location TEXT,
+    connection_type TEXT,
+    registration_status TEXT NOT NULL
+        CHECK (
+            registration_status IN (
+                'registered',
+                'unregistered',
+                'removed'
+            )
+        ),
+    compliance_status TEXT NOT NULL
+        CHECK (
+            compliance_status IN (
+                'compliant',
+                'non_compliant',
+                'unknown'
+            )
+        ),
+    risk_status TEXT NOT NULL
+        CHECK (
+            risk_status IN (
+                'low',
+                'medium',
+                'high',
+                'critical',
+                'unknown'
+            )
+        ),
+    criticality TEXT NOT NULL
+        CHECK (
+            criticality IN (
+                'low',
+                'medium',
+                'high',
+                'critical'
+            )
+        ),
+    registered_date TEXT,
+    last_seen TEXT
+);
+
+CREATE TABLE IF NOT EXISTS device_alerts (
+    alert_id INTEGER PRIMARY KEY AUTOINCREMENT,
+    alert_key TEXT NOT NULL UNIQUE,
+    created_at TEXT NOT NULL,
+    detection_type TEXT NOT NULL,
+    severity TEXT NOT NULL
+        CHECK (
+            severity IN (
+                'Low',
+                'Medium',
+                'High',
+                'Critical'
+            )
+        ),
+    device_id TEXT,
+    asset_id TEXT,
+    hostname TEXT,
+    username TEXT,
+    ip_address TEXT,
+    mac_address TEXT,
+    location TEXT,
+    source_event_ids TEXT NOT NULL,
+    evidence TEXT NOT NULL,
+    status TEXT NOT NULL DEFAULT 'New'
+        CHECK (
+            status IN (
+                'New',
+                'Investigating',
+                'Confirmed',
+                'False Positive',
+                'Closed'
+            )
+        ),
+    classification TEXT,
+    investigation_notes TEXT
+);
+
+CREATE TABLE IF NOT EXISTS device_registration_history (
+    history_id INTEGER PRIMARY KEY AUTOINCREMENT,
+    event_time TEXT NOT NULL,
+    device_id TEXT NOT NULL,
+    asset_id TEXT,
+    action TEXT NOT NULL
+        CHECK (
+            action IN (
+                'register',
+                'update',
+                'remove'
+            )
+        ),
+    previous_status TEXT,
+    new_status TEXT NOT NULL,
+    actor TEXT NOT NULL,
+    reason TEXT
+);
+
+CREATE INDEX IF NOT EXISTS idx_device_inventory_device
+ON device_inventory(device_id);
+
+CREATE INDEX IF NOT EXISTS idx_device_inventory_asset
+ON device_inventory(asset_id);
+
+CREATE INDEX IF NOT EXISTS idx_device_inventory_hostname
+ON device_inventory(hostname);
+
+CREATE INDEX IF NOT EXISTS idx_device_inventory_user
+ON device_inventory(assigned_user);
+
+CREATE INDEX IF NOT EXISTS idx_device_inventory_registration
+ON device_inventory(registration_status);
+
+CREATE INDEX IF NOT EXISTS idx_device_inventory_compliance
+ON device_inventory(compliance_status);
+
+CREATE INDEX IF NOT EXISTS idx_device_inventory_risk
+ON device_inventory(risk_status);
+
+CREATE INDEX IF NOT EXISTS idx_device_inventory_last_seen
+ON device_inventory(last_seen);
+
+CREATE INDEX IF NOT EXISTS idx_device_alerts_type
+ON device_alerts(detection_type);
+
+CREATE INDEX IF NOT EXISTS idx_device_alerts_device
+ON device_alerts(device_id);
+
+CREATE INDEX IF NOT EXISTS idx_device_alerts_status
+ON device_alerts(status);
+
+CREATE INDEX IF NOT EXISTS idx_device_registration_device
+ON device_registration_history(device_id);
