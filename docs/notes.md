@@ -240,6 +240,7 @@
 - Sensitive-field masking protects configured nested values while leaving safe fields unchanged.
 - Repeated V2 initialisation kept one role assignment per simulated user.
 - The completed Stage 1 extension passed 91 unit tests, V2 validation and the original full-project validation.
+- During repository separation, restoring the tracked `settings.json` file changed its local permission from `640` to `664`. Git does not preserve detailed non-executable permission modes, so `640` was reapplied and the Automation project was fully revalidated.
 
 ## Phase 3A V2 Stage 2 observations
 
