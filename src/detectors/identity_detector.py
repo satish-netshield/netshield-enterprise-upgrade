@@ -1,4 +1,5 @@
 """Detect suspicious identity and authentication activity."""
+from src.utils.sqlite_connection import managed_connection
 
 import hashlib
 import json
@@ -19,7 +20,7 @@ def load_authentication_events(
     database_path: Path,
 ) -> list[dict[str, Any]]:
     """Load accepted authentication events in time order."""
-    with sqlite3.connect(database_path) as connection:
+    with managed_connection(database_path) as connection:
         connection.row_factory = sqlite3.Row
         rows = connection.execute(
             """
@@ -560,7 +561,7 @@ def save_identity_alerts(
     created = 0
     existing = 0
 
-    with sqlite3.connect(database_path) as connection:
+    with managed_connection(database_path) as connection:
         for alert in alerts:
             cursor = connection.execute(
                 """

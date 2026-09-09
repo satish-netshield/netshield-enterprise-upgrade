@@ -1,4 +1,5 @@
 """Initialise the NetShield Stage 3 identity-detection foundation."""
+from src.utils.sqlite_connection import managed_connection
 
 import sqlite3
 from pathlib import Path
@@ -17,7 +18,7 @@ PROJECT_ROOT = Path(__file__).resolve().parents[1]
 
 def preserve_stage_status(database_path: Path) -> str:
     """Preserve completed status when Stage 3 is reinitialised."""
-    with sqlite3.connect(database_path) as connection:
+    with managed_connection(database_path) as connection:
         row = connection.execute(
             """
             SELECT value

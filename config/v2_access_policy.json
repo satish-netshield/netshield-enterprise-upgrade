@@ -1,0 +1,185 @@
+{
+  "schema_version": "1.0",
+  "simulation_only": true,
+  "default_decision": "deny",
+  "decision_outcomes": [
+    "allow",
+    "deny",
+    "challenge",
+    "restrict"
+  ],
+  "decision_precedence": [
+    "deny",
+    "restrict",
+    "challenge",
+    "allow"
+  ],
+  "conflict_handling": {
+    "priority_order": "lowest_number_first",
+    "same_priority_resolution": "most_restrictive_decision"
+  },
+  "risk_thresholds": {
+    "medium": 40,
+    "high": 70,
+    "critical": 85
+  },
+  "restricted_locations": [
+    "Restricted Test Location"
+  ],
+  "restricted_networks": [
+    "198.51.100.0/24"
+  ],
+  "known_exceptions": {
+    "vpn_allowlist": "data/allowlists/vpn_ip_allowlist.txt",
+    "approved_testing_users": [
+      "trainee01"
+    ]
+  },
+  "applications": {
+    "APP-001": {
+      "name": "NetShield Console",
+      "sensitivity": "high",
+      "required_permission": "view_alerts",
+      "minimum_role": "analyst",
+      "approved_device_required": true,
+      "compliant_device_required": true,
+      "mfa_required": true
+    },
+    "APP-002": {
+      "name": "Incident Reporting",
+      "sensitivity": "medium",
+      "required_permission": "view_closed_reports",
+      "minimum_role": "viewer",
+      "approved_device_required": true,
+      "compliant_device_required": true,
+      "mfa_required": false
+    }
+  },
+  "asset_requirements": {
+    "low": {
+      "approved_device_required": false,
+      "compliant_device_required": false,
+      "mfa_required": false
+    },
+    "medium": {
+      "approved_device_required": true,
+      "compliant_device_required": false,
+      "mfa_required": false
+    },
+    "high": {
+      "approved_device_required": true,
+      "compliant_device_required": true,
+      "mfa_required": true
+    },
+    "critical": {
+      "approved_device_required": true,
+      "compliant_device_required": true,
+      "mfa_required": true
+    }
+  },
+  "policies": [
+    {
+      "policy_id": "POL-001",
+      "name": "Temporary access restriction",
+      "priority": 10,
+      "condition": "temporary_restriction_active",
+      "decision": "deny",
+      "reason_code": "TEMPORARY_ACCESS_RESTRICTION"
+    },
+    {
+      "policy_id": "POL-002",
+      "name": "Inactive or unknown identity",
+      "priority": 20,
+      "condition": "identity_not_active",
+      "decision": "deny",
+      "reason_code": "IDENTITY_NOT_ACTIVE"
+    },
+    {
+      "policy_id": "POL-003",
+      "name": "Missing role permission",
+      "priority": 30,
+      "condition": "required_permission_missing",
+      "decision": "deny",
+      "reason_code": "ROLE_PERMISSION_MISSING"
+    },
+    {
+      "policy_id": "POL-004",
+      "name": "Restricted location",
+      "priority": 40,
+      "condition": "restricted_location",
+      "decision": "deny",
+      "reason_code": "RESTRICTED_LOCATION"
+    },
+    {
+      "policy_id": "POL-005",
+      "name": "Restricted network",
+      "priority": 50,
+      "condition": "restricted_network",
+      "decision": "deny",
+      "reason_code": "RESTRICTED_NETWORK"
+    },
+    {
+      "policy_id": "POL-006",
+      "name": "Critical identity risk",
+      "priority": 60,
+      "condition": "critical_identity_risk",
+      "decision": "restrict",
+      "reason_code": "CRITICAL_IDENTITY_RISK"
+    },
+    {
+      "policy_id": "POL-007",
+      "name": "Unregistered device",
+      "priority": 70,
+      "condition": "device_not_registered",
+      "decision": "challenge",
+      "reason_code": "DEVICE_NOT_REGISTERED"
+    },
+    {
+      "policy_id": "POL-008",
+      "name": "Non-compliant device",
+      "priority": 80,
+      "condition": "device_not_compliant",
+      "decision": "challenge",
+      "reason_code": "DEVICE_NOT_COMPLIANT"
+    },
+    {
+      "policy_id": "POL-009",
+      "name": "High sign-in or user risk",
+      "priority": 90,
+      "condition": "high_identity_risk",
+      "decision": "challenge",
+      "reason_code": "HIGH_IDENTITY_RISK"
+    },
+    {
+      "policy_id": "POL-010",
+      "name": "MFA required",
+      "priority": 100,
+      "condition": "mfa_required_not_satisfied",
+      "decision": "challenge",
+      "reason_code": "MFA_REQUIRED"
+    },
+    {
+      "policy_id": "POL-011",
+      "name": "Verified least-privilege access",
+      "priority": 1000,
+      "condition": "all_access_requirements_satisfied",
+      "decision": "allow",
+      "reason_code": "ACCESS_REQUIREMENTS_SATISFIED"
+    }
+  ],
+  "response_actions": {
+    "allow": null,
+    "deny": null,
+    "challenge": "increase_monitoring",
+    "restrict": "restrict_account"
+  },
+  "audit_requirements": {
+    "record_identity_evidence": true,
+    "record_device_evidence": true,
+    "record_risk_evidence": true,
+    "record_matching_policies": true,
+    "record_winning_policy": true,
+    "record_reason_codes": true,
+    "record_acl_result": true
+  }
+}

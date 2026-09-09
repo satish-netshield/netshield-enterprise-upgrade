@@ -1,6 +1,7 @@
 """Tests for the isolated Stage 6 SQL injection lab."""
 
 from __future__ import annotations
+from src.utils.sqlite_connection import managed_connection
 
 import json
 import sqlite3
@@ -86,7 +87,7 @@ class SQLInjectionLabTests(unittest.TestCase):
             log_path=self.log_path,
         )
 
-        with sqlite3.connect(self.database_path) as connection:
+        with managed_connection(self.database_path) as connection:
             table = connection.execute(
                 """
                 SELECT name

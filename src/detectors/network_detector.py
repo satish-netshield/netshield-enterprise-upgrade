@@ -1,4 +1,5 @@
 """Detect suspicious network, CYOD and Wi-Fi activity."""
+from src.utils.sqlite_connection import managed_connection
 
 import csv
 import hashlib
@@ -28,7 +29,7 @@ def load_events(
     """Load accepted Stage 4 events from SQLite."""
     events = []
 
-    with sqlite3.connect(database_path) as connection:
+    with managed_connection(database_path) as connection:
         connection.row_factory = sqlite3.Row
 
         rows = connection.execute(
@@ -536,7 +537,7 @@ def save_network_alerts(
     created = 0
     existing = 0
 
-    with sqlite3.connect(database_path) as connection:
+    with managed_connection(database_path) as connection:
         for alert in alerts:
             cursor = connection.execute(
                 """

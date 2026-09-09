@@ -1,4 +1,5 @@
 """Validate the NetShield Stage 5 endpoint-detection foundation."""
+from src.utils.sqlite_connection import managed_connection
 
 import json
 import sqlite3
@@ -63,7 +64,7 @@ def main() -> None:
         )
     )
 
-    with sqlite3.connect(DATABASE_PATH) as connection:
+    with managed_connection(DATABASE_PATH) as connection:
         table_exists = connection.execute(
             """
             SELECT 1

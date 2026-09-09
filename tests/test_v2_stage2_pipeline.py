@@ -1,4 +1,5 @@
 """Test the Phase 3A V2 extended event pipeline."""
+from src.utils.sqlite_connection import managed_connection
 
 import unittest
 from pathlib import Path
@@ -124,7 +125,7 @@ class V2Stage2PipelineTests(unittest.TestCase):
             with self.assertRaises(UnicodeError):
                 import_jsonl_file(database_path, source_file)
 
-            with sqlite3.connect(database_path) as connection:
+            with managed_connection(database_path) as connection:
                 status = connection.execute(
                     """
                     SELECT status

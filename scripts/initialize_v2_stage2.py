@@ -1,4 +1,5 @@
 """Upgrade the NetShield event database for Phase 3A V2."""
+from src.utils.sqlite_connection import managed_connection
 
 import sqlite3
 from pathlib import Path
@@ -57,7 +58,7 @@ def main() -> None:
         )
     }
 
-    with sqlite3.connect(database_path) as connection:
+    with managed_connection(database_path) as connection:
         security_added = add_missing_columns(
             connection,
             "security_events",

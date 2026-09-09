@@ -1,4 +1,5 @@
 """Stage 5 endpoint, CPU and wired-access detection."""
+from src.utils.sqlite_connection import managed_connection
 
 import hashlib
 import json
@@ -27,7 +28,7 @@ def load_stage5_events(
     )
     placeholders = ", ".join("?" for _ in source_files)
 
-    with sqlite3.connect(database_path) as connection:
+    with managed_connection(database_path) as connection:
         connection.row_factory = sqlite3.Row
         rows = connection.execute(
             f"""
@@ -58,7 +59,7 @@ def load_user_roles(
         configuration.get("simulated_user_roles", {})
     )
 
-    with sqlite3.connect(database_path) as connection:
+    with managed_connection(database_path) as connection:
         rows = connection.execute(
             """
             SELECT username, role
@@ -484,7 +485,7 @@ def save_endpoint_alerts(
     created = 0
     existing = 0
 
-    with sqlite3.connect(database_path) as connection:
+    with managed_connection(database_path) as connection:
         for alert in alerts:
             key_material = {
                 "detection_type": alert["detection_type"],

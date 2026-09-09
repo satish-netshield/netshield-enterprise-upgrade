@@ -1,4 +1,5 @@
 """Test Phase 3A V2 Stage 3 device alert review workflow."""
+from src.utils.sqlite_connection import managed_connection
 
 import sqlite3
 import tempfile
@@ -20,7 +21,7 @@ class V2Stage3DeviceAlertReviewTests(unittest.TestCase):
         database_path: Path,
     ) -> int:
         """Create one temporary Stage 3 device alert."""
-        with sqlite3.connect(database_path) as connection:
+        with managed_connection(database_path) as connection:
             cursor = connection.execute(
                 """
                 INSERT INTO device_alerts (
@@ -76,7 +77,7 @@ class V2Stage3DeviceAlertReviewTests(unittest.TestCase):
                 actor="test-analyst",
             )
 
-            with sqlite3.connect(database_path) as connection:
+            with managed_connection(database_path) as connection:
                 row = connection.execute(
                     """
                     SELECT
@@ -123,7 +124,7 @@ class V2Stage3DeviceAlertReviewTests(unittest.TestCase):
                 actor="test-analyst",
             )
 
-            with sqlite3.connect(database_path) as connection:
+            with managed_connection(database_path) as connection:
                 row = connection.execute(
                     """
                     SELECT

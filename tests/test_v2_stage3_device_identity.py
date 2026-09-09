@@ -1,4 +1,5 @@
 """Test the Phase 3A V2 Stage 3 device identity foundation and workflow."""
+from src.utils.sqlite_connection import managed_connection
 
 import shutil
 import sqlite3
@@ -82,7 +83,7 @@ class V2Stage3DeviceIdentityTests(unittest.TestCase):
                 PROJECT_ROOT / "database/schema.sql",
             )
 
-            with sqlite3.connect(database_path) as connection:
+            with managed_connection(database_path) as connection:
                 tables = {
                     row[0]
                     for row in connection.execute(
@@ -115,7 +116,7 @@ class V2Stage3DeviceIdentityTests(unittest.TestCase):
             sync_inventory(database_path, rows)
             sync_inventory(database_path, rows)
 
-            with sqlite3.connect(database_path) as connection:
+            with managed_connection(database_path) as connection:
                 count = connection.execute(
                     """
                     SELECT COUNT(*)
@@ -433,7 +434,7 @@ class V2Stage3DeviceIdentityTests(unittest.TestCase):
                 ),
             )
 
-            with sqlite3.connect(database_path) as connection:
+            with managed_connection(database_path) as connection:
                 count = connection.execute(
                     """
                     SELECT COUNT(*)
@@ -507,7 +508,7 @@ class V2Stage3DeviceIdentityTests(unittest.TestCase):
                 "registered",
             )
 
-            with sqlite3.connect(database_path) as connection:
+            with managed_connection(database_path) as connection:
                 row = connection.execute(
                     """
                     SELECT
@@ -575,7 +576,7 @@ class V2Stage3DeviceIdentityTests(unittest.TestCase):
                 "removed",
             )
 
-            with sqlite3.connect(database_path) as connection:
+            with managed_connection(database_path) as connection:
                 inventory_row = connection.execute(
                     """
                     SELECT registration_status

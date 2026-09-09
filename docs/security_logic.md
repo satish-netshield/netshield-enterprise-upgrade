@@ -1,575 +1,437 @@
-# Security Logic
+# NetShield Enterprise Upgrade Security Logic
 
 ## Project boundary
 
-NetShield Enterprise Upgrade extends the completed NetShield Phase 3 Automation project.
+Phase 3A V2 extends the completed NetShield Phase 3 Automation project.
 
-The implementation remains Python and SQLite inside the controlled Ubuntu VirtualBox sandbox. All users, devices, applications, services and security events used by the upgrade are simulated.
+It runs locally with Python and SQLite inside an Ubuntu VirtualBox sandbox. Enterprise users, devices, applications, identity risks and access requests are simulated.
 
-Microsoft Entra, Defender, Sentinel, Conditional Access and XDR are design references only. The project does not connect to Microsoft services or perform real enterprise actions.
+Microsoft Entra, Conditional Access, Defender, Sentinel and XDR are security design references only. The project does not connect to these services or perform real enterprise actions.
 
-## Default deny
+---
 
-Unknown roles, permissions, actions, event sources and invalid fields are denied.
+## Foundation security decisions
 
-This prevents unrecognised data or actions from being trusted automatically.
+| Decision | Security reason |
+|---|---|
+| Default deny | Unknown permissions, access conditions and automation actions must not be accepted automatically. |
+| Least privilege | Users receive only the permissions assigned to their Viewer, Analyst, Responder or Administrator role. |
+| Existing RBAC reuse | Reusing the Phase 3 roles preserves compatibility and avoids creating a second access model. |
+| Automation ACL | A security decision cannot bypass the rules controlling whether a response is automatic, approval-required or manual-only. |
+| Sandbox-only operation | Controlled local testing prevents the project from affecting external accounts, devices or networks. |
+| Evidence preservation | Original evidence remains unchanged so integrity checks and investigation history remain valid. |
+| Sensitive-field masking | Passwords, tokens, API keys, secrets and session identifiers are hidden from suitable output. |
+| Retention configuration | Different record types have defined retention periods, although automatic deletion is not implemented yet. |
 
-## Role-Based Access Control
+---
 
-NetShield uses four application roles:
+## Security data decisions
 
-- Viewer: views alerts and closed reports.
-- Analyst: investigates incidents and classifies false positives.
-- Responder: requests and performs approved containment.
-- Administrator: manages rules, roles, inventories and configuration.
+### Common event schema
 
-Simulated V2 users are assigned only to these existing roles.
+Events from different sources are converted into a common structure before being stored.
 
-Application RBAC controls NetShield decisions. It does not create Ubuntu accounts or Microsoft Entra identities.
+The schema can retain:
 
-## Automation-action ACL
+- Event and source identifiers
+- Schema version
+- Event and received times
+- Source system and source type
+- Event type and status
+- Username and role
+- Device and asset identifiers
+- Application and service identifiers
+- IP address, MAC address, hostname and location
+- Severity, risk and decision context
+- Original event evidence
 
-Actions use three control levels:
+Not every source requires every field. Validation depends on the event type and schema version.
 
-- Automatic: alert creation, evidence hashing, log preservation, simulated blocklisting and increased monitoring.
-- Approval required: account restriction, session revocation, process termination, device quarantine and simulated firewall changes.
-- Manual only: credential resets, physical-device removal, router changes and access-point removal.
+This allows different security sources to be searched together without creating false values for fields they do not use.
 
-Undefined actions are denied. Disruptive actions require approval.
+### Complete source names
 
-## Enterprise asset and device identity
+Compound source names such as `identity_risk` and `access_policy` are matched as complete names.
 
-The CYOD inventory is the authoritative record of approved enterprise test devices.
+Reading only the first filename word would incorrectly classify `identity_risk` as `identity` and could apply the wrong validation logic.
 
-Each inventory record can contain:
+### UTC timestamps
 
-- Asset ID
-- Device ID
-- Hostname
-- Assigned user
-- Ownership
-- Device type and manufacturer
-- Operating system and version
-- MAC and IP addresses
-- Location and connection type
-- Registration status
-- Compliance status
-- Risk status
-- Asset criticality
-- Registration and last-seen dates
+Accepted event timestamps are converted to UTC.
 
-Device ID and asset ID provide the main identity references. Hostname, assigned user, IP address, location and other inventory values provide supporting context.
+Using one time standard makes sequence, threshold and travel calculations consistent across sources.
 
-MAC addresses remain supporting evidence only because they can be changed, reused or spoofed.
+### Malformed-event quarantine
 
-A device marked as registered in enterprise context must also exist in the authoritative CYOD inventory.
+Malformed events are excluded from the accepted-event table.
 
-## Device inventory decisions
+Their source file, line number, reason, quarantine status and original content are retained separately.
 
-The tracked CSV inventory and the SQLite device inventory must contain consistent device and asset information.
+This prevents invalid data from influencing detections while preserving evidence for review.
 
-Device IDs and asset IDs must be present and unique.
+### Raw-event preservation
 
-Registration, compliance, risk and criticality values must match the controlled values in `device_identity.json`.
+The original event is stored with the normalised record.
 
-The current stale-device threshold is 30 days.
+This allows a later alert or policy decision to be traced back to the supplied evidence.
 
-The Stage 3 initialisation can be repeated without creating duplicate inventory records.
+### Duplicate protection
 
-## Device identity detection
+Accepted events are protected by their source file and source event ID.
 
-Stored V2 events are evaluated only when they contain a device ID or an asset ID already associated with the device inventory.
+Identity alerts and access decisions use deterministic keys based on their supporting evidence.
 
-This prevents application, database and web assets from being incorrectly treated as endpoint devices.
+Repeated imports and processing runs therefore do not create duplicate accepted events, alerts or policy decisions.
 
-Stage 3 detects:
+### Safe database migration
+
+Updating `database/schema.sql` prepares new databases but does not upgrade an existing SQLite database.
+
+Repeatable migrations add missing columns, tables and indexes without deleting earlier records. Running the migration again does not recreate existing objects.
+
+---
+
+## Relevant Stage 3 device decisions
+
+Stage 3 provides the device evidence required by Stages 4 and 5.
+
+Device ID and asset ID are the main identity references. A MAC address is supporting evidence only because it can change, be absent or be copied.
+
+The project distinguishes between:
 
 - Unknown Device
 - Unregistered Device
 - Stale Device
 - Inventory Mismatch
 
-An Unknown Device has no matching approved inventory record or known enterprise-device context.
+A known but unregistered device is not treated as completely unknown.
 
-An Unregistered Device is already known to the enterprise context but is not registered in the approved inventory.
+Device removal changes its registration state and preserves its inventory and registration history.
 
-A Stale Device has not been seen within the configured 30-day period.
+Only records containing a device ID or an asset ID recognised by the device inventory are evaluated as device activity. Database and application assets are not treated as devices.
 
-An Inventory Mismatch occurs when observed hostname, username, IP address, location or supporting MAC evidence conflicts with the approved inventory context.
+---
 
-Compatible location descriptions, such as `Auckland` and `Auckland-NZ`, are normalised to prevent unnecessary alerts.
+## Stage 4 — Identity monitoring and risk detection
 
-A MAC-address difference may support an Inventory Mismatch investigation. It does not make a device unknown when its authoritative device or asset ID is already recognised.
+Stage 4 evaluates controlled authentication and identity-risk events.
 
-## Device alert decisions
+The original Phase 3 identity storage remains unchanged. V2 findings are stored separately in `v2_identity_alerts` with user, device, location, time, risk, severity, confidence, reason-code and investigation context.
 
-Device findings are stored in the `device_alerts` table with their detection type, severity, device context, source-event IDs and supporting evidence.
+### Identity detection decisions
 
-Unknown and unregistered devices currently receive High severity. Stale devices and inventory mismatches receive Medium severity.
+| Detection | Security decision and reason |
+|---|---|
+| Repeated Failed Logins | Several failures for the same user and source inside the configured window indicate more than an isolated password mistake. |
+| Possible Brute Force | A higher failure count for one account and source represents a stronger concentrated attack pattern. |
+| Password Spraying Pattern | Failures against several usernames from one source can reveal low-volume attempts spread across accounts. |
+| Successful Login After Failures | A success following repeated failures may mean that earlier attempts eventually gained access. |
+| Multiple Accounts From One Source | Activity involving several accounts from one suspicious source provides shared-source risk context. |
+| Impossible Travel | Consecutive successful logins requiring travel above the configured speed require investigation. |
+| New-Device Sign-In | A sign-in from outside the user’s approved device baseline may represent new or unauthorised access. |
+| Unusual Sign-In Location | A location outside the user’s normal baseline adds risk context to the sign-in. |
+| Abnormal Access Time | A sign-in outside configured normal UTC hours may require review, although legitimate after-hours work is possible. |
+| MFA Failure or Fatigue Pattern | Repeated MFA failures may indicate repeated prompts, user error or attempted account access. |
+| Suspicious Privilege Change | A role change outside the expected baseline can materially increase account permissions. |
+| Dormant-Account Activity | An account marked dormant should not normally perform an interactive login. |
+| Service-Account Interactive Login | A service account is expected to perform defined non-interactive work. |
+| Risky Sign-In Behaviour | High sign-in risk or high user risk provides direct evidence for stronger investigation or access controls. |
 
-Repeatable alert keys prevent the same finding for the same source event from creating duplicate stored alerts.
+### Severity and confidence
 
-The controlled Stage 3 run evaluated three relevant V2 device events and retained one meaningful alert: High-severity Unregistered Device activity for `CYOD-003`.
+Severity describes the possible security impact.
 
-Approved `CYOD-002` activity produced no false device alert after compatible location labels were normalised.
+Confidence describes how strongly the available evidence supports the detection.
 
-## Device registration and removal
+Keeping these values separate prevents a strong match from automatically being presented as the highest operational impact.
 
-The controlled registration workflow adds a new approved device to the tracked inventory and synchronises it with SQLite.
+Examples from the controlled run included:
 
-Duplicate device IDs and asset IDs are rejected.
+| Detection | Severity | Confidence |
+|---|---:|---:|
+| Repeated Failed Logins | Medium | 70 |
+| Possible Brute Force | High | 85 |
+| Successful Login After Failures | High | 90 |
+| Impossible Travel | High | 80 |
+| New-Device Sign-In | Medium | 65 |
+| MFA Failure or Fatigue Pattern | High | 85 |
+| Suspicious Privilege Change | Critical | 95 |
+| Dormant-Account Activity | High | 90 |
+| Service-Account Interactive Login | High | 95 |
+| Abnormal Access Time | Medium | 60 |
 
-The removal workflow changes the device registration state to `removed`. It does not delete the inventory record or its history.
+### Reason codes
 
-Registration and removal actions preserve:
-
-- Device and asset identity
-- Previous and new status
-- Responsible actor
-- Reason
-- UTC action time
-
-These records are stored in `device_registration_history`.
-
-## Device alert review
-
-A device alert can be reviewed using these controlled statuses:
-
-- New
-- Investigating
-- Confirmed
-- False Positive
-- Closed
-
-The review records the classification, investigation notes and responsible actor.
-
-Review actions are written to the established audit trail. Missing alerts and unsupported statuses are rejected.
-
-False-positive review was tested with a temporary database so the genuine `CYOD-003` alert remained unchanged in `New` status.
-
-## IP and VPN decisions
-
-The blocklist is checked before the allowlist. An address found in both lists is treated as blocked until investigated.
-
-Malformed IP addresses are rejected instead of being silently corrected.
-
-Known VPN addresses may explain selected identity activity. A VPN exception does not prove the user’s physical location or remove the original evidence.
-
-## Data retention
-
-V2 settings define retention periods for:
-
-- Raw events
-- Processed events
-- Audit records
-- Incident reports
-
-These settings establish the retention policy for later components. Stage 1 does not automatically delete expired records.
-
-## Sensitive-field masking
-
-The V2 masking helper protects configured fields such as:
-
-- Passwords
-- Access and refresh tokens
-- API keys
-- Secrets
-- Session IDs
-
-The helper works with nested dictionaries and lists. Safe fields remain unchanged.
-
-Raw security evidence is preserved in its original form. Logging and reporting components must apply masking before displaying configured sensitive values.
-
-## Event-source decisions
-
-The original pipeline supports:
-
-- Authentication
-- Network
-- Wi-Fi
-- Endpoint
-- Application
-
-V2 adds:
-
-- Identity risk
-- Access policy
-- Database
-- Vulnerability
-- Incident
-- Response
-
-The original sources remain supported.
-
-The declared source type must match the source filename. Compound names such as `identity_risk` and `access_policy` are matched using the longest supported source prefix.
-
-Incorrectly labelled or unsupported events are rejected.
-
-## Common event schema
-
-Every accepted event requires:
-
-- Event ID
-- Timezone-aware event timestamp
-- Source type
-- Event type
-
-V2 events can also contain:
-
-- Schema version
-- Source system
-- Severity
-- Risk score
-- Decision
-- User and device context
-- Asset, application and service IDs
-- Vulnerability finding ID
-- Incident ID
-- Response action ID
-
-Phase 3 events default to schema version `1.0`. V2 events use version `2.0`.
-
-Only supported schema versions are accepted.
-
-## Event validation
-
-Timestamps are converted to UTC so events from different sources can be compared consistently.
-
-IP addresses, MAC addresses, CPU values and risk scores are validated before storage.
-
-Risk scores must be between 0 and 100. Access and response decisions must use an approved value:
-
-- Allow
-- Deny
-- Challenge
-- Restrict
-
-Severity values are standardised as Informational, Low, Medium, High or Critical.
-
-A severity or risk score supports prioritisation. It is not proof that an incident occurred.
-
-## Rejected data and quarantine
-
-Invalid records remain outside the accepted-event table.
-
-The pipeline preserves:
-
-- Source filename
-- Import batch ID
-- Line number
-- Rejection reason
-- Original input
-- Quarantine status
-
-Malformed records and duplicate events are recorded separately from accepted security events.
-
-Repeated imports may create new rejection records, but they do not duplicate accepted events.
-
-## File-level failures
-
-A record-level rejection means the file was readable but one event was invalid.
-
-A file-level failure means the file could not be processed, such as an unreadable text encoding. The import batch is marked as failed, and the V2 importer reports the failed file separately.
-
-Testing uses a temporary unreadable file and temporary database so the real project evidence is not changed.
-
-## Duplicate protection
-
-The combination of source filename and source event ID must be unique.
-
-The first valid event is accepted. Later copies are rejected as duplicates.
-
-Alert keys and incident keys also prevent repeated processing from creating duplicate records.
-
-## Database upgrade decisions
-
-Updating `schema.sql` prepares a clean database but does not alter an existing SQLite database.
-
-V2 therefore uses a repeatable migration to add missing columns and investigation indexes to the existing database.
-
-The migration checks the current schema before making a change. Running it again adds zero columns and does not remove Phase 3 data.
-
-## Investigation indexes
-
-The existing indexes support searches by time, event type, username, IP address and MAC address.
-
-V2 adds indexes for:
-
-- Schema version
-- Source type and source system
-- Device ID
-- Incident ID
-
-These indexes support later identity, device and cross-source investigations.
-
-## Identity detection
-
-Phase 3 groups authentication activity by user, address and time window.
-
-It detects:
-
-- Repeated failed logins
-- Possible brute-force activity
-- Successful login after repeated failures
-- MFA anomalies
-- New-device sign-ins
-- Unusual locations
-- Impossible travel
-- Suspicious role changes
-
-Known VPN activity and approved replacement devices can be investigated as exceptions or false positives.
-
-Every alert requires investigation before a final conclusion is made.
-
-## Network and Wi-Fi detection
-
-Phase 3 groups related network activity using MAC address, IP address, hostname, username, location and time.
-
-It detects:
-
-- Suspicious IP activity
-- Repeated connections
-- Port scanning
-- Unknown devices
-- Possible MAC reuse
-- Wi-Fi zone violations
-- WPA3 violations
-- WPA2 downgrade events
-- Rogue access points
-
-A location change alone does not prove MAC spoofing. Conflicting identity evidence and overlapping times are required.
-
-A restricted location is evidence for investigation, not automatic proof of compromise.
-
-## Endpoint and wired-LAN detection
-
-Endpoint decisions use:
-
-- CPU usage
-- Process name
-- Hostname
-- Username
-- Location
-- Role
-- Switch port
-- VLAN
-- Event time
-
-Approved CPU stress tests are excluded only when the test ID, process and approval status match the configured policy.
-
-Unapproved stress tests, unexpected CPU activity, unknown processes and restricted wired access can create alerts.
-
-## Severity decisions
-
-Initial detections use configured severity labels.
-
-The Phase 3 correlation engine adds risk points for stronger conditions such as:
-
-- Authentication-bypass evidence
-- Database errors
-- Repeated abnormal activity
-- Unknown endpoint processes
-- Suspicious IP activity
-- Agreement between multiple source types
-
-The final score maps to Low, Medium, High or Critical.
-
-Severity is a prioritisation decision, not proof of compromise.
-
-## SQL injection boundary
-
-The SQL injection lab uses a separate local Python application and SQLite database.
-
-The vulnerable query exists only to demonstrate unsafe string concatenation. It is not suitable for real use.
-
-No external target, public system, real account or real credential is used.
-
-## SQL injection detection
-
-The lab records suspicious input, authentication-bypass attempts, database errors, source IPs, query mode and repeated abnormal requests.
-
-Pattern matching provides evidence for investigation. It does not replace secure query construction.
-
-## Parameterised SQL
-
-The corrected query passes user input separately from the SQL statement:
-
-```sql
-WHERE username = ? AND password = ?
-```
-
-This treats the input as data instead of executable SQL syntax.
-
-The controlled input that bypassed the vulnerable query was rejected by the parameterised query.
-
-## Cross-source correlation
-
-The Phase 3 correlation engine groups events when they share identity evidence and occur within the configured time window.
-
-Correlation uses:
-
-- Username
-- IP address
-- MAC address
-- Hostname
-- Event time
-
-Process, location, source type and detection type provide additional context.
-
-Related events are combined into one incident. Unrelated events remain separate.
-
-V2 schema fields prepare the pipeline for later correlation using device, asset, application, finding, incident and action IDs.
-
-## Correlation exceptions
-
-Approved-device and known-VPN exceptions reduce risk when activity has a verified explanation.
-
-Exceptions do not remove the event or erase its evidence.
-
-One isolated Low or Medium event is not automatically treated as high risk. High or Critical activity is not reduced only because it is isolated.
-
-## IoC extraction
-
-The correlation engine extracts observable values that may support investigation:
-
-- IP address
-- MAC address
-- Hostname
-- Process name
-
-Usernames remain incident context because they identify accounts rather than malicious infrastructure.
-
-## Behaviour classification
-
-Behaviours remain separate from IoCs.
+Every alert contains a reason code explaining why it was created.
 
 Examples include:
 
-- Repeated failed logins
-- Repeated connection attempts
-- Unexpected CPU activity
-- Impossible travel
-- Suspicious input
-- Repeated abnormal requests
+- `REPEATED_FAILED_LOGINS`
+- `POSSIBLE_BRUTE_FORCE`
+- `PASSWORD_SPRAYING_PATTERN`
+- `SUCCESS_AFTER_REPEATED_FAILURES`
+- `IMPOSSIBLE_TRAVEL_SPEED`
+- `DEVICE_NOT_IN_USER_BASELINE`
+- `LOCATION_NOT_IN_USER_BASELINE`
+- `ACCESS_OUTSIDE_NORMAL_UTC_HOURS`
+- `REPEATED_MFA_FAILURES`
+- `ROLE_CHANGE_OUTSIDE_BASELINE`
+- `DORMANT_ACCOUNT_USED`
+- `SERVICE_ACCOUNT_INTERACTIVE_LOGIN`
+- `HIGH_RISK_SIGN_IN`
+- `HIGH_USER_RISK`
 
-An IoC is an observable value. A behaviour describes activity.
+Reason codes make alerts easier to explain, search and test.
 
-## Incident management
+### VPN and testing exceptions
 
-Phase 3 creates a traceable incident record from each correlated incident.
+Approved VPN evidence is checked before relevant device, location and impossible-travel alerts are created.
 
-Each record contains:
+Approved testing evidence can also suppress a finding when it matches the configured test boundary.
 
-- Unique incident ID
-- Detection name
-- Severity and risk score
-- Incident status
-- Investigation note
-- Analyst decision
-- False-positive classification
-- IoC list
-- Evidence reference
-- Action timeline
-- Audit information
+Exceptions are counted instead of being silently ignored.
 
-The implemented lifecycle is:
+The controlled run recorded two VPN exceptions and one approved-testing exception.
 
-```text
-New → Investigating → Contained → Eradicated → Recovered → Closed
-```
+### Duplicate-safe alerts
 
-Invalid status changes are denied so an incident cannot skip required handling steps.
+Identity-alert keys are created from the detection type and supporting event evidence.
 
-## Incident evidence
+A repeated Stage 4 run found the same 16 detections but stored no new alerts:
 
-The correlation report is preserved as incident evidence.
+- 16 stored alerts
+- 16 unique alert keys
+- 0 duplicate alerts
 
-A SHA-256 hash is calculated and stored with the incident record. The hash confirms whether the preserved evidence has changed.
+### False-positive review
 
-Evidence references, investigation notes and analyst decisions remain linked to the incident ID.
+An authorised Analyst can classify an alert, change its investigation status and add notes.
 
-Sanitised copies of the Stage 7, Stage 8 and Stage 9 outputs are stored as test fixtures. This allows unit tests to run without depending on ignored runtime files or machine-specific paths.
+Empty notes, unknown classifications and unknown alert IDs are rejected. A Viewer cannot perform the review.
 
-## False-positive decisions
+The controlled Abnormal Access Time alert was classified as a False Positive and closed after it was confirmed as approved after-hours test activity.
 
-False-positive information is recorded instead of silently deleting an alert.
+The alert and audit history were preserved.
 
-The analyst decision explains whether the activity is authorised, unresolved or requires further investigation.
+---
 
-Containment, eradication and recovery are recorded only when those actions occur.
+## Stage 5 — Zero Trust and policy-based access decisions
 
-## Controlled containment
+Stage 5 uses local identity, role, device, application, location, network, MFA and risk evidence to make explainable access decisions.
 
-Phase 3 supports these simulated containment actions:
+It applies Zero Trust, RBAC and Conditional Access concepts locally. It does not reproduce Microsoft Conditional Access.
 
-- Add an IP address to the simulated blocklist.
-- Quarantine an unknown CYOD device.
-- Restrict an account temporarily.
-- Revoke a simulated session.
-- Terminate a suspicious test process.
-- Reject a non-compliant Wi-Fi connection.
+### Explicit verification
 
-The action must exist in the ACL. Undefined actions are denied.
+The engine evaluates the available request context:
 
-Blocklisting is automatic under the current ACL. Other disruptive containment actions require approval.
+- User identity
+- Assigned role
+- Requested permission
+- Device registration
+- Device compliance
+- Application sensitivity
+- Asset criticality
+- Location
+- Network
+- Sign-in risk
+- User risk
+- MFA evidence
+- Temporary restrictions
+- Approved VPN evidence
 
-Every action preserves evidence first and records its approval decision, result and responsible actor.
+A valid account or device is not enough by itself. The complete request must satisfy the relevant policy.
 
-## Eradication and recovery
+### Least privilege
 
-The implemented simulated actions include:
+The requested permission must belong to the user’s assigned role.
 
-- Reset compromised credentials
-- Remove unauthorised privileges
-- Register an unknown device
-- Correct WPA3 configuration
-- Remove a simulated rogue access point
-- Terminate a suspicious test process
-- Replace vulnerable SQL
-- Restore simulated accounts, devices and services
-- Increase monitoring
+A recognised user without the required permission is denied.
 
-After eradication, the original threats are tested again.
+Higher application sensitivity, asset criticality or risk can require stronger evidence even when the role normally permits the action.
 
-The retest confirms that the SQL injection bypass, suspicious process and unauthorised access conditions no longer succeed before the incident reaches `Closed`.
+### Device requirements
 
-## Evidence handling
+Higher-risk access can require a registered and compliant device.
 
-Accepted events retain their normalised fields and original JSON.
+An unregistered or non-compliant device can produce a Challenge decision with separate reason codes:
 
-Evidence handling uses:
+- `DEVICE_NOT_REGISTERED`
+- `DEVICE_NOT_COMPLIANT`
 
-- SHA-256 hashing
-- Protected local permissions
-- Raw-event preservation
-- Deterministic alert and incident keys
-- Evidence-before-action checks
-- Incident-linked evidence references
-- Action and audit records
-- Post-eradication retesting
+This explains exactly which device conditions were not satisfied.
 
-Raw evidence is not silently rewritten. Sensitive-field masking applies to suitable displayed or generated output, not the preserved source evidence.
+### Restricted locations and networks
 
-## Current limitations
+Configured restricted locations and networks produce Deny decisions.
 
-- Project events, users, devices, applications and services are simulated.
-- Retention periods are configured but automated expiry is not implemented yet.
-- The masking helper is tested, but every later reporting component must explicitly use it.
-- The vulnerable SQL function is intentionally retained for controlled demonstration.
-- Pattern-based input detection may not identify every injection technique.
-- IP and MAC addresses do not prove user or device identity.
-- Risk scoring uses learning-project rules and requires further tuning.
-- Incident records are generated from local reports rather than a live case-management platform.
-- Containment, eradication and recovery actions do not modify real systems.
-- Full Phase 3 validation requires generated runtime evidence, while unit tests use tracked sanitised fixtures.
-- Microsoft Entra, Defender, Sentinel and XDR integrations are not implemented.
+The reason codes are:
 
-## Sandbox boundaries
+- `RESTRICTED_LOCATION`
+- `RESTRICTED_NETWORK`
 
-- Testing remains inside Ubuntu VirtualBox.
-- Only simulated or approved local data is used.
-- External targets are not scanned or contacted.
-- Real accounts and credentials are not used.
-- The SQL injection database remains separate from the main NetShield database.
-- Automatic real-world containment and eradication remain disabled.
-- Disruptive simulated actions require approval.
+An approved VPN address can bypass the matching network restriction. It does not bypass unrelated role, device, MFA or risk requirements.
+
+### Risk-based controls
+
+Critical identity risk can produce a Restrict decision.
+
+The risk changes the decision for the current request. It does not silently change the user’s assigned role.
+
+### MFA requirements
+
+When a request requires MFA but the required evidence is missing, the result is Challenge with `MFA_REQUIRED`.
+
+The project records the challenge and can simulate increased monitoring. It does not send a real MFA prompt.
+
+### Temporary restrictions
+
+An active temporary access restriction denies a matching user.
+
+The restriction records its active state, reason, start time and optional end time.
+
+Temporary restrictions have the highest policy priority so a general allow policy cannot override them.
+
+### Access outcomes
+
+| Outcome | Meaning |
+|---|---|
+| Allow | The required access conditions were satisfied. |
+| Deny | The request was not permitted. |
+| Challenge | Stronger verification or additional evidence was required. |
+| Restrict | Access should be limited because of serious risk. |
+
+Every outcome includes its winning policy, reason codes and evaluated evidence.
+
+### Policy priority and conflicts
+
+A lower numeric priority represents a stronger policy.
+
+When policies share the same priority, the more restrictive result wins:
+
+1. Deny
+2. Restrict
+3. Challenge
+4. Allow
+
+This makes the result deterministic and prevents configuration order from creating an accidental Allow decision.
+
+### Default-deny fallback
+
+Unknown applications and unsupported access conditions do not receive an Allow result.
+
+They follow default deny because their security requirements cannot be verified.
+
+### ACL-controlled responses
+
+The access decision and response permission are evaluated separately.
+
+The policy engine first selects Allow, Deny, Challenge or Restrict. It then checks any proposed response against the automation ACL.
+
+In the controlled run:
+
+- Challenge used `increase_monitoring`, an approved automatic simulated action.
+- Restrict proposed `restrict_account`, which required approval and was not executed.
+
+A correct policy result therefore cannot bypass the response-control boundary.
+
+### Decision audit trail
+
+Each stored decision includes:
+
+- Request event ID
+- User and role
+- Device and application
+- Decision
+- Winning policy
+- Reason codes
+- Evaluated evidence
+- Proposed response
+- ACL control level
+- Response status
+- Evaluation time
+
+Decision keys are deterministic.
+
+Repeating Stage 5 found the same nine requests and created no duplicate decisions.
+
+---
+
+## SQLite connection security and reliability
+
+Python’s SQLite transaction context commits or rolls back work but does not automatically close the connection object.
+
+Under Python 3.14, the earlier connection pattern generated `ResourceWarning` messages.
+
+A shared managed connection helper now:
+
+1. Opens the connection.
+2. Commits successful work.
+3. Rolls back failed work.
+4. Closes the connection in every case.
+
+The change preserved transaction behaviour while removing unclosed connection warnings across the project.
+
+---
+
+## Testing evidence
+
+Stage 4 used 24 controlled authentication and identity-risk events.
+
+It stored 16 traceable identity alerts and passed 12 out of 12 validation checks.
+
+Stage 5 evaluated nine controlled access requests:
+
+- 2 Allow
+- 4 Deny
+- 2 Challenge
+- 1 Restrict
+
+It passed 14 out of 14 validation checks.
+
+The combined Stage 4–5 unit tests passed 32 tests.
+
+After adding explicit SQLite connection handling, the complete project passed 151 unit tests with zero unclosed-database `ResourceWarning` messages.
+
+SQLite integrity checking returned `ok`, and the original Stage 11 full-project validation passed.
+
+---
+
+## Problems found and corrected
+
+- Normal Stage 4 authentication events originally began outside the configured normal access hours. They were moved inside the approved period, while one deliberate late event remained to test abnormal access.
+- New Stage 4–5 events affected a Stage 3 validator that used a broad event query. The validator was limited to the intended Stage 3 source files.
+- SQLite connections were completing transactions without explicitly closing. A shared managed connection helper corrected the connection lifecycle.
+- Updating the schema file alone did not upgrade the existing database. A repeatable migration was used.
+- Compound source names required complete matching.
+- Policy conflicts required explicit priority and restrictive tie handling.
+
+These were implementation or validation problems. They were corrected without deleting valid earlier evidence.
+
+---
+
+## What I learned
+
+Identity findings are stronger when user, device, source, location, time and risk evidence are considered together.
+
+A suspicious location, device or login time can still have a legitimate explanation, so exceptions and investigation history are important.
+
+Access decisions need clear reason codes and predictable policy priority.
+
+A security decision must remain separate from permission to perform a disruptive response.
+
+Later-stage data can expose assumptions in earlier validators, so each validator needs a clear evidence boundary.
+
+Database resource handling remains important even when functional tests pass.
+
+---
+
+## Current limitations and next improvement
+
+The project uses controlled local data instead of live identity-provider, MFA, device-management or cloud-policy telemetry.
+
+Locations and risk scores are simulated inputs.
+
+Access outcomes and responses are stored or simulated locally. They do not change real accounts, sessions, devices, applications or networks.
+
+A later stage can add wider correlation and incident context while preserving the same evidence, default-deny, audit and approval controls.

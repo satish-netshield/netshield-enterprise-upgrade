@@ -1,4 +1,5 @@
 """Create the NetShield database and preserve security records."""
+from src.utils.sqlite_connection import managed_connection
 
 import json
 import sqlite3
@@ -17,14 +18,14 @@ def initialise_database(database_path: Path, schema_path: Path) -> None:
     database_path.parent.mkdir(parents=True, exist_ok=True)
     schema = schema_path.read_text(encoding="utf-8")
 
-    with sqlite3.connect(database_path) as connection:
+    with managed_connection(database_path) as connection:
         connection.execute("PRAGMA foreign_keys = ON")
         connection.executescript(schema)
 
 
 def save_metadata(database_path: Path, key: str, value: str) -> None:
     """Create or update a project metadata value."""
-    with sqlite3.connect(database_path) as connection:
+    with managed_connection(database_path) as connection:
         connection.execute(
             """
             INSERT INTO system_metadata (key, value)
@@ -37,7 +38,7 @@ def save_metadata(database_path: Path, key: str, value: str) -> None:
 
 def assign_role(database_path: Path, username: str, role: str) -> None:
     """Create or update a local project-role assignment."""
-    with sqlite3.connect(database_path) as connection:
+    with managed_connection(database_path) as connection:
         connection.execute(
             """
             INSERT INTO user_roles (username, role, active)
@@ -58,7 +59,7 @@ def record_audit_event(
     details: str = "",
 ) -> None:
     """Write an immutable-style audit event as a new database row."""
-    with sqlite3.connect(database_path) as connection:
+    with managed_connection(database_path) as connection:
         connection.execute(
             """
             INSERT INTO audit_events (
@@ -89,7 +90,7 @@ def start_import_batch(
     source_type: str,
 ) -> None:
     """Create an import-batch record before processing starts."""
-    with sqlite3.connect(database_path) as connection:
+    with managed_connection(database_path) as connection:
         connection.execute("PRAGMA foreign_keys = ON")
         connection.execute(
             """
@@ -120,7 +121,7 @@ def complete_import_batch(
     status: str,
 ) -> None:
     """Finish an import batch with its processing totals."""
-    with sqlite3.connect(database_path) as connection:
+    with managed_connection(database_path) as connection:
         connection.execute(
             """
             UPDATE import_batches
@@ -221,7 +222,7 @@ def save_security_event(
     placeholders = ", ".join("?" for _ in columns)
     column_names = ", ".join(columns)
 
-    with sqlite3.connect(database_path) as connection:
+    with managed_connection(database_path) as connection:
         connection.execute("PRAGMA foreign_keys = ON")
         cursor = connection.execute(
             f"""
@@ -242,7 +243,7 @@ def save_rejected_event(
     raw_event: str,
 ) -> None:
     """Preserve a rejected input record and its failure reason."""
-    with sqlite3.connect(database_path) as connection:
+    with managed_connection(database_path) as connection:
         connection.execute("PRAGMA foreign_keys = ON")
         connection.execute(
             """

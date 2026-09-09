@@ -1,4 +1,5 @@
 """Validate the Stage 4 network, CYOD and Wi-Fi implementation."""
+from src.utils.sqlite_connection import managed_connection
 
 import json
 import sqlite3
@@ -62,7 +63,7 @@ def main() -> None:
         )
     )
 
-    with sqlite3.connect(database_path) as connection:
+    with managed_connection(database_path) as connection:
         connection.row_factory = sqlite3.Row
 
         table = connection.execute(

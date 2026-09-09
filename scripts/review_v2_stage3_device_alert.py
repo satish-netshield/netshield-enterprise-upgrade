@@ -1,4 +1,5 @@
 """Review Phase 3A V2 Stage 3 device identity alerts."""
+from src.utils.sqlite_connection import managed_connection
 
 import argparse
 import sqlite3
@@ -34,7 +35,7 @@ def update_device_alert(
             f"Unsupported alert status: {status}"
         )
 
-    with sqlite3.connect(database_path) as connection:
+    with managed_connection(database_path) as connection:
         existing = connection.execute(
             """
             SELECT

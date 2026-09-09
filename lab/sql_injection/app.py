@@ -1,6 +1,7 @@
 """Isolated local SQL injection demonstration application."""
 
 from __future__ import annotations
+from src.utils.sqlite_connection import managed_connection
 
 import json
 import re
@@ -48,7 +49,7 @@ def initialise_database(
     """Create the isolated lab database and test account."""
     database_path.parent.mkdir(parents=True, exist_ok=True)
 
-    with sqlite3.connect(database_path) as connection:
+    with managed_connection(database_path) as connection:
         connection.execute(
             """
             CREATE TABLE IF NOT EXISTS users (
@@ -131,7 +132,7 @@ def vulnerable_login(
     )
 
     try:
-        with sqlite3.connect(database_path) as connection:
+        with managed_connection(database_path) as connection:
             connection.row_factory = sqlite3.Row
             rows = [
                 dict(row)
@@ -208,7 +209,7 @@ def safe_login(
     )
 
     try:
-        with sqlite3.connect(database_path) as connection:
+        with managed_connection(database_path) as connection:
             connection.row_factory = sqlite3.Row
             rows = [
                 dict(row)

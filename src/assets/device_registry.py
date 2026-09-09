@@ -1,4 +1,5 @@
 """Manage controlled device registration and removal."""
+from src.utils.sqlite_connection import managed_connection
 
 import csv
 import sqlite3
@@ -85,7 +86,7 @@ def record_registration_history(
     reason: str,
 ) -> None:
     """Preserve one device registration state change."""
-    with sqlite3.connect(database_path) as connection:
+    with managed_connection(database_path) as connection:
         connection.execute(
             """
             INSERT INTO device_registration_history (
@@ -140,7 +141,7 @@ def sync_inventory_record(
         row["last_seen"] or None,
     ]
 
-    with sqlite3.connect(database_path) as connection:
+    with managed_connection(database_path) as connection:
         connection.execute(
             """
             INSERT INTO device_inventory (

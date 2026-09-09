@@ -1,4 +1,5 @@
 """Validate the NetShield Stage 2 security-data pipeline."""
+from src.utils.sqlite_connection import managed_connection
 
 import json
 import sqlite3
@@ -45,7 +46,7 @@ def query_all(
     parameters: tuple = (),
 ) -> list[tuple]:
     """Run a database query and return every row."""
-    with sqlite3.connect(get_database_path()) as connection:
+    with managed_connection(get_database_path()) as connection:
         return connection.execute(
             sql,
             parameters,

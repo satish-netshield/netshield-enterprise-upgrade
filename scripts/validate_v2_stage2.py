@@ -1,4 +1,5 @@
 """Validate the Phase 3A V2 extended security pipeline."""
+from src.utils.sqlite_connection import managed_connection
 
 import json
 import sqlite3
@@ -54,7 +55,7 @@ def main() -> None:
     )
 
     database_path = PROJECT_ROOT / settings["database"]["path"]
-    with sqlite3.connect(database_path) as connection:
+    with managed_connection(database_path) as connection:
         columns = {
             row[1]
             for row in connection.execute(

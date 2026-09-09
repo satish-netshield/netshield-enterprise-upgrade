@@ -1,0 +1,240 @@
+{
+  "schema_version": "1.0",
+  "simulation_only": true,
+  "event_sources": [
+    "authentication",
+    "identity_risk"
+  ],
+  "thresholds": {
+    "repeated_failed_logins": 3,
+    "possible_brute_force": 5,
+    "password_spray_accounts": 3,
+    "multiple_accounts_per_source": 3,
+    "failure_window_minutes": 5,
+    "success_after_failures": 3,
+    "mfa_failures": 3,
+    "mfa_window_minutes": 5,
+    "impossible_travel_speed_kmh": 900,
+    "high_sign_in_risk_score": 70,
+    "dormant_account_days": 45,
+    "normal_access_start_hour_utc": 6,
+    "normal_access_end_hour_utc": 20
+  },
+  "risk_levels": {
+    "low_maximum": 29,
+    "medium_maximum": 59,
+    "high_maximum": 84,
+    "critical_minimum": 85
+  },
+  "known_exceptions": {
+    "vpn_allowlist": "data/allowlists/vpn_ip_allowlist.txt",
+    "approved_testing_users": [
+      "trainee01"
+    ],
+    "approved_testing_source_systems": [
+      "simulated_authentication",
+      "simulated_identity_risk"
+    ]
+  },
+  "identity_profiles": {
+    "viewer01": {
+      "account_type": "user",
+      "status": "active",
+      "expected_role": "viewer",
+      "approved_devices": [
+        "CYOD-001"
+      ],
+      "usual_locations": [
+        "Auckland, NZ"
+      ],
+      "last_normal_activity": "2026-09-08T08:00:00+00:00",
+      "interactive_login_allowed": true
+    },
+    "analyst01": {
+      "account_type": "user",
+      "status": "active",
+      "expected_role": "analyst",
+      "approved_devices": [
+        "CYOD-002"
+      ],
+      "usual_locations": [
+        "Auckland, NZ"
+      ],
+      "last_normal_activity": "2026-09-08T08:30:00+00:00",
+      "interactive_login_allowed": true
+    },
+    "responder01": {
+      "account_type": "user",
+      "status": "active",
+      "expected_role": "responder",
+      "approved_devices": [
+        "CYOD-001"
+      ],
+      "usual_locations": [
+        "Auckland, NZ"
+      ],
+      "last_normal_activity": "2026-09-08T09:00:00+00:00",
+      "interactive_login_allowed": true
+    },
+    "admin01": {
+      "account_type": "user",
+      "status": "active",
+      "expected_role": "administrator",
+      "approved_devices": [
+        "CYOD-001"
+      ],
+      "usual_locations": [
+        "Auckland, NZ"
+      ],
+      "last_normal_activity": "2026-09-08T09:30:00+00:00",
+      "interactive_login_allowed": true
+    },
+    "dormant01": {
+      "account_type": "user",
+      "status": "active",
+      "expected_role": "viewer",
+      "approved_devices": [
+        "CYOD-001"
+      ],
+      "usual_locations": [
+        "Auckland, NZ"
+      ],
+      "last_normal_activity": "2026-06-01T08:00:00+00:00",
+      "interactive_login_allowed": true
+    },
+    "svc_ingestion01": {
+      "account_type": "service",
+      "status": "active",
+      "expected_role": "viewer",
+      "approved_devices": [
+        "CYOD-001"
+      ],
+      "usual_locations": [
+        "Auckland, NZ"
+      ],
+      "last_normal_activity": "2026-09-08T10:00:00+00:00",
+      "interactive_login_allowed": false
+    }
+  },
+  "detections": {
+    "repeated_failed_logins": {
+      "enabled": true,
+      "severity": "Medium",
+      "confidence": 70,
+      "mitre_techniques": [
+        "T1110"
+      ]
+    },
+    "possible_brute_force": {
+      "enabled": true,
+      "severity": "High",
+      "confidence": 85,
+      "mitre_techniques": [
+        "T1110"
+      ]
+    },
+    "password_spraying": {
+      "enabled": true,
+      "severity": "High",
+      "confidence": 85,
+      "mitre_techniques": [
+        "T1110.003"
+      ]
+    },
+    "successful_login_after_failures": {
+      "enabled": true,
+      "severity": "High",
+      "confidence": 90,
+      "mitre_techniques": [
+        "T1078"
+      ]
+    },
+    "impossible_travel": {
+      "enabled": true,
+      "severity": "High",
+      "confidence": 80,
+      "mitre_techniques": [
+        "T1078"
+      ]
+    },
+    "new_device_sign_in": {
+      "enabled": true,
+      "severity": "Medium",
+      "confidence": 65,
+      "mitre_techniques": [
+        "T1078"
+      ]
+    },
+    "unusual_location": {
+      "enabled": true,
+      "severity": "Medium",
+      "confidence": 65,
+      "mitre_techniques": [
+        "T1078"
+      ]
+    },
+    "abnormal_access_time": {
+      "enabled": true,
+      "severity": "Medium",
+      "confidence": 60,
+      "mitre_techniques": [
+        "T1078"
+      ]
+    },
+    "mfa_failure_or_fatigue": {
+      "enabled": true,
+      "severity": "High",
+      "confidence": 85,
+      "mitre_techniques": [
+        "T1621"
+      ]
+    },
+    "suspicious_privilege_change": {
+      "enabled": true,
+      "severity": "Critical",
+      "confidence": 95,
+      "mitre_techniques": [
+        "T1098"
+      ]
+    },
+    "dormant_account_activity": {
+      "enabled": true,
+      "severity": "High",
+      "confidence": 90,
+      "mitre_techniques": [
+        "T1078"
+      ]
+    },
+    "service_account_interactive_login": {
+      "enabled": true,
+      "severity": "High",
+      "confidence": 95,
+      "mitre_techniques": [
+        "T1078.002"
+      ]
+    },
+    "multiple_accounts_from_one_source": {
+      "enabled": true,
+      "severity": "High",
+      "confidence": 80,
+      "mitre_techniques": [
+        "T1110.003"
+      ]
+    },
+    "risky_sign_in": {
+      "enabled": true,
+      "severity": "High",
+      "confidence": 85,
+      "mitre_techniques": [
+        "T1078"
+      ]
+    }
+  },
+  "alert_statuses": [
+    "New",
+    "Investigating",
+    "Confirmed",
+    "False Positive",
+    "Closed"
+  ]
+}

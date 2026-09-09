@@ -1,4 +1,5 @@
 """Run Phase 3A V2 Stage 3 device identity detection."""
+from src.utils.sqlite_connection import managed_connection
 
 import sqlite3
 from pathlib import Path
@@ -20,7 +21,7 @@ def load_device_events(
 ) -> list[dict[str, Any]]:
     """Load normalised events that contain usable device identity context."""
 
-    with sqlite3.connect(database_path) as connection:
+    with managed_connection(database_path) as connection:
         connection.row_factory = sqlite3.Row
 
         rows = connection.execute(
@@ -89,7 +90,7 @@ def main() -> None:
                 detection_counts.get(detection_type, 0) + 1
             )
 
-    with sqlite3.connect(database_path) as connection:
+    with managed_connection(database_path) as connection:
         stored_alert_count = connection.execute(
             """
             SELECT COUNT(*)

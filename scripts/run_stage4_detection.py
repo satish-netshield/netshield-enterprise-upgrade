@@ -1,4 +1,5 @@
 """Run correlated Stage 4 network, CYOD and Wi-Fi detection."""
+from src.utils.sqlite_connection import managed_connection
 
 import json
 import sqlite3
@@ -38,7 +39,7 @@ def load_stage4_events(
         "?" for _ in source_files
     )
 
-    with sqlite3.connect(database_path) as connection:
+    with managed_connection(database_path) as connection:
         connection.row_factory = sqlite3.Row
 
         rows = connection.execute(
@@ -140,7 +141,7 @@ def main() -> None:
         details=details,
     )
 
-    with sqlite3.connect(database_path) as connection:
+    with managed_connection(database_path) as connection:
         connection.execute(
             """
             INSERT INTO system_metadata (key, value)

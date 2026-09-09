@@ -1,6 +1,7 @@
 """Validate the isolated NetShield Stage 6 SQL injection lab."""
 
 from __future__ import annotations
+from src.utils.sqlite_connection import managed_connection
 
 import json
 import sqlite3
@@ -125,7 +126,7 @@ def main() -> None:
         "Application log records one blocked retest",
     )
 
-    with sqlite3.connect(DATABASE_PATH) as connection:
+    with managed_connection(DATABASE_PATH) as connection:
         users_table = connection.execute(
             """
             SELECT name

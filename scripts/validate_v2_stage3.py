@@ -7,6 +7,7 @@ from pathlib import Path
 from typing import Any
 
 from src.utils.config_loader import load_json
+from src.utils.sqlite_connection import managed_connection
 
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
@@ -51,7 +52,6 @@ def load_csv_rows(
 
 def validate() -> int:
     """Run the complete Stage 3 validation gate."""
-
     checks = 0
     passed = 0
 
@@ -154,7 +154,7 @@ def validate() -> int:
         "Approved inventory contains an invalid registration state",
     )
 
-    with sqlite3.connect(database_path) as connection:
+    with managed_connection(database_path) as connection:
         connection.row_factory = sqlite3.Row
 
         tables = {
@@ -271,6 +271,7 @@ def validate() -> int:
             SELECT COUNT(*)
             FROM security_events
             WHERE schema_version = '2.0'
+              AND source_file LIKE '%_v2_events.jsonl'
               AND (
                     device_id IS NOT NULL
                     OR asset_id IN (

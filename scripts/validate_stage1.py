@@ -1,4 +1,5 @@
 """Validate the complete NetShield Stage 1 foundation."""
+from src.utils.sqlite_connection import managed_connection
 
 import hashlib
 import sqlite3
@@ -148,7 +149,7 @@ def main() -> None:
         "audit_events",
     }
 
-    with sqlite3.connect(database_path) as connection:
+    with managed_connection(database_path) as connection:
         actual_tables = {
             row[0]
             for row in connection.execute(

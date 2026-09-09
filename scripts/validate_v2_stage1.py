@@ -1,4 +1,5 @@
 """Validate the NetShield Phase 3A V2 enterprise foundation."""
+from src.utils.sqlite_connection import managed_connection
 
 import sqlite3
 import stat
@@ -126,7 +127,7 @@ def main() -> None:
     )
 
     database_path = PROJECT_ROOT / settings["database"]["path"]
-    with sqlite3.connect(database_path) as connection:
+    with managed_connection(database_path) as connection:
         metadata = dict(
             connection.execute(
                 """

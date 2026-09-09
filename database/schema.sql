@@ -430,3 +430,149 @@ ON device_alerts(status);
 
 CREATE INDEX IF NOT EXISTS idx_device_registration_device
 ON device_registration_history(device_id);
+
+CREATE TABLE IF NOT EXISTS v2_identity_alerts (
+    alert_id INTEGER PRIMARY KEY AUTOINCREMENT,
+    alert_key TEXT NOT NULL UNIQUE,
+    created_at TEXT NOT NULL,
+    detection_type TEXT NOT NULL,
+    severity TEXT NOT NULL
+        CHECK (
+            severity IN (
+                'Low',
+                'Medium',
+                'High',
+                'Critical'
+            )
+        ),
+    confidence INTEGER NOT NULL
+        CHECK (confidence BETWEEN 0 AND 100),
+    username TEXT NOT NULL,
+    device_id TEXT,
+    first_event_time TEXT NOT NULL,
+    last_event_time TEXT NOT NULL,
+    source_event_ids TEXT NOT NULL,
+    source_types TEXT NOT NULL,
+    ip_address TEXT,
+    location TEXT,
+    risk_score REAL
+        CHECK (
+            risk_score IS NULL
+            OR risk_score BETWEEN 0 AND 100
+        ),
+    reason_codes TEXT NOT NULL,
+    mitre_techniques TEXT NOT NULL,
+    evidence TEXT NOT NULL,
+    status TEXT NOT NULL DEFAULT 'New'
+        CHECK (
+            status IN (
+                'New',
+                'Investigating',
+                'Confirmed',
+                'False Positive',
+                'Closed'
+            )
+        ),
+    classification TEXT,
+    investigation_notes TEXT
+);
+
+CREATE TABLE IF NOT EXISTS temporary_access_restrictions (
+    restriction_id INTEGER PRIMARY KEY AUTOINCREMENT,
+    restriction_key TEXT NOT NULL UNIQUE,
+    username TEXT NOT NULL,
+    created_at TEXT NOT NULL,
+    expires_at TEXT,
+    active INTEGER NOT NULL DEFAULT 1
+        CHECK (active IN (0, 1)),
+    reason TEXT NOT NULL,
+    actor TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS access_policy_decisions (
+    decision_id INTEGER PRIMARY KEY AUTOINCREMENT,
+    decision_key TEXT NOT NULL UNIQUE,
+    evaluated_at TEXT NOT NULL,
+    request_event_id TEXT NOT NULL,
+    username TEXT,
+    role TEXT,
+    device_id TEXT,
+    application_id TEXT,
+    asset_id TEXT,
+    asset_criticality TEXT,
+    location TEXT,
+    ip_address TEXT,
+    sign_in_risk REAL
+        CHECK (
+            sign_in_risk IS NULL
+            OR sign_in_risk BETWEEN 0 AND 100
+        ),
+    user_risk REAL
+        CHECK (
+            user_risk IS NULL
+            OR user_risk BETWEEN 0 AND 100
+        ),
+    mfa_satisfied INTEGER NOT NULL
+        CHECK (mfa_satisfied IN (0, 1)),
+    decision TEXT NOT NULL
+        CHECK (
+            decision IN (
+                'allow',
+                'deny',
+                'challenge',
+                'restrict'
+            )
+        ),
+    reason_codes TEXT NOT NULL,
+    matched_policy_ids TEXT NOT NULL,
+    winning_policy_id TEXT,
+    identity_evidence TEXT NOT NULL,
+    device_evidence TEXT NOT NULL,
+    risk_evidence TEXT NOT NULL,
+    response_action TEXT,
+    acl_control_level TEXT,
+    response_status TEXT NOT NULL,
+    evidence TEXT NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_v2_identity_alerts_type
+ON v2_identity_alerts(detection_type);
+
+CREATE INDEX IF NOT EXISTS idx_v2_identity_alerts_username
+ON v2_identity_alerts(username);
+
+CREATE INDEX IF NOT EXISTS idx_v2_identity_alerts_device
+ON v2_identity_alerts(device_id);
+
+CREATE INDEX IF NOT EXISTS idx_v2_identity_alerts_severity
+ON v2_identity_alerts(severity);
+
+CREATE INDEX IF NOT EXISTS idx_v2_identity_alerts_status
+ON v2_identity_alerts(status);
+
+CREATE INDEX IF NOT EXISTS idx_v2_identity_alerts_time
+ON v2_identity_alerts(first_event_time, last_event_time);
+
+CREATE INDEX IF NOT EXISTS idx_access_restrictions_username
+ON temporary_access_restrictions(username);
+
+CREATE INDEX IF NOT EXISTS idx_access_restrictions_active
+ON temporary_access_restrictions(active);
+
+CREATE INDEX IF NOT EXISTS idx_access_policy_request
+ON access_policy_decisions(request_event_id);
+
+CREATE INDEX IF NOT EXISTS idx_access_policy_username
+ON access_policy_decisions(username);
+
+CREATE INDEX IF NOT EXISTS idx_access_policy_device
+ON access_policy_decisions(device_id);
+
+CREATE INDEX IF NOT EXISTS idx_access_policy_application
+ON access_policy_decisions(application_id);
+
+CREATE INDEX IF NOT EXISTS idx_access_policy_decision
+ON access_policy_decisions(decision);
+
+CREATE INDEX IF NOT EXISTS idx_access_policy_time
+ON access_policy_decisions(evaluated_at);

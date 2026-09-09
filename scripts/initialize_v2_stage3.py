@@ -1,4 +1,5 @@
 """Initialise Phase 3A V2 Stage 3 enterprise device identity."""
+from src.utils.sqlite_connection import managed_connection
 
 import csv
 import sqlite3
@@ -181,7 +182,7 @@ def sync_inventory(
         for column in update_columns
     )
 
-    with sqlite3.connect(database_path) as connection:
+    with managed_connection(database_path) as connection:
         for row in rows:
             values = tuple(
                 row[column] or None

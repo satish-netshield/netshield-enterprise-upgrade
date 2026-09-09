@@ -1,4 +1,5 @@
 """Initialise the NetShield Stage 5 endpoint-alert foundation."""
+from src.utils.sqlite_connection import managed_connection
 
 import sqlite3
 from pathlib import Path
@@ -99,7 +100,7 @@ def main() -> None:
         audit_log,
     )
 
-    with sqlite3.connect(database_path) as connection:
+    with managed_connection(database_path) as connection:
         connection.execute(CREATE_ENDPOINT_ALERTS)
 
         for statement in CREATE_INDEXES:

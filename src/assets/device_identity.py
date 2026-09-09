@@ -1,4 +1,5 @@
 """Evaluate enterprise device identity against approved and known device context."""
+from src.utils.sqlite_connection import managed_connection
 
 import json
 import sqlite3
@@ -60,7 +61,7 @@ def load_inventory_record(
     if not device_id and not asset_id:
         return None
 
-    with sqlite3.connect(database_path) as connection:
+    with managed_connection(database_path) as connection:
         connection.row_factory = sqlite3.Row
 
         if device_id:
@@ -274,7 +275,7 @@ def save_device_alert(
 
     created_at = datetime.now(timezone.utc).isoformat()
 
-    with sqlite3.connect(database_path) as connection:
+    with managed_connection(database_path) as connection:
         cursor = connection.execute(
             """
             INSERT OR IGNORE INTO device_alerts (

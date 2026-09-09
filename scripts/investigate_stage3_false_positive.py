@@ -1,4 +1,5 @@
 """Classify the approved replacement-device alert as a false positive."""
+from src.utils.sqlite_connection import managed_connection
 
 import sqlite3
 from pathlib import Path
@@ -26,7 +27,7 @@ def main() -> None:
         "the simulated event and should be completed before normal use."
     )
 
-    with sqlite3.connect(database_path) as connection:
+    with managed_connection(database_path) as connection:
         connection.row_factory = sqlite3.Row
 
         alert = connection.execute(

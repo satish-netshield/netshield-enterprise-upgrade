@@ -1,4 +1,5 @@
 """Test the Stage 2 JSONL event-import pipeline."""
+from src.utils.sqlite_connection import managed_connection
 
 import json
 import sqlite3
@@ -64,7 +65,7 @@ class Stage2PipelineTests(unittest.TestCase):
         if table_name not in allowed_tables:
             raise ValueError("Unsupported test table")
 
-        with sqlite3.connect(self.database_path) as connection:
+        with managed_connection(self.database_path) as connection:
             result = connection.execute(
                 f"SELECT COUNT(*) FROM {table_name}"
             ).fetchone()
@@ -152,7 +153,7 @@ class Stage2PipelineTests(unittest.TestCase):
             self.source_file,
         )
 
-        with sqlite3.connect(self.database_path) as connection:
+        with managed_connection(self.database_path) as connection:
             result = connection.execute(
                 """
                 SELECT
