@@ -31,7 +31,8 @@ Initialise and validate the V2 foundation:
 python -m scripts.initialize_v2_stage1
 python -m scripts.validate_v2_stage1
 
-python -m unittest -v tests.test_v2_stage1_foundation
+python -m unittest -v \
+  tests.test_v2_stage1_foundation
 ```
 
 Review the simulated enterprise context and project settings:
@@ -41,11 +42,14 @@ python -m json.tool config/enterprise_context.json
 python -m json.tool config/settings.json
 ```
 
-Review the simulated user-role assignments:
+Review simulated user-role assignments:
 
 ```bash
-sqlite3 database/netshield.db "
-SELECT username, role, active
+sqlite3 -header -column database/netshield.db "
+SELECT
+  username,
+  role,
+  active
 FROM user_roles
 WHERE username IN (
   'viewer01',
@@ -70,15 +74,10 @@ stat -c '%a %n' \
 
 ## Stage 2 — Extended security data pipeline
 
-Run the repeatable database migration:
+Run the repeatable database migration twice:
 
 ```bash
 python -m scripts.initialize_v2_stage2
-```
-
-Run it again to confirm that existing columns are not duplicated:
-
-```bash
 python -m scripts.initialize_v2_stage2
 ```
 
@@ -89,7 +88,7 @@ python -m scripts.generate_v2_stage2_events
 python -m scripts.import_v2_stage2_events
 ```
 
-Run the import again to confirm duplicate-event protection:
+Run the import again to check duplicate-event protection:
 
 ```bash
 python -m scripts.import_v2_stage2_events
@@ -98,7 +97,9 @@ python -m scripts.import_v2_stage2_events
 Run the Stage 2 tests and validator:
 
 ```bash
-python -m unittest -v tests.test_v2_stage2_pipeline
+python -m unittest -v \
+  tests.test_v2_stage2_pipeline
+
 python -m scripts.validate_v2_stage2
 ```
 
@@ -117,8 +118,10 @@ wc -l data/raw/v2/*.jsonl
 Review accepted V2 events by source:
 
 ```bash
-sqlite3 database/netshield.db "
-SELECT source_type, COUNT(*) AS accepted_events
+sqlite3 -header -column database/netshield.db "
+SELECT
+  source_type,
+  COUNT(*) AS accepted_events
 FROM security_events
 WHERE schema_version = '2.0'
   AND source_file LIKE '%_v2_events.jsonl'
@@ -130,7 +133,7 @@ ORDER BY source_type;
 Review quarantined malformed records:
 
 ```bash
-sqlite3 database/netshield.db "
+sqlite3 -header -column database/netshield.db "
 SELECT
   source_file,
   line_number,
@@ -147,7 +150,7 @@ ORDER BY rejection_id;
 Review V2 ingestion batches:
 
 ```bash
-sqlite3 database/netshield.db "
+sqlite3 -header -column database/netshield.db "
 SELECT
   source_file,
   total_records,
@@ -162,14 +165,14 @@ ORDER BY started_at;
 
 ## Stage 3 — Enterprise asset and device identity
 
-Initialise the device inventory and run the detector:
+Initialise the approved device inventory and run the detector:
 
 ```bash
 python -m scripts.initialize_v2_stage3
 python -m scripts.run_v2_stage3_device_identity
 ```
 
-Run the detector again to confirm duplicate-alert protection:
+Run the detector again to check duplicate-alert protection:
 
 ```bash
 python -m scripts.run_v2_stage3_device_identity
@@ -185,7 +188,7 @@ python -m unittest -v \
 python -m scripts.validate_v2_stage3
 ```
 
-Review the stored inventory and device alerts:
+Review the device inventory and stored alerts:
 
 ```bash
 sqlite3 -header -column database/netshield.db "
@@ -216,44 +219,581 @@ ORDER BY alert_id;
 "
 ```
 
-Review the controlled management and alert-review commands:
+Review the controlled device-management and alert-review options:
 
 ```bash
 python -m scripts.manage_v2_stage3_device --help
 python -m scripts.review_v2_stage3_device_alert --help
 ```
 
-## Phase 3A V2 Stage 1–3 tests
+## Combined Stage 4–5 setup
+
+Run the shared Stage 4–5 database migration twice:
+
+```bash
+python -m scripts.initialize_v2_stage4_5
+python -m scripts.initialize_v2_stage4_5
+```
+
+Generate and import the controlled Stage 4–5 events:
+
+```bash
+python -m scripts.generate_v2_stage4_5_events
+python -m scripts.import_v2_stage4_5_events
+```
+
+Review the source-file totals:
+
+```bash
+find data/raw/v2/stage4_5 \
+  -maxdepth 1 \
+  -type f \
+  -name '*.jsonl' \
+  -printf '%f %s bytes\n' | sort
+
+wc -l data/raw/v2/stage4_5/*.jsonl
+```
+
+Review accepted Stage 4–5 events:
+
+```bash
+sqlite3 -header -column database/netshield.db "
+SELECT
+  source_type,
+  COUNT(*) AS accepted_events
+FROM security_events
+WHERE source_file LIKE '%_v2_stage4_5_events.jsonl'
+GROUP BY source_type
+ORDER BY source_type;
+"
+```
+
+Review the Stage 4–5 tables:
+
+```bash
+sqlite3 -header -column database/netshield.db "
+SELECT name
+FROM sqlite_master
+WHERE type = 'table'
+  AND name IN (
+    'v2_identity_alerts',
+    'temporary_access_restrictions',
+    'access_policy_decisions'
+  )
+ORDER BY name;
+"
+```
+
+Review the Stage 4–5 configuration permissions:
+
+```bash
+stat -c '%a %n' \
+  config/v2_identity_monitoring.json \
+  config/v2_access_policy.json
+```
+
+## Stage 4 — Identity monitoring and risk detection
+
+Run identity monitoring:
+
+```bash
+python -m scripts.run_v2_stage4_identity_monitoring
+```
+
+Run it again to check duplicate-alert protection:
+
+```bash
+python -m scripts.run_v2_stage4_identity_monitoring
+```
+
+Run the Stage 4 tests and validator:
+
+```bash
+python -m unittest -v \
+  tests.test_v2_stage4_identity_monitoring \
+  tests.test_v2_stage4_identity_review
+
+python -m scripts.validate_v2_stage4
+```
+
+Review the identity alerts:
+
+```bash
+sqlite3 -header -column database/netshield.db "
+SELECT
+  alert_id,
+  detection_type,
+  severity,
+  confidence,
+  username,
+  device_id,
+  location,
+  risk_score,
+  reason_codes,
+  status
+FROM v2_identity_alerts
+ORDER BY first_event_time, detection_type;
+"
+```
+
+Review alert totals by detection type:
+
+```bash
+sqlite3 -header -column database/netshield.db "
+SELECT
+  detection_type,
+  COUNT(*) AS alert_count
+FROM v2_identity_alerts
+GROUP BY detection_type
+ORDER BY detection_type;
+"
+```
+
+Check identity-alert duplicate protection:
+
+```bash
+sqlite3 -header -column database/netshield.db "
+SELECT
+  COUNT(*) AS stored_alerts,
+  COUNT(DISTINCT alert_key) AS unique_alert_keys
+FROM v2_identity_alerts;
+"
+```
+
+Review the controlled false-positive investigation:
+
+```bash
+sqlite3 -header -column database/netshield.db "
+SELECT
+  alert_id,
+  detection_type,
+  username,
+  status,
+  classification,
+  investigation_notes
+FROM v2_identity_alerts
+WHERE alert_id = 16;
+"
+
+sqlite3 -header -column database/netshield.db "
+SELECT
+  actor,
+  action,
+  target,
+  result,
+  details
+FROM audit_events
+WHERE action = 'review_v2_stage4_identity_alert'
+ORDER BY event_id DESC
+LIMIT 1;
+"
+```
+
+Review the Stage 4 alert-review options:
+
+```bash
+python -m scripts.review_v2_stage4_identity_alert --help
+```
+
+## Stage 5 — Zero Trust and policy-based access decisions
+
+Run the local access-policy engine:
+
+```bash
+python -m scripts.run_v2_stage5_access_policy
+```
+
+Run it again to check duplicate-decision protection:
+
+```bash
+python -m scripts.run_v2_stage5_access_policy
+```
+
+Run the Stage 5 tests and validator:
+
+```bash
+python -m unittest -v \
+  tests.test_v2_stage5_access_policy
+
+python -m scripts.validate_v2_stage5
+```
+
+Review the stored access decisions:
+
+```bash
+sqlite3 -header -column database/netshield.db "
+SELECT
+  request_event_id,
+  username,
+  role,
+  device_id,
+  application_id,
+  decision,
+  winning_policy_id,
+  reason_codes,
+  response_action,
+  acl_control_level,
+  response_status
+FROM access_policy_decisions
+ORDER BY request_event_id;
+"
+```
+
+Review decision totals:
+
+```bash
+sqlite3 -header -column database/netshield.db "
+SELECT
+  decision,
+  COUNT(*) AS decision_count
+FROM access_policy_decisions
+GROUP BY decision
+ORDER BY decision;
+"
+```
+
+Check decision duplicate protection:
+
+```bash
+sqlite3 -header -column database/netshield.db "
+SELECT
+  COUNT(*) AS stored_decisions,
+  COUNT(DISTINCT decision_key) AS unique_decision_keys
+FROM access_policy_decisions;
+"
+```
+
+Review policy and ACL configuration:
+
+```bash
+python -m json.tool config/v2_access_policy.json
+python -m json.tool config/rbac.json
+python -m json.tool config/automation_acl.json
+```
+
+## Stage 6 — Network, Wi-Fi and access monitoring
+
+Run the Stage 6 database migration twice:
+
+```bash
+python -m scripts.initialize_v2_stage6
+python -m scripts.initialize_v2_stage6
+```
+
+Generate and import the controlled network and Wi-Fi events:
+
+```bash
+python -m scripts.generate_v2_stage6_events
+python -m scripts.import_v2_stage6_events
+```
+
+Review the Stage 6 source files:
+
+```bash
+find data/raw/v2/stage6 \
+  -maxdepth 1 \
+  -type f \
+  -name '*.jsonl' \
+  -printf '%f %s bytes\n' | sort
+
+wc -l data/raw/v2/stage6/*.jsonl
+```
+
+Review imported Stage 6 events:
+
+```bash
+sqlite3 -header -column database/netshield.db "
+SELECT
+  source_type,
+  COUNT(*) AS accepted_events
+FROM security_events
+WHERE source_file IN (
+  'network_v2_stage6_events.jsonl',
+  'wifi_v2_stage6_events.jsonl'
+)
+GROUP BY source_type
+ORDER BY source_type;
+"
+```
+
+Run Stage 6 network monitoring:
+
+```bash
+python -m scripts.run_v2_stage6_network_monitoring
+```
+
+Run it again to check alert, decision and timeline duplicate protection:
+
+```bash
+python -m scripts.run_v2_stage6_network_monitoring
+```
+
+Run the Stage 6 tests and validator:
+
+```bash
+python -m unittest -v \
+  tests.test_v2_stage6_network_monitoring \
+  tests.test_v2_stage6_network_alert_review
+
+python -m scripts.validate_v2_stage6
+```
+
+Review Stage 6 alert totals:
+
+```bash
+sqlite3 -header -column database/netshield.db "
+SELECT
+  detection_type,
+  severity,
+  confidence,
+  COUNT(*) AS alert_count
+FROM v2_network_alerts
+GROUP BY
+  detection_type,
+  severity,
+  confidence
+ORDER BY detection_type;
+"
+```
+
+Review the stored network alerts:
+
+```bash
+sqlite3 -header -column database/netshield.db "
+SELECT
+  alert_id,
+  detection_type,
+  severity,
+  confidence,
+  device_id,
+  ip_address,
+  location,
+  reason_codes,
+  status
+FROM v2_network_alerts
+ORDER BY alert_id;
+"
+```
+
+Review network-access decision totals:
+
+```bash
+sqlite3 -header -column database/netshield.db "
+SELECT
+  decision,
+  COUNT(*) AS decision_count
+FROM v2_network_access_decisions
+GROUP BY decision
+ORDER BY decision;
+"
+```
+
+Review stored network-access decisions:
+
+```bash
+sqlite3 -header -column database/netshield.db "
+SELECT
+  source_event_id,
+  device_id,
+  ip_address,
+  decision,
+  matching_rules,
+  reason_codes,
+  response_action,
+  acl_control_level,
+  response_status
+FROM v2_network_access_decisions
+ORDER BY event_time, source_event_id;
+"
+```
+
+Check Stage 6 duplicate protection:
+
+```bash
+sqlite3 -header -column database/netshield.db "
+SELECT
+  COUNT(*) AS stored_alerts,
+  COUNT(DISTINCT alert_key) AS unique_alert_keys
+FROM v2_network_alerts;
+
+SELECT
+  COUNT(*) AS stored_decisions,
+  COUNT(DISTINCT decision_key) AS unique_decision_keys
+FROM v2_network_access_decisions;
+
+SELECT
+  COUNT(*) AS timeline_events,
+  COUNT(DISTINCT source_event_id) AS unique_timeline_events
+FROM v2_network_connection_timeline;
+"
+```
+
+Review the connection timeline:
+
+```bash
+sqlite3 -header -column database/netshield.db "
+SELECT
+  source_event_id,
+  event_time,
+  source_type,
+  device_id,
+  username,
+  ip_address,
+  connection_type,
+  location
+FROM v2_network_connection_timeline
+ORDER BY event_time, source_event_id;
+"
+```
+
+Review the controlled Stage 6 false-positive investigation:
+
+```bash
+sqlite3 -header -column database/netshield.db "
+SELECT
+  alert_id,
+  detection_type,
+  device_id,
+  ip_address,
+  status,
+  classification,
+  investigation_notes,
+  reviewed_by,
+  reviewed_at
+FROM v2_network_alerts
+WHERE alert_id = 18;
+"
+
+sqlite3 -header -column database/netshield.db "
+SELECT
+  actor,
+  action,
+  target,
+  result,
+  details
+FROM audit_events
+WHERE action = 'review_v2_stage6_network_alert'
+ORDER BY event_id DESC
+LIMIT 1;
+"
+```
+
+Review the Stage 6 configuration and protected-file permission:
+
+```bash
+python -m json.tool config/v2_network_monitoring.json
+
+stat -c '%a %n' \
+  config/v2_network_monitoring.json
+```
+
+Review the controlled IP blocklist entry:
+
+```bash
+grep -n '198.51.100.66' \
+  data/blocklists/ip_blocklist.txt
+```
+
+## Phase 3A V2 focused tests
+
+Run the V2 Stage 1–6 test groups:
 
 ```bash
 python -m unittest -v \
   tests.test_v2_stage1_foundation \
   tests.test_v2_stage2_pipeline \
   tests.test_v2_stage3_device_identity \
-  tests.test_v2_stage3_device_alert_review
+  tests.test_v2_stage3_device_alert_review \
+  tests.test_v2_stage4_identity_monitoring \
+  tests.test_v2_stage4_identity_review \
+  tests.test_v2_stage5_access_policy \
+  tests.test_v2_stage6_network_monitoring \
+  tests.test_v2_stage6_network_alert_review
 ```
 
-## Phase 3A V2 Stage 1–3 validators
+Run the SQLite connection tests:
+
+```bash
+python -m unittest -v \
+  tests.test_sqlite_connection
+```
+
+## Phase 3A V2 validators
 
 ```bash
 python -m scripts.validate_v2_stage1
 python -m scripts.validate_v2_stage2
 python -m scripts.validate_v2_stage3
+python -m scripts.validate_v2_stage4
+python -m scripts.validate_v2_stage5
+python -m scripts.validate_v2_stage6
 ```
 
 ## Complete project validation
 
+Compile the Python source:
+
 ```bash
-python -m compileall -q src scripts tests lab
+python -m compileall -q \
+  src \
+  scripts \
+  tests \
+  lab
+```
 
+Run the complete unit-test suite:
+
+```bash
 python -m unittest discover -s tests
+```
 
+Run the V2 validators and original Phase 3 full-project validator:
+
+```bash
 python -m scripts.validate_v2_stage1
 python -m scripts.validate_v2_stage2
 python -m scripts.validate_v2_stage3
-python -m scripts.validate_stage11
+python -m scripts.validate_v2_stage4
+python -m scripts.validate_v2_stage5
+python -m scripts.validate_v2_stage6
 
+python -m scripts.validate_stage11
+```
+
+Check SQLite integrity and foreign keys:
+
+```bash
+sqlite3 database/netshield.db "
+PRAGMA integrity_check;
+PRAGMA foreign_key_check;
+"
+```
+
+Check for unclosed SQLite connection warnings:
+
+```bash
+(
+  set -o pipefail
+
+  PYTHONTRACEMALLOC=5 \
+  python -W always::ResourceWarning \
+    -m unittest discover -s tests 2>&1 |
+    tee /tmp/netshield_resource_check.log
+)
+
+echo
+echo "RESOURCE WARNINGS"
+grep -c \
+  'ResourceWarning: unclosed database' \
+  /tmp/netshield_resource_check.log \
+  || true
+```
+
+Check repository whitespace:
+
+```bash
 git diff --check
+git diff --cached --check
 ```
 
 ## Documentation checks

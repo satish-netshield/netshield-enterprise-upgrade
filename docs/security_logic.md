@@ -4,7 +4,7 @@
 
 Phase 3A V2 extends the completed NetShield Phase 3 Automation project.
 
-It runs locally with Python and SQLite inside an Ubuntu VirtualBox sandbox. Enterprise users, devices, applications, identity risks and access requests are simulated.
+It runs locally with Python and SQLite inside an Ubuntu VirtualBox sandbox. Enterprise users, devices, applications, identity risks, access requests and network events are simulated.
 
 Microsoft Entra, Conditional Access, Defender, Sentinel and XDR are security design references only. The project does not connect to these services or perform real enterprise actions.
 
@@ -59,7 +59,7 @@ Reading only the first filename word would incorrectly classify `identity_risk` 
 
 Accepted event timestamps are converted to UTC.
 
-Using one time standard makes sequence, threshold and travel calculations consistent across sources.
+Using one time standard makes sequence, threshold, travel and connection-window calculations consistent across sources.
 
 ### Malformed-event quarantine
 
@@ -79,36 +79,29 @@ This allows a later alert or policy decision to be traced back to the supplied e
 
 Accepted events are protected by their source file and source event ID.
 
-Identity alerts and access decisions use deterministic keys based on their supporting evidence.
+Alerts and policy decisions use deterministic keys based on their supporting evidence.
 
-Repeated imports and processing runs therefore do not create duplicate accepted events, alerts or policy decisions.
+Connection-timeline records use the source event ID as their unique reference.
+
+Repeated imports and processing runs therefore do not create duplicate accepted events, alerts, decisions or timeline records.
 
 ### Safe database migration
 
 Updating `database/schema.sql` prepares new databases but does not upgrade an existing SQLite database.
 
-Repeatable migrations add missing columns, tables and indexes without deleting earlier records. Running the migration again does not recreate existing objects.
+Repeatable migrations add missing columns, tables and indexes without deleting earlier records. Running a migration again does not recreate existing objects.
 
 ---
 
 ## Relevant Stage 3 device decisions
 
-Stage 3 provides the device evidence required by Stages 4 and 5.
+Stage 3 provides device evidence used by later identity, access and network decisions.
 
 Device ID and asset ID are the main identity references. A MAC address is supporting evidence only because it can change, be absent or be copied.
 
-The project distinguishes between:
+The project separates unknown, unregistered, stale and mismatched devices. A known but unregistered device is not treated as completely unknown.
 
-- Unknown Device
-- Unregistered Device
-- Stale Device
-- Inventory Mismatch
-
-A known but unregistered device is not treated as completely unknown.
-
-Device removal changes its registration state and preserves its inventory and registration history.
-
-Only records containing a device ID or an asset ID recognised by the device inventory are evaluated as device activity. Database and application assets are not treated as devices.
+Device removal changes its registration state rather than deleting its inventory and history.
 
 ---
 
@@ -116,7 +109,7 @@ Only records containing a device ID or an asset ID recognised by the device inve
 
 Stage 4 evaluates controlled authentication and identity-risk events.
 
-The original Phase 3 identity storage remains unchanged. V2 findings are stored separately in `v2_identity_alerts` with user, device, location, time, risk, severity, confidence, reason-code and investigation context.
+The original Phase 3 identity storage remains unchanged. V2 findings are stored separately with user, device, location, time, risk, severity, confidence, reason-code and investigation context.
 
 ### Identity detection decisions
 
@@ -145,21 +138,6 @@ Confidence describes how strongly the available evidence supports the detection.
 
 Keeping these values separate prevents a strong match from automatically being presented as the highest operational impact.
 
-Examples from the controlled run included:
-
-| Detection | Severity | Confidence |
-|---|---:|---:|
-| Repeated Failed Logins | Medium | 70 |
-| Possible Brute Force | High | 85 |
-| Successful Login After Failures | High | 90 |
-| Impossible Travel | High | 80 |
-| New-Device Sign-In | Medium | 65 |
-| MFA Failure or Fatigue Pattern | High | 85 |
-| Suspicious Privilege Change | Critical | 95 |
-| Dormant-Account Activity | High | 90 |
-| Service-Account Interactive Login | High | 95 |
-| Abnormal Access Time | Medium | 60 |
-
 ### Reason codes
 
 Every alert contains a reason code explaining why it was created.
@@ -187,31 +165,17 @@ Reason codes make alerts easier to explain, search and test.
 
 Approved VPN evidence is checked before relevant device, location and impossible-travel alerts are created.
 
-Approved testing evidence can also suppress a finding when it matches the configured test boundary.
+Approved testing evidence can suppress a finding only when it matches the configured test boundary.
 
-Exceptions are counted instead of being silently ignored.
-
-The controlled run recorded two VPN exceptions and one approved-testing exception.
-
-### Duplicate-safe alerts
-
-Identity-alert keys are created from the detection type and supporting event evidence.
-
-A repeated Stage 4 run found the same 16 detections but stored no new alerts:
-
-- 16 stored alerts
-- 16 unique alert keys
-- 0 duplicate alerts
+Exceptions are counted instead of being silently ignored. They do not bypass unrelated security checks.
 
 ### False-positive review
 
-An authorised Analyst can classify an alert, change its investigation status and add notes.
+An authorised Analyst can classify an alert, update its investigation status and add notes.
 
 Empty notes, unknown classifications and unknown alert IDs are rejected. A Viewer cannot perform the review.
 
-The controlled Abnormal Access Time alert was classified as a False Positive and closed after it was confirmed as approved after-hours test activity.
-
-The alert and audit history were preserved.
+The alert and its audit history remain available after review.
 
 ---
 
@@ -223,24 +187,22 @@ It applies Zero Trust, RBAC and Conditional Access concepts locally. It does not
 
 ### Explicit verification
 
-The engine evaluates the available request context:
+A valid account or recognised device is not enough by itself.
 
-- User identity
-- Assigned role
+The engine evaluates:
+
+- User identity and active role
 - Requested permission
-- Device registration
-- Device compliance
+- Device registration and compliance
 - Application sensitivity
 - Asset criticality
-- Location
-- Network
-- Sign-in risk
-- User risk
+- Location and network
+- Sign-in risk and user risk
 - MFA evidence
 - Temporary restrictions
 - Approved VPN evidence
 
-A valid account or device is not enough by itself. The complete request must satisfy the relevant policy.
+The complete request must satisfy the relevant policy.
 
 ### Least privilege
 
@@ -248,7 +210,7 @@ The requested permission must belong to the user’s assigned role.
 
 A recognised user without the required permission is denied.
 
-Higher application sensitivity, asset criticality or risk can require stronger evidence even when the role normally permits the action.
+Higher sensitivity, criticality or risk can require stronger evidence even when the role normally permits the action.
 
 ### Device requirements
 
@@ -259,7 +221,7 @@ An unregistered or non-compliant device can produce a Challenge decision with se
 - `DEVICE_NOT_REGISTERED`
 - `DEVICE_NOT_COMPLIANT`
 
-This explains exactly which device conditions were not satisfied.
+This shows which device conditions were not satisfied.
 
 ### Restricted locations and networks
 
@@ -276,19 +238,17 @@ An approved VPN address can bypass the matching network restriction. It does not
 
 Critical identity risk can produce a Restrict decision.
 
-The risk changes the decision for the current request. It does not silently change the user’s assigned role.
+The risk affects the current request. It does not silently change the user’s assigned role.
 
 ### MFA requirements
 
-When a request requires MFA but the required evidence is missing, the result is Challenge with `MFA_REQUIRED`.
+When required MFA evidence is missing, the result is Challenge with `MFA_REQUIRED`.
 
 The project records the challenge and can simulate increased monitoring. It does not send a real MFA prompt.
 
 ### Temporary restrictions
 
-An active temporary access restriction denies a matching user.
-
-The restriction records its active state, reason, start time and optional end time.
+An active temporary restriction denies access for the matching user.
 
 Temporary restrictions have the highest policy priority so a general allow policy cannot override them.
 
@@ -326,112 +286,232 @@ They follow default deny because their security requirements cannot be verified.
 
 The access decision and response permission are evaluated separately.
 
-The policy engine first selects Allow, Deny, Challenge or Restrict. It then checks any proposed response against the automation ACL.
+A Challenge can use the approved automatic `increase_monitoring` action.
 
-In the controlled run:
-
-- Challenge used `increase_monitoring`, an approved automatic simulated action.
-- Restrict proposed `restrict_account`, which required approval and was not executed.
-
-A correct policy result therefore cannot bypass the response-control boundary.
+A Restrict decision can propose `restrict_account`, but that action requires approval and is not executed automatically.
 
 ### Decision audit trail
 
-Each stored decision includes:
+Every stored decision retains the request, identity, device, application, outcome, winning policy, reason codes, evaluated evidence and ACL result.
 
-- Request event ID
-- User and role
-- Device and application
-- Decision
-- Winning policy
-- Reason codes
-- Evaluated evidence
-- Proposed response
-- ACL control level
-- Response status
-- Evaluation time
-
-Decision keys are deterministic.
-
-Repeating Stage 5 found the same nine requests and created no duplicate decisions.
+Deterministic decision keys prevent repeated policy runs from creating duplicates.
 
 ---
 
-## SQLite connection security and reliability
+## Stage 6 — Network, Wi-Fi and access monitoring
 
-Python’s SQLite transaction context commits or rolls back work but does not automatically close the connection object.
+Stage 6 evaluates controlled network and Wi-Fi events using IP, connection, device, wireless and zone evidence.
 
-Under Python 3.14, the earlier connection pattern generated `ResourceWarning` messages.
+It stores alerts, one access decision for every event and a connection timeline.
 
-A shared managed connection helper now:
+### Suspicious IP addresses
 
-1. Opens the connection.
-2. Commits successful work.
-3. Rolls back failed work.
-4. Closes the connection in every case.
+Source addresses are compared with:
 
-The change preserved transaction behaviour while removing unclosed connection warnings across the project.
+- The IP allowlist
+- The IP blocklist
+- Approved networks
+- Restricted networks
+- The approved VPN list
+
+A blocklist match, restricted-network match or unapproved source can create a Suspicious IP Address alert.
+
+The reason codes show which control produced the finding:
+
+- `IP_BLOCKLIST_MATCH`
+- `RESTRICTED_NETWORK`
+- `IP_NOT_APPROVED`
+
+### Port scanning
+
+Several unique destination ports from one source inside the configured time window indicate possible scanning.
+
+The rule creates one Port Scanning alert for the related event window.
+
+A scan can also match restricted-port or suspicious-IP rules. All matching reasons are retained for the final decision.
+
+### Repeated connection attempts
+
+Repeated connections from one source inside the configured window can indicate retry activity, probing or an automated attempt.
+
+The rule requires five related connections within two minutes.
+
+The configured network decision is Challenge unless a stronger matching rule takes priority.
+
+### Abnormal connection pattern
+
+Connection volume is compared with the configured time and count thresholds.
+
+Eight related connections within ten minutes outside normal UTC hours create an Abnormal Connection Pattern alert.
+
+This is a review indicator because legitimate maintenance or controlled load testing can also create the pattern.
+
+### Restricted ports and services
+
+Connections involving configured restricted ports or named services are denied.
+
+The controlled rules include:
+
+- Port 23 and Telnet
+- Port 445 and SMB
+- Port 3389 and RDP
+
+Separate reason codes identify a restricted port and a restricted service.
+
+### Unknown CYOD device
+
+A wireless event containing a device or asset identifier that is not present in the approved inventory creates an Unknown CYOD Device alert.
+
+The decision is Challenge because the device requires further verification.
+
+### Unknown wired device
+
+An unknown device using a wired connection creates an Unknown Wired Device alert.
+
+The decision is Deny because the device identity cannot be verified for wired access.
+
+### MAC reuse or possible spoofing
+
+A MAC address is never treated as proof of device identity.
+
+The rule checks whether different primary device identities use the same MAC address within the configured overlap window.
+
+A match creates a Challenge decision for investigation. It does not automatically state that spoofing has been confirmed.
+
+### WPA3 policy violation
+
+Approved Wi-Fi access requires WPA3 with the configured AES cipher.
+
+A connection that does not satisfy both requirements is denied with `WIFI_SECURITY_POLICY_NOT_SATISFIED`.
+
+The project evaluates controlled log evidence and does not inspect or attack a real wireless network.
+
+### WPA2 downgrade attempt
+
+A controlled event showing a change from WPA3 to WPA2 creates a High-severity downgrade alert.
+
+The decision is Deny because WPA2 downgrade is not allowed by the configured policy.
+
+### Rogue access point
+
+A Wi-Fi event is compared with the approved access-point identifier, SSID and location.
+
+An access point outside that approved context creates a Critical Rogue Access Point alert.
+
+The network decision is Restrict. The proposed firewall action remains approval-required and is not executed.
+
+### Wi-Fi zone violation
+
+Wireless activity in a configured restricted zone is denied.
+
+The location remains in the alert and decision evidence so the result can be investigated.
+
+### Restricted wired access
+
+A wired connection in a restricted physical zone creates a Restricted Wired Access alert and a Deny decision.
+
+This keeps physical network location separate from device identity. An approved device can still be denied in a restricted wired zone.
+
+### Approved exceptions
+
+An approved VPN event can receive Allow when its required identity and connection evidence match.
+
+Controlled testing can also receive Allow when the configured testing user and event evidence both match.
+
+The exception reason is stored in the decision. Exceptions do not silently disable unrelated rules.
+
+### Network-access outcomes
+
+| Outcome | Stage 6 use |
+|---|---|
+| Allow | Approved connections, verified VPN activity and approved test activity |
+| Deny | Prohibited IP, port, service, wireless or zone conditions |
+| Challenge | Activity requiring more verification or monitoring |
+| Restrict | Serious activity requiring an approval-controlled network response |
+
+### Decision precedence
+
+One event can match several rules.
+
+Stage 6 resolves overlapping outcomes in this order:
+
+1. Deny
+2. Restrict
+3. Challenge
+4. Allow
+
+For example, a port scan from a restricted network matches both Port Scanning and Suspicious IP Address. Deny wins, while both matching rules and reason codes remain in the decision evidence.
+
+### ACL-controlled network responses
+
+A network decision does not automatically authorise a response.
+
+Challenge uses `increase_monitoring`, which is an approved automatic simulated action.
+
+Restrict proposes `apply_ubuntu_firewall_rule`. The existing automation ACL marks this action as approval-required, so no firewall rule is applied automatically.
+
+### Connection timeline
+
+Every accepted Stage 6 event is stored once in the connection timeline.
+
+The timeline keeps the event time, source, user, device, address, connection and location context required to reconstruct the activity sequence.
+
+### False-positive review
+
+An authorised Analyst can classify a Stage 6 alert as Confirmed or False Positive and add evidence-based investigation notes.
+
+The review records the actor and UTC review time. A Viewer cannot perform the review.
+
+The controlled Abnormal Connection Pattern alert was closed as a False Positive after the activity was confirmed as approved connection-volume testing.
 
 ---
 
-## Testing evidence
+## Security-logic checks and corrections
 
-Stage 4 used 24 controlled authentication and identity-risk events.
+Testing identified two important Stage 6 decision issues.
 
-It stored 16 traceable identity alerts and passed 12 out of 12 validation checks.
+The first policy did not define how conflicting outcomes should be resolved. A fixed precedence was added so the same evidence always produces the same final result.
 
-Stage 5 evaluated nine controlled access requests:
+The first Restrict mapping proposed `restrict_account`, which was an identity action. It was replaced with the network-related `apply_ubuntu_firewall_rule` action already controlled by the automation ACL.
 
-- 2 Allow
-- 4 Deny
-- 2 Challenge
-- 1 Restrict
-
-It passed 14 out of 14 validation checks.
-
-The combined Stage 4–5 unit tests passed 32 tests.
-
-After adding explicit SQLite connection handling, the complete project passed 151 unit tests with zero unclosed-database `ResourceWarning` messages.
-
-SQLite integrity checking returned `ok`, and the original Stage 11 full-project validation passed.
+Testing also confirmed that one port-scan event could correctly match scanning, restricted-network and restricted-port rules at the same time. The final decision keeps every reason while applying one outcome.
 
 ---
 
-## Problems found and corrected
+## Verification
 
-- Normal Stage 4 authentication events originally began outside the configured normal access hours. They were moved inside the approved period, while one deliberate late event remained to test abnormal access.
-- New Stage 4–5 events affected a Stage 3 validator that used a broad event query. The validator was limited to the intended Stage 3 source files.
-- SQLite connections were completing transactions without explicitly closing. A shared managed connection helper corrected the connection lifecycle.
-- Updating the schema file alone did not upgrade the existing database. A repeatable migration was used.
-- Compound source names required complete matching.
-- Policy conflicts required explicit priority and restrictive tie handling.
+Stage 4 stored 16 identity alerts and passed 12 out of 12 validation checks.
 
-These were implementation or validation problems. They were corrected without deleting valid earlier evidence.
+Stage 5 stored nine access decisions and passed 14 out of 14 validation checks.
+
+Stage 6 processed 34 network and Wi-Fi events, produced 18 alerts and stored 34 access decisions and 34 timeline records.
+
+The Stage 6 focused tests passed 23 tests. Stage 6 validation passed 15 out of 15 checks.
+
+The complete project passed 174 unit tests. The original Stage 11 validation passed, and SQLite integrity returned `ok`.
 
 ---
 
 ## What I learned
 
-Identity findings are stronger when user, device, source, location, time and risk evidence are considered together.
+Identity, device and network evidence become more useful when the reason for each decision is stored clearly.
 
-A suspicious location, device or login time can still have a legitimate explanation, so exceptions and investigation history are important.
+One event can match several valid rules. Preserving all matching reasons while applying deterministic precedence makes the final outcome easier to explain.
 
-Access decisions need clear reason codes and predictable policy priority.
+A security decision remains separate from permission to perform a response.
 
-A security decision must remain separate from permission to perform a disruptive response.
+Exceptions should be narrow, supported by matching evidence and recorded in the decision.
 
-Later-stage data can expose assumptions in earlier validators, so each validator needs a clear evidence boundary.
-
-Database resource handling remains important even when functional tests pass.
+A MAC address can support an investigation, but it should not identify a device by itself.
 
 ---
 
 ## Current limitations and next improvement
 
-The project uses controlled local data instead of live identity-provider, MFA, device-management or cloud-policy telemetry.
+The project uses controlled local data instead of live identity-provider, device-management, network-sensor or wireless-controller telemetry.
 
-Locations and risk scores are simulated inputs.
+Locations, network zones, risk values, Wi-Fi security events and rogue-access-point events are simulated.
 
-Access outcomes and responses are stored or simulated locally. They do not change real accounts, sessions, devices, applications or networks.
+Access outcomes and responses are stored or simulated locally. They do not change real accounts, devices, applications, firewall rules or networks.
 
-A later stage can add wider correlation and incident context while preserving the same evidence, default-deny, audit and approval controls.
+Future improvement can use longer activity baselines and broader approved network, access-point and zone inventories while preserving the same evidence, default-deny, audit and approval controls.

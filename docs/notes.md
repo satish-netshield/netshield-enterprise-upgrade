@@ -81,7 +81,6 @@ Pipeline validation must distinguish between source evidence and database row co
 - Database and application assets were initially treated as devices. Device evaluation was limited to events containing a device ID or an asset ID known to the device inventory.
 - `CYOD-003` was initially classified as unknown. Enterprise context confirmed that it was known but unregistered, so the finding was corrected.
 - Different labels for the same Auckland location created an unnecessary mismatch. Compatible location values were normalised.
-- An alert-review test expected a database column that did not exist. The test was corrected to use the established audit fields instead of changing the schema only to satisfy the test.
 
 ### Testing observation
 
@@ -140,7 +139,7 @@ Normal access hours started later, so ordinary test activity would have been inc
 
 Normal authentication events were moved inside the configured access period.
 
-One deliberate event remained at `23:00` UTC so the abnormal-time rule still had genuine controlled evidence.
+One deliberate event remained at `23:00` UTC so the abnormal-time rule still had controlled evidence.
 
 The earlier Stage 4–5 source records and import batches were removed before the corrected files were regenerated and imported.
 
@@ -360,29 +359,189 @@ Git does not preserve detailed non-executable permission modes. Sensitive config
 
 ---
 
-## Combined Stage 4–5 result
+## Stage 6 — Network, Wi-Fi and access monitoring
 
-Stages 4 and 5 added identity-risk monitoring and explainable local access decisions without replacing the existing Phase 3 controls.
+### Observations and decisions
 
-The final verified state included:
+- Stage 6 used 27 network events and seven Wi-Fi events.
+- All 34 events used schema version `2.0` and had unique event IDs.
+- The source files used controlled documentation addresses and simulated network evidence.
+- The detector used device ID and asset ID as primary device references.
+- MAC addresses remained supporting evidence only.
+- The existing IP allowlist, IP blocklist, VPN allowlist, CYOD inventory and automation ACL were reused.
+- Network alerts, access decisions and connection-timeline records were stored separately from the original Phase 3 network tables.
+- Every accepted Stage 6 event received one access decision.
+- WPA, downgrade and rogue-access-point findings used controlled logs. No real wireless attack or network restriction was performed.
 
-- 33 controlled Stage 4–5 events
-- 16 duplicate-safe identity alerts
-- 9 duplicate-safe access decisions
-- One completed false-positive investigation
-- Recorded VPN and approved-testing exceptions
-- ACL-controlled simulated responses
-- Repeatable database migration
-- Explicit SQLite connection closure
-- 151 passing unit tests
-- Zero unclosed-database warnings
-- Passing V2 Stage 1–5 validators
-- Passing original Stage 11 validation
+### Database migration observation
+
+The first Stage 6 migration created:
+
+- 3 tables
+- 17 indexes
+
+The repeated migration created:
+
+- 0 tables
+- 0 indexes
+
+This confirmed that the migration was repeatable.
+
+The Stage 6 schema was also added to `database/schema.sql` so a new database can create the same tables and indexes.
+
+### Import result
+
+The first import produced:
+
+- 27 accepted network events
+- 7 accepted Wi-Fi events
+- 0 rejected events
+- 0 failed files
+
+The total was 34 accepted events.
+
+### Detection results
+
+The controlled evidence produced 18 alerts:
+
+- Three Suspicious IP Address alerts
+- One Port Scanning alert
+- One Repeated Connection Attempts alert
+- One Abnormal Connection Pattern alert
+- Four Restricted Port or Service alerts
+- One Unknown CYOD Device alert
+- One MAC Address Reuse or Possible Spoofing alert
+- One WPA3 Policy Violation alert
+- One WPA2 Downgrade Attempt alert
+- One Rogue Access Point alert
+- One Wi-Fi Zone Violation alert
+- One Unknown Wired Device alert
+- One Restricted Wired Access alert
+
+### Network-access decision results
+
+The 34 events produced:
+
+- 4 Allow decisions
+- 18 Deny decisions
+- 11 Challenge decisions
+- 1 Restrict decision
+
+One approved VPN event was allowed with `APPROVED_VPN_EXCEPTION`.
+
+One controlled testing event was allowed with `APPROVED_TESTING_EXCEPTION`.
+
+The connection timeline stored all 34 events.
+
+### Decision-precedence problem
+
+The first network policy did not explicitly define which outcome should win when an event matched several rules.
+
+This became important because the controlled port-scan events also matched restricted-network and restricted-port conditions.
+
+### Fix
+
+A deterministic outcome order was added:
+
+1. Deny
+2. Restrict
+3. Challenge
+4. Allow
+
+One port-scan event matched `port_scanning`, `suspicious_ip_address` and `restricted_port_or_service`.
+
+The final decision was Deny, while all matching rules and reason codes remained in the stored evidence.
+
+### Response-mapping problem
+
+The first Restrict mapping proposed `restrict_account`.
+
+That action belonged to identity response and did not match a network-access decision.
+
+### Fix
+
+The Restrict mapping was changed to `apply_ubuntu_firewall_rule`.
+
+This action already existed in the automation ACL as approval-required.
+
+The Rogue Access Point event therefore produced a Restrict decision, but the proposed firewall action remained `approval_required` and was not executed.
+
+### MAC-rule correction
+
+The first configuration contained a spelling error in the `mac_reuse_or_possible_spoofing` rule name.
+
+The name was corrected before the detector was tested.
+
+The final rule created an alert only when different primary device identities used the same MAC address inside the configured overlap window.
+
+The result remained a possible spoofing indicator rather than confirmation that spoofing occurred.
+
+### Duplicate testing
+
+The first monitoring run stored:
+
+- 18 new alerts
+- 34 new access decisions
+- 34 new timeline records
+
+The repeated run reported:
+
+- 0 new alerts and 18 existing alerts
+- 0 new decisions and 34 existing decisions
+- 0 new timeline records and 34 existing records
+
+The stored totals remained:
+
+- 18 alerts and 18 unique alert keys
+- 34 decisions and 34 unique decision keys
+- 34 timeline records and 34 unique source event IDs
+
+### False-positive investigation
+
+The Abnormal Connection Pattern alert for `CYOD-002` was reviewed by `analyst01`.
+
+It was classified as a False Positive and closed after the activity was confirmed as controlled after-hours connection-volume testing.
+
+The review retained the device, IP address, investigation notes, reviewer and UTC review time.
+
+The audit trail recorded the successful review.
+
+### Testing result
+
+The Stage 6 monitoring tests passed 15 tests.
+
+The Stage 6 network-alert review tests passed eight tests.
+
+The focused Stage 6 total was 23 passing tests.
+
+V2 Stage 6 passed 15 out of 15 validation checks.
+
+The complete project passed 174 unit tests.
+
+V2 Stages 1–6 passed their validators.
+
+The original Stage 11 full-project validation passed.
+
+SQLite integrity checking returned `ok`, and foreign-key checking returned no errors.
+
+### Lesson
+
+One network event can match several valid security rules. The project needs to retain every matching reason while producing one deterministic final decision.
+
+A detection decision and permission to perform a response are separate. A Restrict result does not bypass approval controls.
+
+MAC reuse can support an investigation, but it should not be treated as proof of device identity.
+
+Approved exceptions should require matching evidence and remain visible in the stored decision.
+
+Controlled wireless logs allow the security logic to be tested without interacting with a real wireless network.
 
 ---
 
 ## Next improvement
 
-A later stage can use the identity alerts and access decisions as evidence for wider correlation and incident handling.
+Stage 6 uses controlled network and Wi-Fi evidence, fixed thresholds and a small approved-access-point list.
 
-Future work can also add live identity-provider, MFA, device-management and cloud-policy telemetry. These integrations must preserve the same default-deny, audit, evidence and approval boundaries.
+Future improvement can add longer connection baselines, more network zones and broader approved access-point evidence.
+
+Any later integration must preserve default deny, narrow exceptions, complete reason codes, duplicate protection, audit history and approval-controlled responses.

@@ -94,7 +94,7 @@ Stages 4 and 5 were built together because access decisions depend on identity, 
 They remain separate components with separate tests, validation results, observations and lessons.
 
 - Stage 4 detects identity and authentication risks.
-- Stage 5 evaluates access requests using the identity, device, role and risk context.
+- Stage 5 evaluates access requests using identity, device, role and risk context.
 
 ---
 
@@ -183,8 +183,8 @@ It does not reproduce Microsoft Conditional Access.
 3. Check the required RBAC permission and minimum role.
 4. Load device registration, compliance, risk and asset evidence.
 5. Check application sensitivity and asset criticality.
-6. evaluate restricted locations and networks.
-7. evaluate sign-in risk, user risk and MFA evidence.
+6. Evaluate restricted locations and networks.
+7. Evaluate sign-in risk, user risk and MFA evidence.
 8. Check temporary access restrictions.
 9. Apply an approved VPN exception where configured.
 10. Collect every matching policy and reason code.
@@ -243,46 +243,139 @@ Thirteen Stage 5 tests passed. Stage 5 validation passed 14 out of 14 checks.
 
 ### What I learned
 
-An access decision should explain why access was allowed or blocked. The final outcome is easier to investigate when the winning policy, all matching reasons and the supporting evidence are stored together.
+An access decision should explain why access was allowed or blocked. The final outcome is easier to investigate when the winning policy, all matching reasons and supporting evidence are stored together.
 
 I also learned that access decisions should not bypass the response ACL. A high-risk result can request a restriction, but approval must still be enforced.
 
 ---
 
-## Project-wide SQLite connection correction
+## Stage 6 — Network, Wi-Fi and access monitoring
 
-The combined regression exposed repeated Python 3.14 `ResourceWarning` messages.
+Stage 6 extended the project with network and wireless detections, explainable network-access decisions and a connection timeline.
 
-### Problem and solution
+### Workflow
 
-The project used `with sqlite3.connect(...)` for transaction handling. This commits or rolls back the transaction, but it does not explicitly close the connection.
+1. Define the network, Wi-Fi, device, zone and exception policies.
+2. Create the Stage 6 alert, decision and timeline tables through a repeatable migration.
+3. Generate controlled network and Wi-Fi JSONL events.
+4. Import the events through the existing V2 pipeline.
+5. Load the accepted events and current device inventory from SQLite.
+6. Compare source addresses with the IP allowlist, blocklist and approved networks.
+7. Group related connections by source address and time window.
+8. Check restricted ports, services, connection volume and access time.
+9. Match device and asset identifiers with the CYOD inventory.
+10. Use MAC addresses as supporting evidence for possible reuse or spoofing.
+11. Check Wi-Fi security, access points and network zones.
+12. Apply approved VPN and controlled-testing exceptions.
+13. Create alerts with severity, confidence, reason codes and connection evidence.
+14. Evaluate one network-access decision for every event.
+15. Resolve overlapping rules using the configured decision precedence.
+16. Validate simulated response actions against the existing automation ACL.
+17. Store the connection timeline, alerts and decisions with duplicate protection.
+18. Review one controlled alert and record the investigation in the audit trail.
 
-A diagnostic scan found 89 connection calls across 38 files. The full test suite produced 101 unclosed-database warnings.
+### Detection workflow
 
-A shared connection manager was added to preserve commit and rollback behaviour while always closing the connection. All 89 call sites were updated.
+Stage 6 covers:
 
-The larger Stage 4–5 dataset also caused the Stage 3 validator to count 36 device-related V2 events instead of its original three. The Stage 3 query was restricted to its Stage 2 source filenames.
+- Suspicious IP addresses
+- IP allowlist and blocklist matching
+- Port scanning
+- Repeated and abnormal connections
+- Restricted ports and services
+- Unknown CYOD devices
+- MAC reuse or possible spoofing
+- WPA3 policy violations
+- Simulated WPA2 downgrade attempts
+- Rogue access points
+- Wi-Fi zone violations
+- Unknown wired devices
+- Restricted wired access
 
-### Testing and lesson
+WPA, downgrade and rogue-access-point findings use controlled simulated logs. No wireless attack or real network restriction was performed.
 
-After the correction:
+### Network-access decisions
 
-- All 151 unit tests passed.
-- SQLite resource warnings reduced from 101 to zero.
-- V2 Stages 1–5 passed.
-- The original Stage 11 validation passed.
-- SQLite integrity returned `ok`.
-- No database process remained open after testing.
+Every Stage 6 event receives one of four outcomes:
 
-The main lesson was that a passing transaction does not prove that its connection was closed. Resource handling must be tested separately, especially when the Python version reports stricter warnings.
+- `allow` for approved connections and verified exceptions
+- `deny` for prohibited network activity
+- `challenge` when more monitoring or verification is required
+- `restrict` when a controlled network restriction should be considered
+
+When an event matches more than one rule, the configured precedence is:
+
+1. `deny`
+2. `restrict`
+3. `challenge`
+4. `allow`
+
+This makes the decision deterministic. For example, a port-scan event from a restricted network matched both `port_scanning` and `suspicious_ip_address`. The final decision was `deny` because it has higher precedence than `restrict`.
+
+### Engineering reasoning
+
+Stage 6 uses separate V2 alert, decision and timeline tables so the original Phase 3 network detector and storage remain unchanged.
+
+Device ID and asset ID remain the primary device references. A shared MAC address raises an investigation indicator only when different primary device identities overlap within the configured time window.
+
+Network decisions remain separate from response actions. A `challenge` can create simulated increased monitoring automatically. A `restrict` decision uses the approval-required `apply_ubuntu_firewall_rule` action and does not change the real Ubuntu firewall.
+
+### Problems and solutions
+
+- The first configuration contained a spelling error in the MAC-reuse rule name. It was corrected before the detector was tested.
+- The first network policy did not explicitly define how overlapping outcomes should be resolved. A deterministic decision order was added.
+- The first `restrict` mapping used `restrict_account`, which was an identity response rather than a network response. It was replaced with the existing approval-required `apply_ubuntu_firewall_rule` action.
+- Several port-scan events also matched restricted-network and restricted-port rules. The detector preserved every matching rule and reason while producing one final decision through precedence.
+
+### Testing
+
+Two Stage 6 source files contained 34 unique events:
+
+- 27 network events
+- 7 Wi-Fi events
+
+The detector produced 18 alerts across all 13 configured detection types.
+
+The policy evaluation produced 34 decisions:
+
+- 4 allow
+- 18 deny
+- 11 challenge
+- 1 restrict
+
+The connection timeline stored all 34 events.
+
+One approved VPN event and one approved-testing event were allowed with their exception reason codes preserved.
+
+The rogue-access-point event produced a `restrict` decision, but the firewall action remained `approval_required`.
+
+One Abnormal Connection Pattern alert was reviewed by `analyst01`, classified as a False Positive and closed after confirming controlled after-hours connection-volume testing.
+
+A repeated monitoring run created:
+
+- 0 new alerts and 18 existing alerts
+- 0 new decisions and 34 existing decisions
+- 0 new timeline records and 34 existing records
+
+Twenty-three focused Stage 6 tests passed. Stage 6 validation passed 15 out of 15 checks.
+
+The complete project passed 174 unit tests. The original Stage 11 validation passed, and SQLite integrity returned `ok`.
+
+### What I learned
+
+One network event can match several valid security rules. Keeping every matching rule and reason code while producing one final decision makes the result easier to explain.
+
+I also learned that a security decision and a response action are not the same thing. The detector can recommend restriction, but the automation ACL must still decide whether that action is automatic, approval-required or manual.
+
+MAC reuse is useful evidence, but it should not identify a device by itself.
 
 ---
 
 ## Next improvement
 
-Future identity monitoring can use longer activity baselines, user-specific working hours and more detailed location history.
+Stage 6 currently uses controlled network and Wi-Fi logs, fixed thresholds and a small approved-access-point list.
 
-The policy engine can later support controlled policy administration and more application or asset scenarios while keeping default deny, reason codes, approval controls and complete audit evidence.
+Future improvement can use longer connection baselines, more network zones and additional approved access-point evidence while keeping the same safe testing boundaries.
 
 The same engineering process will continue:
 

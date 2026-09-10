@@ -4,13 +4,13 @@
 
 This handbook explains the engineering journey behind Phase 3A V2 — NetShield Enterprise Upgrade.
 
-It is written for someone who wants to understand the project without reading every script, configuration file or database table.
+It is for someone who wants to understand the project without reading every script, configuration file or database table.
 
-The README shows the completed components, evidence and test results in more detail. This handbook focuses on the wider goals, important decisions, improvements and lessons learned while building the upgrade.
+The README presents the completed components, outputs and test results in more detail. This handbook focuses on the wider goals, important decisions, improvements and lessons from the project.
 
 NetShield Enterprise Upgrade extends the completed Phase 3 Automation project. It remains a local Python and SQLite project inside an Ubuntu VirtualBox sandbox.
 
-The users, devices, applications, identity risks and access requests are simulated. Microsoft Entra, Defender, Sentinel, Conditional Access and XDR are design references only. No Microsoft services or real enterprise actions are used.
+The users, devices, applications, identity risks, access requests and network events are simulated. Microsoft Entra, Defender, Sentinel, Conditional Access and XDR are design references only. No Microsoft services or real enterprise actions are used.
 
 ---
 
@@ -18,7 +18,7 @@ The users, devices, applications, identity risks and access requests are simulat
 
 The main goal is to move NetShield from a smaller security-automation project towards a more complete enterprise security-operations model.
 
-The upgrade is being built gradually so each component can be understood, tested and corrected before the next one depends on it.
+The upgrade is being built gradually so each component can be understood, tested and corrected before another component depends on it.
 
 The current work aims to:
 
@@ -27,7 +27,8 @@ The current work aims to:
 - Process more types of security data.
 - Improve device identity and inventory checks.
 - Detect wider identity and sign-in risks.
-- Make explainable access decisions.
+- Make explainable identity and network-access decisions.
+- Monitor controlled network and Wi-Fi activity.
 - Apply default deny and least privilege.
 - Keep disruptive responses behind approval controls.
 - Preserve evidence and audit history.
@@ -59,6 +60,8 @@ Existing roles, access controls, evidence handling, alert storage and validation
 The project uses simulated events designed for specific security scenarios.
 
 Normal, suspicious, malformed, duplicate and exception cases are included so the result is based on evidence rather than only a successful script run.
+
+Wireless security and rogue-access-point scenarios also use controlled logs. The project does not test attacks against a real wireless network.
 
 ### Fix genuine problems
 
@@ -114,23 +117,23 @@ Stage 3 added a stronger device inventory and separated unknown, unregistered, s
 
 Device ID and asset ID are the main identity references. MAC addresses remain supporting evidence only.
 
-This device context is reused by identity monitoring and access-policy decisions.
+This device context is reused by identity monitoring, access policy and network monitoring.
 
 ### Identity monitoring and risk detection
 
 Stage 4 added wider identity monitoring across authentication and identity-risk events.
 
-It can identify patterns such as repeated failures, password spraying, successful login after failures, impossible travel, new-device activity, unusual location, abnormal access time, MFA failures, suspicious privilege changes, dormant-account use, service-account interactive login and risky sign-in behaviour.
+It detects repeated failures, password spraying, successful login after failures, impossible travel, unusual sign-ins, MFA failures, privilege changes, dormant-account use, service-account interactive login and risky sign-in behaviour.
 
 Alerts contain user, device, location, time, risk, severity, confidence and reason-code context.
 
-Known VPN and approved-testing exceptions are also considered.
+Known VPN and approved-testing exceptions are considered.
 
 ### Identity-alert investigation
 
 An authorised Analyst can review an identity alert, record investigation notes and classify it.
 
-The controlled abnormal-time alert was reviewed, classified as a False Positive and closed without deleting the original alert or audit history.
+A controlled abnormal-time alert was classified as a False Positive and closed without deleting its original evidence or audit history.
 
 ### Zero Trust access policy
 
@@ -147,25 +150,27 @@ Every decision records its winning policy, reason codes, evaluated evidence and 
 
 This applies Zero Trust, RBAC and Conditional Access ideas locally without reproducing Microsoft Conditional Access.
 
-### SQLite connection management
+### Network, Wi-Fi and access monitoring
 
-A shared connection helper was added after Python 3.14 exposed unclosed SQLite connection warnings.
+Stage 6 added controlled network and wireless monitoring.
 
-The helper commits successful work, rolls back failed work and closes the connection in every case.
+It detects suspicious addresses, port scans, repeated connections, restricted services, unknown devices, possible MAC reuse, wireless-policy failures, rogue access points and zone violations.
 
-The correction was applied across existing and new project components.
+Every network or Wi-Fi event receives an explainable Allow, Deny, Challenge or Restrict decision.
+
+The stage also stores a connection timeline and supports controlled false-positive review.
 
 ### Validation
 
-The completed work through Stage 5 passed:
+The completed work through Stage 6 passed:
 
 - V2 Stage 1 validation: 12 out of 12
 - V2 Stage 2 validation: 13 out of 13
 - V2 Stage 3 validation: 19 out of 19
 - V2 Stage 4 validation: 12 out of 12
 - V2 Stage 5 validation: 14 out of 14
-- Complete unit-test suite: 151 tests
-- Unclosed-database warnings: 0
+- V2 Stage 6 validation: 15 out of 15
+- Complete unit-test suite: 174 tests
 - SQLite integrity check: `ok`
 - Original Stage 11 full-project validation: PASS
 
@@ -181,17 +186,17 @@ This avoided creating separate roles, databases or response rules that could dis
 
 ### Keep default deny
 
-Unknown permissions, applications, policy conditions and automation actions are not accepted automatically.
+Unknown permissions, applications, policy conditions, devices and network access are not accepted automatically.
 
 Access is allowed only when the required evidence is present.
 
 ### Separate severity from confidence
 
-Severity describes the possible impact of an identity finding.
+Severity describes the possible impact of a finding.
 
 Confidence describes how strongly the available evidence supports it.
 
-Keeping them separate makes the alert easier to understand.
+Keeping them separate makes an alert easier to understand.
 
 ### Treat device identity as combined evidence
 
@@ -213,21 +218,29 @@ Repeatable migrations allow the working database to gain new tables and indexes 
 
 ### Make policy conflicts predictable
 
-Access policies use explicit priority.
+Identity and network-access decisions use explicit priority.
 
-When policies have the same priority, the more restrictive result wins. This prevents configuration order from creating an unintended Allow decision.
+When an event matches several outcomes, the more restrictive result wins according to the configured order.
 
-### Keep policy and response separate
+This prevents configuration order from creating an unintended Allow decision.
 
-A Restrict decision can propose an account restriction, but the response still requires approval under the automation ACL.
+### Keep decisions and responses separate
 
-This keeps decision logic from silently gaining permission to perform disruptive actions.
+An access decision does not automatically provide permission to perform a response.
+
+For example, Stage 6 can produce a Restrict decision, but the proposed firewall action remains approval-required.
 
 ### Preserve investigation history
 
-Alerts, classifications, notes and audit events remain available after review.
+Alerts, classifications, notes, reviewer details and audit events remain available after review.
 
 Closing an alert changes its investigation state but does not remove the original evidence.
+
+### Keep wireless testing controlled
+
+WPA, downgrade and rogue-access-point scenarios use simulated logs.
+
+This allows the detection logic to be tested without interacting with a real wireless network or access point.
 
 ---
 
@@ -249,7 +262,7 @@ It was corrected so a source such as `identity_risk` remains `identity_risk`.
 
 The first schema changes prepared only new databases.
 
-A repeatable migration was added so the existing NetShield database could be upgraded safely.
+Repeatable migrations were added so the existing NetShield database could be upgraded safely.
 
 ### More accurate malformed-event validation
 
@@ -267,7 +280,7 @@ It was corrected to require the original five while allowing approved V2 sources
 
 Database and application assets were initially considered during device evaluation.
 
-The detector was limited to records containing device identity evidence known to the device inventory.
+The detector was limited to records containing relevant device identity evidence.
 
 ### Correct unregistered-device classification
 
@@ -279,7 +292,7 @@ The enterprise context showed that it was known but unregistered, so the result 
 
 Normal Stage 4 events originally began outside the configured normal access period.
 
-The normal events were moved inside the approved hours, while one deliberate late event remained to test abnormal access.
+The events were moved inside the approved hours, while one deliberate late event remained to test abnormal access.
 
 ### Clear validator boundaries
 
@@ -287,17 +300,19 @@ Later Stage 4–5 data affected a Stage 3 validator that searched too broadly.
 
 The validator was limited to its intended Stage 3 source evidence instead of removing valid later-stage records.
 
-### Explicit SQLite closure
+### Deterministic network decisions
 
-Python 3.14 reported unclosed SQLite connections even though the tests passed.
+The first Stage 6 policy did not define which result should win when one event matched several rules.
 
-The connection lifecycle was corrected across the project, and focused tests were added for commit, rollback and closure behaviour.
+A fixed decision order was added so the same evidence always produces the same result.
 
-### Sensitive configuration permissions
+### Network-related response mapping
 
-The new Stage 4–5 configuration files were initially created with permission `664`.
+The first Stage 6 Restrict outcome proposed an identity-related account restriction.
 
-Their permissions were changed to `640` to match the project’s sensitive configuration standard.
+It was changed to the network-related firewall action already controlled by the automation ACL.
+
+The action still requires approval and is not executed automatically.
 
 ---
 
@@ -305,33 +320,33 @@ Their permissions were changed to `640` to match the project’s sensitive confi
 
 ### Security context must agree
 
-User, device, role, inventory and application records are connected.
+User, device, role, inventory, application and network records are connected.
 
 A mismatch between them can produce a technically valid but incorrect security result.
 
 ### Test data is part of the engineering work
 
-A detector can behave correctly and still produce misleading findings when the controlled data does not match its baseline.
+A detector can behave correctly and still produce misleading findings when controlled data does not match its baseline.
 
-Test timestamps, locations, devices and risk values must be designed carefully.
+Test timestamps, locations, devices, addresses and risk values must be designed carefully.
 
 ### Exceptions need evidence
 
 VPN and approved-testing exceptions should not be hidden.
 
-Recording them shows why a finding was suppressed and helps confirm that the exception was actually applied.
+Recording them shows why a finding was suppressed and confirms that the exception matched its intended boundary.
 
 ### Explainability matters
 
 An Allow, Deny, Challenge or Restrict result is not enough by itself.
 
-The winning policy, reason codes and evidence make the decision useful for investigation.
+The matching rules, reason codes and evidence make the decision useful for investigation.
 
-### Passing tests are not the only signal
+### One event can match several rules
 
-The test suite passed while Python still reported unclosed database connections.
+A network event can be a port scan, use a restricted port and come from a restricted network at the same time.
 
-Warnings can reveal reliability problems that functional assertions do not detect.
+The project should preserve every valid reason while producing one predictable final decision.
 
 ### Validators must grow with the project
 
@@ -343,7 +358,7 @@ Each validator needs a clear evidence boundary.
 
 Duplicate protection cannot be assumed because a database has unique fields.
 
-Initialisation, imports, detections and policy evaluation need to be repeated and checked directly.
+Initialisation, imports, detections, decisions and timeline storage need to be repeated and checked directly.
 
 ### Automation still needs limits
 
@@ -351,18 +366,31 @@ Detection confidence and risk severity do not automatically justify a disruptive
 
 Approval and manual-control boundaries remain necessary even when the decision itself is clear.
 
+### Device identity needs more than a MAC address
+
+A shared MAC address can indicate reuse or possible spoofing, but it cannot confirm device identity by itself.
+
+Primary device and asset identifiers must remain part of the decision.
+
+### Controlled simulations have value
+
+Simulated wireless evidence can test WPA, downgrade, access-point and zone logic safely.
+
+The result is useful when the project is honest about the boundary and does not present simulated activity as live network evidence.
+
 ---
 
 ## Future Expansion
 
-The identity alerts and access-policy decisions can support later event correlation, incident management and response work.
+The identity alerts, access-policy decisions and network evidence can support later correlation, incident management and response work.
 
 Future expansion can include:
 
 - Wider correlation between identity, device, application and network evidence
 - Incident creation from combined V2 risk
 - Temporary restriction management
-- More detailed policy simulation
+- Longer identity and network baselines
+- Broader approved access-point and network-zone inventories
 - Retention enforcement
 - Additional evidence reporting
 - Live cloud identity and security telemetry
