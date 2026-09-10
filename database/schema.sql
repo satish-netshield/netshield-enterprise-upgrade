@@ -576,3 +576,162 @@ ON access_policy_decisions(decision);
 
 CREATE INDEX IF NOT EXISTS idx_access_policy_time
 ON access_policy_decisions(evaluated_at);
+
+CREATE TABLE IF NOT EXISTS v2_network_alerts (
+    alert_id INTEGER PRIMARY KEY AUTOINCREMENT,
+    alert_key TEXT NOT NULL UNIQUE,
+    created_at TEXT NOT NULL,
+    detection_type TEXT NOT NULL,
+    severity TEXT NOT NULL
+        CHECK (
+            severity IN (
+                'Low',
+                'Medium',
+                'High',
+                'Critical'
+            )
+        ),
+    confidence INTEGER NOT NULL
+        CHECK (
+            confidence BETWEEN 0 AND 100
+        ),
+    first_event_time TEXT NOT NULL,
+    last_event_time TEXT NOT NULL,
+    source_event_ids TEXT NOT NULL,
+    source_types TEXT NOT NULL,
+    device_id TEXT,
+    asset_id TEXT,
+    username TEXT,
+    ip_address TEXT,
+    mac_address TEXT,
+    hostname TEXT,
+    location TEXT,
+    connection_type TEXT,
+    destination_ip TEXT,
+    destination_port INTEGER,
+    service TEXT,
+    reason_codes TEXT NOT NULL,
+    evidence TEXT NOT NULL,
+    status TEXT NOT NULL DEFAULT 'New'
+        CHECK (
+            status IN (
+                'New',
+                'Investigating',
+                'Confirmed',
+                'False Positive',
+                'Closed'
+            )
+        ),
+    classification TEXT,
+    investigation_notes TEXT,
+    reviewed_by TEXT,
+    reviewed_at TEXT
+);
+
+CREATE TABLE IF NOT EXISTS v2_network_access_decisions (
+    decision_id INTEGER PRIMARY KEY AUTOINCREMENT,
+    decision_key TEXT NOT NULL UNIQUE,
+    evaluated_at TEXT NOT NULL,
+    source_event_id TEXT NOT NULL UNIQUE,
+    event_time TEXT NOT NULL,
+    source_type TEXT NOT NULL,
+    event_type TEXT NOT NULL,
+    device_id TEXT,
+    asset_id TEXT,
+    username TEXT,
+    ip_address TEXT,
+    mac_address TEXT,
+    hostname TEXT,
+    location TEXT,
+    connection_type TEXT,
+    destination_ip TEXT,
+    destination_port INTEGER,
+    service TEXT,
+    decision TEXT NOT NULL
+        CHECK (
+            decision IN (
+                'allow',
+                'deny',
+                'challenge',
+                'restrict'
+            )
+        ),
+    matching_rules TEXT NOT NULL,
+    reason_codes TEXT NOT NULL,
+    evidence TEXT NOT NULL,
+    response_action TEXT,
+    acl_control_level TEXT,
+    response_status TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS v2_network_connection_timeline (
+    timeline_id INTEGER PRIMARY KEY AUTOINCREMENT,
+    source_event_id TEXT NOT NULL UNIQUE,
+    event_time TEXT NOT NULL,
+    source_type TEXT NOT NULL,
+    event_type TEXT NOT NULL,
+    device_id TEXT,
+    asset_id TEXT,
+    username TEXT,
+    ip_address TEXT,
+    mac_address TEXT,
+    hostname TEXT,
+    location TEXT,
+    connection_type TEXT,
+    destination_ip TEXT,
+    destination_port INTEGER,
+    service TEXT,
+    status TEXT,
+    raw_event TEXT NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_v2_network_alerts_type
+ON v2_network_alerts(detection_type);
+
+CREATE INDEX IF NOT EXISTS idx_v2_network_alerts_severity
+ON v2_network_alerts(severity);
+
+CREATE INDEX IF NOT EXISTS idx_v2_network_alerts_status
+ON v2_network_alerts(status);
+
+CREATE INDEX IF NOT EXISTS idx_v2_network_alerts_device
+ON v2_network_alerts(device_id);
+
+CREATE INDEX IF NOT EXISTS idx_v2_network_alerts_ip
+ON v2_network_alerts(ip_address);
+
+CREATE INDEX IF NOT EXISTS idx_v2_network_alerts_mac
+ON v2_network_alerts(mac_address);
+
+CREATE INDEX IF NOT EXISTS idx_v2_network_alerts_time
+ON v2_network_alerts(first_event_time, last_event_time);
+
+CREATE INDEX IF NOT EXISTS idx_v2_network_decisions_source
+ON v2_network_access_decisions(source_event_id);
+
+CREATE INDEX IF NOT EXISTS idx_v2_network_decisions_decision
+ON v2_network_access_decisions(decision);
+
+CREATE INDEX IF NOT EXISTS idx_v2_network_decisions_device
+ON v2_network_access_decisions(device_id);
+
+CREATE INDEX IF NOT EXISTS idx_v2_network_decisions_ip
+ON v2_network_access_decisions(ip_address);
+
+CREATE INDEX IF NOT EXISTS idx_v2_network_decisions_time
+ON v2_network_access_decisions(evaluated_at);
+
+CREATE INDEX IF NOT EXISTS idx_v2_network_timeline_source
+ON v2_network_connection_timeline(source_event_id);
+
+CREATE INDEX IF NOT EXISTS idx_v2_network_timeline_time
+ON v2_network_connection_timeline(event_time);
+
+CREATE INDEX IF NOT EXISTS idx_v2_network_timeline_device
+ON v2_network_connection_timeline(device_id);
+
+CREATE INDEX IF NOT EXISTS idx_v2_network_timeline_ip
+ON v2_network_connection_timeline(ip_address);
+
+CREATE INDEX IF NOT EXISTS idx_v2_network_timeline_mac
+ON v2_network_connection_timeline(mac_address);

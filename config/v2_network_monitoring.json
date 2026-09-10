@@ -1,0 +1,187 @@
+{
+  "schema_version": "1.0",
+  "simulation_only": true,
+  "source_directory": "data/raw/v2/stage6",
+  "source_files": [
+    "network_v2_stage6_events.jsonl",
+    "wifi_v2_stage6_events.jsonl"
+  ],
+  "thresholds": {
+    "repeated_connection_attempts": 5,
+    "connection_window_minutes": 2,
+    "port_scan_unique_ports": 5,
+    "port_scan_window_minutes": 2,
+    "abnormal_connection_count": 8,
+    "abnormal_connection_window_minutes": 10,
+    "mac_reuse_overlap_minutes": 2
+  },
+  "device_identity": {
+    "primary_identifiers": [
+      "device_id",
+      "asset_id"
+    ],
+    "mac_address_identity": "supporting_evidence_only",
+    "supporting_fields": [
+      "mac_address",
+      "hostname",
+      "username",
+      "ip_address",
+      "location",
+      "connection_type"
+    ]
+  },
+  "ip_controls": {
+    "allowlist_path": "data/allowlists/ip_allowlist.txt",
+    "blocklist_path": "data/blocklists/ip_blocklist.txt",
+    "vpn_allowlist_path": "data/allowlists/vpn_ip_allowlist.txt",
+    "approved_networks": [
+      "10.0.2.0/24",
+      "192.0.2.0/24"
+    ],
+    "restricted_networks": [
+      "198.51.100.0/24"
+    ]
+  },
+  "network_policy": {
+    "default_decision": "deny",
+    "decision_outcomes": [
+      "allow",
+      "deny",
+      "challenge",
+      "restrict"
+    ],
+    "restricted_ports": [
+      23,
+      445,
+      3389
+    ],
+    "restricted_services": [
+      "telnet",
+      "smb",
+      "rdp"
+    ],
+    "normal_utc_hours": {
+      "start": 6,
+      "end": 22
+    },
+    "decision_precedence": [
+      "deny",
+      "restrict",
+      "challenge",
+      "allow"
+    ]
+  },
+  "wifi_policy": {
+    "required_security": "WPA3",
+    "allowed_cipher": "AES",
+    "allow_wpa2_downgrade": false,
+    "allow_open_networks": false,
+    "approved_access_points": [
+      {
+        "access_point_id": "AP-LAB-A-01",
+        "ssid": "NetShield-Lab",
+        "location": "Lab Zone A"
+      }
+    ]
+  },
+  "zones": {
+    "approved_wifi_zones": [
+      "Lab Zone A"
+    ],
+    "restricted_wifi_zones": [
+      "Lab Zone B",
+      "Parking Lot",
+      "Public Area"
+    ],
+    "restricted_wired_zones": [
+      "Server Room"
+    ]
+  },
+  "approved_exceptions": {
+    "approved_device_ids": [
+      "CYOD-001",
+      "CYOD-002"
+    ],
+    "approved_testing_users": [
+      "trainee01"
+    ],
+    "require_matching_evidence": true
+  },
+  "detection_rules": {
+    "suspicious_ip_address": true,
+    "port_scanning": true,
+    "repeated_connection_attempts": true,
+    "abnormal_connection_pattern": true,
+    "restricted_port_or_service": true,
+    "unknown_cyod_device": true,
+    "mac_reuse_or_possible_spoofing": true,
+    "wpa3_policy_violation": true,
+    "wpa2_downgrade_attempt": true,
+    "rogue_access_point": true,
+    "wifi_zone_violation": true,
+    "unknown_wired_device": true,
+    "restricted_wired_access": true
+  },
+  "severity": {
+    "Suspicious IP Address": "High",
+    "Port Scanning": "High",
+    "Repeated Connection Attempts": "Medium",
+    "Abnormal Connection Pattern": "Medium",
+    "Restricted Port or Service": "High",
+    "Unknown CYOD Device": "High",
+    "MAC Address Reuse or Possible Spoofing": "High",
+    "WPA3 Policy Violation": "High",
+    "WPA2 Downgrade Attempt": "High",
+    "Rogue Access Point": "Critical",
+    "Wi-Fi Zone Violation": "Medium",
+    "Unknown Wired Device": "High",
+    "Restricted Wired Access": "High"
+  },
+  "confidence": {
+    "Suspicious IP Address": 95,
+    "Port Scanning": 90,
+    "Repeated Connection Attempts": 75,
+    "Abnormal Connection Pattern": 70,
+    "Restricted Port or Service": 90,
+    "Unknown CYOD Device": 90,
+    "MAC Address Reuse or Possible Spoofing": 85,
+    "WPA3 Policy Violation": 90,
+    "WPA2 Downgrade Attempt": 95,
+    "Rogue Access Point": 95,
+    "Wi-Fi Zone Violation": 80,
+    "Unknown Wired Device": 90,
+    "Restricted Wired Access": 90
+  },
+  "decision_mapping": {
+    "approved_connection": "allow",
+    "suspicious_ip_address": "deny",
+    "port_scanning": "restrict",
+    "repeated_connection_attempts": "challenge",
+    "abnormal_connection_pattern": "challenge",
+    "restricted_port_or_service": "deny",
+    "unknown_cyod_device": "challenge",
+    "mac_reuse_or_possible_spoofing": "challenge",
+    "wpa3_policy_violation": "deny",
+    "wpa2_downgrade_attempt": "deny",
+    "rogue_access_point": "restrict",
+    "wifi_zone_violation": "deny",
+    "unknown_wired_device": "deny",
+    "restricted_wired_access": "deny"
+  },
+  "response_actions": {
+    "allow": null,
+    "deny": null,
+    "challenge": "increase_monitoring",
+    "restrict": "apply_ubuntu_firewall_rule"
+  },
+  "audit_requirements": {
+    "record_source_events": true,
+    "record_device_context": true,
+    "record_connection_context": true,
+    "record_matching_rules": true,
+    "record_reason_codes": true,
+    "record_decision": true,
+    "record_acl_result": true,
+    "record_timeline": true
+  }
+}
