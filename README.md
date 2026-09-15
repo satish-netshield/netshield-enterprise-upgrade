@@ -2,9 +2,7 @@
 
 NetShield Enterprise Upgrade extends the completed NetShield Phase 3 Automation project.
 
-It is a Python and SQLite security-automation project running inside a controlled Ubuntu VirtualBox sandbox.
-
-The project applies enterprise security concepts to simulated users, devices, applications, services, identity risks, access requests and network events.
+It is a Python and SQLite security-automation project running inside a controlled Ubuntu VirtualBox sandbox. Enterprise users, devices, applications and security events are simulated.
 
 Microsoft Entra, Defender, Sentinel, Conditional Access and XDR are design references only. No Microsoft tenants, cloud resources, production accounts, external targets or real response actions are used.
 
@@ -18,17 +16,19 @@ Completed Phase 3A V2 stages:
 - Stage 4 — Identity monitoring and risk detection
 - Stage 5 — Zero Trust and policy-based access decisions
 - Stage 6 — Network, Wi-Fi and access monitoring
+- Stage 7 — Endpoint monitoring and investigation
 
-The original Phase 3 components remain available and operational. Their detailed implementation remains in the original Phase 3 project.
+Stage 8 has saved configuration, database preparation and controlled inputs. Its vulnerability-management engine is not implemented or validated.
+
+The original Phase 3 components remain operational. This README concentrates on the enterprise upgrade.
 
 ## Technologies
 
 - Ubuntu VirtualBox sandbox
-- Python 3
+- Python 3 and `unittest`
 - SQLite
 - JSON and JSONL
 - Git and GitHub
-- Python `unittest`
 - Application and audit logging
 - SHA-256 evidence hashing
 
@@ -38,38 +38,31 @@ The original Phase 3 components remain available and operational. Their detailed
 
 ### What the component does
 
-Stage 1 adds simulated enterprise users, devices, applications and services to the existing NetShield foundation.
-
-It also adds retention settings, sensitive-field masking and V2 project metadata.
+Stage 1 adds simulated enterprise users, devices, applications and services, along with retention settings, sensitive-field masking and V2 metadata.
 
 ### Why it exists or how it behaves
 
-The upgrade reuses the original RBAC roles, automation ACL, database, logging, evidence controls and sandbox boundaries.
-
-This avoids creating a second security model that could disagree with the completed Phase 3 project.
+The upgrade reuses the established RBAC roles, automation ACL, database, logging, evidence controls and sandbox boundaries rather than creating a second security model.
 
 ### Information, rules and capabilities
 
 - Viewer, Analyst, Responder and Administrator roles
 - CYOD inventory consistency
 - Default-deny automation controls
-- Retention settings
-- Sensitive-field masking
-- Evidence preservation
-- Safe local testing boundaries
-- Phase 3 compatibility checks
+- Retention settings and sensitive-field masking
+- Evidence preservation and compatibility checks
 
-Automatic retention enforcement is not implemented yet. Original evidence remains unchanged when sensitive fields are masked in suitable output.
+Automatic retention enforcement is not implemented. Masking suitable output does not change original evidence.
 
 ### Workflow
 
-1. Load the existing settings and enterprise context.
-2. Reuse the established database and security controls.
-3. Register simulated users with the existing roles.
+1. Load settings and enterprise context.
+2. Reuse the database and security controls.
+3. Register simulated users with existing roles.
 4. Verify registered devices against the CYOD inventory.
 5. Apply retention and masking settings.
-6. Store V2 metadata and audit records.
-7. Revalidate the original foundation.
+6. Store metadata and audit records.
+7. Revalidate the foundation.
 
 ### Observed example output
 
@@ -84,19 +77,15 @@ V2 STAGE 1 VALIDATION: PASS (12/12)
 
 ### Testing Notes
 
-Stage 1 passed 12 out of 12 validation checks.
-
-Repeated initialisation did not duplicate user-role assignments.
+Validation passed. Repeated initialisation did not duplicate user-role assignments. Inventory consistency, masking and sensitive permissions were checked.
 
 ### Engineering observations
 
-`CYOD-002` was registered in the enterprise context but missing from the authoritative CYOD inventory. The inventory was corrected and a consistency test was added.
-
-Sensitive configuration permissions were also checked after tracked files were restored or created.
+`CYOD-002` appeared as registered in enterprise context but was missing from the authoritative inventory. The inventory was corrected and a consistency test was added.
 
 ### What I Learned
 
-Enterprise context must agree with the project’s existing authoritative records. Configuration, inventory and database state cannot become separate sources of truth.
+Enterprise context must agree with existing authoritative records.
 
 ---
 
@@ -104,73 +93,55 @@ Enterprise context must agree with the project’s existing authoritative record
 
 ### What the component does
 
-Stage 2 extends the existing pipeline to process identity-risk, access-policy, database, vulnerability, incident and response events.
-
-It preserves the original authentication, network, Wi-Fi, endpoint and application sources.
+Stage 2 adds identity-risk, access-policy, database, vulnerability, incident and response sources while preserving the original event sources.
 
 ### Why it exists or how it behaves
 
-Later security decisions need consistent and traceable data.
-
-Events are validated before acceptance, normalised to UTC and stored with their original evidence. Malformed and duplicate records remain outside the accepted-event table.
+Later decisions need consistent, traceable data. Events are validated before acceptance and stored with UTC timestamps and original evidence.
 
 ### Information, rules and capabilities
 
-- Common event schema
-- Schema-version and source-system fields
-- Complete source-name recognition
+- Common schema, schema version and source identification
 - Required-field and data-type validation
-- UTC normalisation
 - Malformed-event quarantine
 - Duplicate-event protection
 - Raw-event preservation
-- SQLite investigation indexes
-- Import statistics and failed-batch records
+- Investigation indexes, import totals and failed-batch records
 
 ### Workflow
 
-1. Apply the repeatable database migration.
-2. Generate separate JSONL source files.
-3. Validate each event.
-4. Convert accepted timestamps to UTC.
-5. Store the normalised and original event.
-6. Quarantine malformed records.
-7. Reject duplicates.
-8. Record batch totals, failures and audit events.
+1. Apply the repeatable migration.
+2. Generate and read JSONL source files.
+3. Validate records and normalise timestamps.
+4. Store accepted events and original evidence.
+5. Quarantine malformed records and reject duplicates.
+6. Record batch totals, failures and audit events.
 
 ### Observed example output
 
 ```text
-PASS: Generated 14 V2 events
-Source files: 6
-Expected valid events: 12
-Expected quarantined events: 2
-
 V2 STAGE 2 IMPORT: files=6 total=14 accepted=12 rejected=2 failed=0
-V2 STAGE 2 VALIDATION: PASS (13/13)
 ```
 
-A repeated import accepted no duplicate events.
+A repeated import produced:
+
+```text
+V2 STAGE 2 IMPORT: files=6 total=14 accepted=0 rejected=14 failed=0
+```
 
 ### Testing Notes
 
-Six files contained 14 events. Twelve valid events were accepted and two malformed events were quarantined.
-
-Stage 2 passed 13 out of 13 validation checks.
+Twelve valid events were stored and two malformed inputs were quarantined. Repeated import accepted no duplicates. A temporary unreadable file confirmed failed-batch recording.
 
 ### Engineering observations
 
-Compound source names were initially shortened incorrectly. Source recognition was corrected to use the complete supported name.
+Compound source names were initially shortened incorrectly. Complete-name recognition was added.
 
-Updating `schema.sql` did not upgrade the working database, so a repeatable migration was added.
-
-Validation was also corrected to count distinct malformed evidence after repeated imports.
+Updating `schema.sql` did not upgrade the working database, so a repeatable migration was added. Validation was also corrected to count distinct malformed evidence.
 
 ### What I Learned
 
-A database upgrade must work with both a new database and one that already contains project data.
-
-Malformed records, duplicate events and complete file failures are different outcomes and should be recorded separately.
+Malformed records, duplicate events and file failures need separate outcomes. Database upgrades must support both new and existing databases.
 
 ---
 
@@ -178,29 +149,27 @@ Malformed records, duplicate events and complete file failures are different out
 
 ### What the component does
 
-Stage 3 adds stronger device inventory and identity context for later security decisions.
+Stage 3 strengthens device inventory and identity context for later decisions.
 
 ### Why it exists or how it behaves
 
-Device ID and asset ID are the main identity references.
-
-Hostname, user, address, location and MAC address provide supporting evidence. A MAC address is not treated as proof of identity.
+Device ID and asset ID are the main references. User, hostname, address, location and MAC address provide supporting evidence.
 
 ### Information, rules and capabilities
 
 - Registered CYOD inventory
 - Unknown, unregistered, stale and mismatched device findings
 - Duplicate-safe alerts
-- Registration history
-- Controlled alert review
+- Registration and review history
+
+A MAC address is not treated as proof of identity.
 
 ### Workflow
 
-1. Synchronise the CYOD inventory with SQLite.
-2. Match relevant events with device and asset records.
+1. Synchronise the approved inventory with SQLite.
+2. Match relevant device events.
 3. Compare observed and expected context.
-4. Store duplicate-safe findings.
-5. Preserve registration and review history.
+4. Store findings and preserve review history.
 
 ### Observed example output
 
@@ -208,25 +177,19 @@ Hostname, user, address, location and MAC address provide supporting evidence. A
 PASS: One meaningful Stage 3 device alert is stored
 PASS: CYOD-003 is correctly classified as an unregistered device
 PASS: Approved CYOD-002 activity creates no false alert
-
-Stage 3 validation: 19/19 checks passed
 ```
 
 ### Testing Notes
 
-Three relevant events produced one High-severity Unregistered Device alert.
-
-Repeated detection created no duplicate alert.
+Three relevant events produced one High-severity Unregistered Device alert. Repeated detection created no duplicate alert.
 
 ### Engineering observations
 
-Non-device assets entered the first evaluation and were removed from the device boundary.
-
-`CYOD-003` was corrected from Unknown Device to Unregistered Device because it already existed in enterprise context.
+Non-device assets were excluded from device evaluation. `CYOD-003` was classified as known but unregistered rather than unknown.
 
 ### What I Learned
 
-Reliable device identity requires several matching pieces of evidence. A MAC address can support the result, but it should not decide identity by itself.
+Reliable device identity requires combined context, not a MAC address alone.
 
 ---
 
@@ -234,47 +197,30 @@ Reliable device identity requires several matching pieces of evidence. A MAC add
 
 ### What the component does
 
-Stage 4 detects identity and authentication risks and stores alerts with user, device, location, time and risk context.
+Stage 4 detects identity and authentication risks and supports authorised alert investigation.
 
 ### Why it exists or how it behaves
 
-A single sign-in may not provide enough information.
-
-Stage 4 combines related events and user baselines to identify repeated failures, shared-source activity, unusual sign-ins and risky account behaviour.
-
-V2 alerts use separate storage so the original Phase 3 identity implementation remains unchanged.
+Related events and user baselines provide more context than a single sign-in. V2 alerts use separate storage to preserve the original Phase 3 implementation.
 
 ### Information, rules and capabilities
 
-Stage 4 detects:
-
-- Repeated failed logins and possible brute force
-- Password spraying
-- Successful login after repeated failures
-- Multiple accounts accessed from one source
-- Impossible travel
-- New-device and unusual-location sign-ins
-- Abnormal access time
-- MFA failure or fatigue
-- Suspicious privilege changes
-- Dormant-account activity
-- Service-account interactive login
-- High sign-in and user risk
-
-Each alert retains severity, confidence, reason codes and supporting event evidence.
-
-Known VPN and approved-testing exceptions apply only when the required evidence matches.
+- Failed-login patterns, password spraying and success after failures
+- Multiple-account activity from one source
+- Impossible travel, new devices and unusual locations or access times
+- MFA failures, privilege changes and risky sign-ins
+- Dormant-account and service-account activity
+- Severity, confidence, reason codes and supporting evidence
+- Evidence-matched VPN and testing exceptions
 
 ### Workflow
 
-1. Load accepted authentication and identity-risk events.
-2. Group related events by identity, source and time window.
-3. Compare sign-ins with device, location and time baselines.
-4. Evaluate MFA, privilege, dormant-account and service-account activity.
-5. Apply approved exceptions.
-6. Assign severity, confidence and reason codes.
-7. Store duplicate-safe alerts.
-8. Record detection and review activity.
+1. Load authentication and identity-risk events.
+2. Group related activity by identity, source and time.
+3. Compare activity with configured baselines.
+4. Apply approved exceptions.
+5. Store duplicate-safe alerts.
+6. Record authorised investigation and classification.
 
 ### Observed example output
 
@@ -288,37 +234,17 @@ A repeated run produced:
 V2 STAGE 4 IDENTITY MONITORING: events=24 detections=16 new=0 existing=16 vpn_exceptions=2 testing_exceptions=1
 ```
 
-The controlled review produced:
-
-```text
-PASS: V2 Stage 4 identity alert reviewed
-Alert ID: 16
-Detection: Abnormal Access Time
-Username: viewer01
-Classification: False Positive
-Status: Closed
-Reviewed by: analyst01 (analyst)
-```
-
 ### Testing Notes
 
-The monitoring and alert-review groups passed 19 tests.
-
-The database retained 16 alerts and 16 unique alert keys after the repeated run.
-
-Stage 4 passed 12 out of 12 validation checks.
+The monitoring and review groups passed 19 tests. Stored alert keys remained unique. An Analyst classified the controlled abnormal-time alert as a False Positive and closed it without deleting evidence.
 
 ### Engineering observations
 
-The first normal events were created outside configured access hours. They were moved inside the approved period, while one deliberate late event remained for the abnormal-time rule.
-
-The resulting controlled alert was reviewed as a False Positive instead of being deleted.
+Normal test events initially fell outside configured access hours. Their timestamps were corrected while deliberate abnormal-time evidence was retained.
 
 ### What I Learned
 
-A correct rule can still produce misleading findings when test data does not match its configured baseline.
-
-Exceptions and false-positive reviews should remain visible and preserve the original alert.
+Test data must match its baseline. Exceptions and investigation outcomes should remain visible.
 
 ---
 
@@ -326,19 +252,13 @@ Exceptions and false-positive reviews should remain visible and preserve the ori
 
 ### What the component does
 
-Stage 5 adds a local policy engine that makes explainable access decisions from identity, role, device, application, location, network, MFA and risk evidence.
+Stage 5 evaluates identity, role, device, application, location, network, MFA and risk evidence to make local access decisions.
 
 ### Why it exists or how it behaves
 
-A recognised username or valid role is not enough to approve access.
-
-The complete request must satisfy the applicable policy. Unknown applications and unverifiable conditions follow default deny.
-
-This stage applies Zero Trust, RBAC and Conditional Access concepts locally. It does not reproduce Microsoft Conditional Access.
+A recognised username or role does not establish that a complete request is safe. Unknown applications and unverifiable conditions follow default deny.
 
 ### Information, rules and capabilities
-
-The engine supports:
 
 | Outcome | Meaning |
 |---|---|
@@ -347,24 +267,16 @@ The engine supports:
 | Challenge | Stronger verification or evidence was required. |
 | Restrict | Access should be limited because of serious risk. |
 
-Every decision records its winning policy, reason codes, evaluated evidence and ACL result.
-
-When policies have equal priority, the more restrictive outcome wins:
-
-1. Deny
-2. Restrict
-3. Challenge
-4. Allow
+Decisions retain the winning policy, reasons, evidence and ACL result. Equal-priority policies use the order Deny, Restrict, Challenge, Allow.
 
 ### Workflow
 
-1. Load the request and supporting identity context.
-2. Check temporary restrictions and role permissions.
-3. Evaluate location, network, device, MFA and risk evidence.
-4. Collect all matching policies.
-5. Resolve policy priority.
-6. Check the proposed response against the automation ACL.
-7. Store the duplicate-safe decision and audit record.
+1. Load the request and supporting context.
+2. Check restrictions and role permissions.
+3. Evaluate device, network, location, MFA and risk.
+4. Resolve matching policy priorities.
+5. Check proposed responses against the automation ACL.
+6. Store the decision and audit record.
 
 ### Observed example output
 
@@ -380,28 +292,15 @@ V2 STAGE 5 ACCESS POLICY: requests=9 decisions=9 new=0 existing=9 allow=2 deny=4
 
 ### Testing Notes
 
-The controlled requests produced:
-
-- 2 Allow decisions
-- 4 Deny decisions
-- 2 Challenge decisions
-- 1 Restrict decision
-
-The database retained nine decisions and nine unique decision keys.
-
-Stage 5 tests passed 13 tests. Stage 5 validation passed 14 out of 14 checks.
+Thirteen Stage 5 tests passed. Every request retained one unique decision. Approved VPN evidence did not bypass unrelated role, device, MFA or risk rules.
 
 ### Engineering observations
 
-Policy priority and equal-priority conflict handling were made explicit.
-
-An approved VPN bypassed only its matching network restriction. It did not bypass role, device, MFA or risk rules.
-
-Response permissions remained separate from access decisions. The account-restriction action required approval and was not executed.
+Policy priority and restrictive tie-breaking were made explicit. Proposed account restriction remained approval-required and was not executed.
 
 ### What I Learned
 
-An access result needs more than an outcome. Its evidence, winning policy, reason codes and response permission must remain visible.
+An access decision must explain its evidence and policy without gaining permission to perform a response.
 
 ---
 
@@ -409,125 +308,140 @@ An access result needs more than an outcome. Its evidence, winning policy, reaso
 
 ### What the component does
 
-Stage 6 detects suspicious network and Wi-Fi activity and creates explainable access decisions supported by device, connection and policy context.
-
-It also stores a connection timeline and supports controlled false-positive review.
+Stage 6 detects suspicious network and wireless activity, produces access decisions and stores a connection timeline.
 
 ### Why it exists or how it behaves
 
-Network activity can match several security conditions at the same time.
+One event can match several conditions. The detector preserves matching reasons while producing one deterministic decision.
 
-Stage 6 retains every matching rule and reason code, then applies one deterministic outcome.
-
-Wireless-policy and rogue-access-point scenarios use controlled simulated logs. No wireless attack, firewall change or external network action is performed.
+Wireless scenarios use simulated logs. No wireless attack, firewall change or external network action is performed.
 
 ### Information, rules and capabilities
 
-Stage 6 detects:
+- Suspicious IP, allowlist and blocklist matching
+- Port scans, repeated connections and abnormal activity
+- Restricted ports, services and wired access
+- Unknown devices and possible MAC reuse or spoofing indicators
+- WPA3 violations and simulated WPA2 downgrades
+- Rogue-access-point and Wi-Fi zone indicators
+- Approved VPN and testing exceptions
+- Allow, Deny, Challenge and Restrict decisions
+- Connection timeline and false-positive review
 
-- Suspicious IP addresses
-- Allowlist and blocklist matches
-- Port scanning
-- Repeated and abnormal connections
-- Restricted ports and services
-- Unknown CYOD devices
-- MAC reuse or possible spoofing
-- WPA3 policy violations
-- WPA2 downgrade attempts
-- Rogue access points
-- Wi-Fi zone violations
-- Unknown wired devices
-- Restricted wired access
-
-Every event receives Allow, Deny, Challenge or Restrict.
-
-The decision order is:
-
-1. Deny
-2. Restrict
-3. Challenge
-4. Allow
-
-Device ID and asset ID remain the primary device references. A MAC address remains supporting evidence only.
+Decision precedence is Deny, Restrict, Challenge, Allow. MAC addresses remain supporting evidence.
 
 ### Workflow
 
-1. Load controlled network and Wi-Fi events.
-2. Compare addresses with approved, restricted and blocked ranges.
-3. Evaluate connection counts, ports, services and access times.
-4. Match device and asset evidence with the CYOD inventory.
-5. Check wireless security, access points and zones.
-6. Apply approved VPN and testing exceptions.
-7. Create alerts with severity, confidence and reason codes.
-8. Produce one access decision for every event.
-9. Validate proposed responses against the automation ACL.
-10. Store alerts, decisions and timeline records with duplicate protection.
-11. Record authorised alert reviews.
+1. Load network and Wi-Fi events.
+2. Evaluate addresses, connection patterns, ports and services.
+3. Match device context and check wireless policies.
+4. Apply approved exceptions.
+5. Create alerts and one decision per event.
+6. Check proposed responses against the ACL.
+7. Store duplicate-safe results and authorised reviews.
 
 ### Observed example output
-
-The first monitoring run produced:
 
 ```text
 V2 STAGE 6 NETWORK MONITORING: events=34 alerts=18 new_alerts=18 existing_alerts=0 decisions=34 new_decisions=34 existing_decisions=0 timeline_new=34 timeline_existing=0 allow=4 deny=18 challenge=11 restrict=1 vpn_exceptions=1 testing_exceptions=1
 ```
 
-A repeated run produced:
+### Testing Notes
+
+Twenty-seven network and seven Wi-Fi events produced 18 alerts, 34 decisions and 34 timeline records. Repeated monitoring created no duplicates.
+
+The focused group passed 23 tests. An Analyst closed the controlled Abnormal Connection Pattern alert as a False Positive, preserving its evidence and audit history.
+
+### Engineering observations
+
+A fixed decision order resolved conflicting conditions. The Restrict response was mapped to the existing approval-required `apply_ubuntu_firewall_rule` action rather than an identity action.
+
+### What I Learned
+
+Several valid findings can support one final decision. A network decision does not automatically authorise a network change.
+
+---
+
+## Stage 7 — Endpoint Monitoring and Investigation
+
+### What the component does
+
+Stage 7 evaluates endpoint, device, process, user and activity evidence. It stores alerts, an activity timeline, simulated isolation records and investigation outcomes.
+
+### Why it exists or how it behaves
+
+Endpoint health or a process name alone cannot explain all suspicious activity. The engine evaluates several rules and retains the evidence behind each finding.
+
+Critical alerts for the same device support one consolidated isolation request. Approval changes only the project record; it performs no real isolation.
+
+### Information, rules and capabilities
+
+- Endpoint health, compliance and device-risk states
+- Suspicious or unapproved processes and unexpected owners
+- Suspicious parent-child process relationships
+- High CPU activity
+- Three process crashes or restarts within eight minutes
+- Suspicious command and possible persistence indicators
+- Unexpected file-hash changes
+- Exact administrative and testing exceptions
+- Endpoint timeline and simulated post-isolation activity
+- Authorised isolation approval and false-positive review
+
+Isolation uses the existing `quarantine_device` ACL action. Requests begin as `approval_required`. An authorised Responder or Administrator can record `simulated_isolated`.
+
+Network changes, process termination and real device isolation remain disabled.
+
+### Workflow
+
+1. Load accepted endpoint events and device inventory.
+2. Evaluate health, compliance, risk and process rules.
+3. Apply exact approved exceptions.
+4. Store alerts and timeline evidence.
+5. Consolidate Critical alerts into a device-level request.
+6. Record authorised simulated approval.
+7. Continue evaluating controlled endpoint activity.
+8. Record alert investigation without deleting evidence.
+9. Repeat monitoring and verify stored states remain unchanged.
+
+### Observed example output
+
+After approval, the runner reported the stored state:
 
 ```text
-V2 STAGE 6 NETWORK MONITORING: events=34 alerts=18 new_alerts=0 existing_alerts=18 decisions=34 new_decisions=0 existing_decisions=34 timeline_new=0 timeline_existing=34 allow=4 deny=18 challenge=11 restrict=1 vpn_exceptions=1 testing_exceptions=1
+[ISOLATION RECORD] device=CYOD-002 | action=quarantine_device | status=simulated_isolated | approved_by=responder01 | real_action=False | network_change=False
 ```
 
-The controlled alert review produced:
+Repeated monitoring produced:
 
 ```text
-PASS: V2 Stage 6 network alert reviewed
-Alert ID: 18
-Detection: Abnormal Connection Pattern
-Device: CYOD-002
-IP address: 192.0.2.20
-Classification: False Positive
-Status: Closed
-Reviewed by: analyst01 (analyst)
+V2 STAGE 7 ENDPOINT MONITORING: events=26 alerts=26 new_alerts=0 existing_alerts=26 detection_types=13 critical=10 high=13 medium=3 low=0 timeline_new=0 timeline_existing=26 isolation_requests=1 isolation_new=0 isolation_existing=1 approved_exceptions=2 real_actions=0 network_changes=0
 ```
 
 ### Testing Notes
 
-Two source files contained 34 unique events:
+Seventeen Stage 7 tests passed.
 
-- 27 network events
-- 7 Wi-Fi events
+The controlled dataset produced 26 alerts across 13 detection types and 26 unique timeline records. One isolation record preserved all 10 Critical alert keys. Two approved exceptions created no alerts.
 
-The detector produced 18 alerts across all 13 configured detection types.
+Analyst isolation approval and Viewer alert review were rejected. Responder approval succeeded; repeated approval was rejected.
 
-The 34 decisions contained:
+An Analyst reviewed the crash-and-restart alert as a False Positive and closed it. Repeated monitoring preserved the classification, notes and isolation approval.
 
-- 4 Allow
-- 18 Deny
-- 11 Challenge
-- 1 Restrict
-
-All 34 timeline records remained unique after the repeated run.
-
-One approved VPN event and one approved-testing event were allowed with their exception reasons preserved.
-
-The Stage 6 focused tests passed 23 tests. Stage 6 validation passed 15 out of 15 checks.
+Post-isolation detection uses controlled simulated activity context; it does not prove a real device disconnection.
 
 ### Engineering observations
 
-The first policy did not define which outcome should win when one event matched several rules. A fixed decision order was added.
+The first run created 10 isolation requests for one device. They were consolidated into one request while preserving supporting alert keys.
 
-The first Restrict mapping proposed an identity action. It was changed to the network-related `apply_ubuntu_firewall_rule` action already controlled by the automation ACL.
+An unsupported approval status failed the database constraint. The implementation was corrected to use the established `simulated_isolated` value.
 
-The rogue-access-point event produced Restrict, but the proposed firewall action remained approval-required and was not executed.
+The runner initially displayed a calculated pending status after approval. It was corrected to read the stored record.
 
 ### What I Learned
 
-One event can match several valid security rules. Keeping every reason while producing one predictable outcome makes the decision easier to explain.
+Several Critical alerts can support one response request without losing evidence.
 
-A network decision does not automatically authorise a response.
-
-MAC reuse can support an investigation, but it does not confirm device identity or spoofing by itself.
+The complete database definition and stored state must agree with approval logic and printed output. A reached detection threshold still requires investigation rather than an assumed malicious cause.
 
 ---
 
@@ -535,95 +449,75 @@ MAC reuse can support an investigation, but it does not confirm device identity 
 
 ### Clean-state validation workflow
 
-The Phase 3A V2 validation followed this sequence:
+The project’s validation sequence covers:
 
-1. Compile the Python source.
-2. Initialise the V2 foundation.
-3. Apply the repeatable database migrations.
-4. Generate and import controlled source events.
-5. Run device, identity, access-policy and network monitoring.
-6. Review controlled false-positive alerts.
-7. Repeat migrations, detections and policy runs.
-8. Run focused tests for each V2 stage.
-9. Run the complete unit-test suite.
-10. Run the V2 Stage 1–6 validators.
-11. Run the original Phase 3 Stage 11 validator.
-12. Check SQLite integrity and foreign keys.
-13. Check repository whitespace, permissions and staged files.
+1. Compile Python source.
+2. Initialise the foundation and apply repeatable migrations.
+3. Generate and import controlled events.
+4. Run device, identity, access-policy, network and endpoint monitoring.
+5. Record controlled reviews and simulated isolation approval.
+6. Repeat imports, monitoring and storage checks.
+7. Run focused tests and the complete unit-test suite.
+8. Run V2 Stage 1–7 validators.
+9. Run the original Phase 3 full-project validator.
+10. Check database integrity, foreign keys, permissions and repository whitespace.
+
+The final Stage 7 regression checked the populated project database. Earlier clean-state checks remain part of the original Phase 3 validation.
 
 ### Genuine end-to-end results
 
 ```text
 V2 STAGE 1 VALIDATION: PASS (12/12)
-V2 STAGE 2 VALIDATION: PASS (13/13)
+V2 STAGE 2 VALIDATION: PASS (13//13)
 Stage 3 validation: 19/19 checks passed
 V2 STAGE 4 VALIDATION: PASS (12/12)
 V2 STAGE 5 VALIDATION: PASS (14/14)
 V2 STAGE 6 VALIDATION: PASS (15/15)
+V2 STAGE 7 VALIDATION: PASS (14/14)
 
-Ran 174 tests
+Ran 191 tests in 2.060s
 
 OK
 
 STAGE 11 VALIDATION: PASS
-
-DATABASE INTEGRITY
-ok
 ```
 
-An earlier project-wide correction was verified with 151 tests passed with zero unclosed-database warnings.
+SQLite integrity returned `ok`; the foreign-key check returned no violations. Python compilation and `git diff --check` completed without errors.
+
+Earlier Stage 4–5 regression result:
+
+151 tests passed with zero unclosed-database warnings.
+
+The Stage 11 result belongs to the original Phase 3 project. It does not indicate completion of V2 Stage 8.
 
 ### Problems discovered
 
-Testing found genuine integration and decision problems:
+The main integration problems involved inconsistent inventory context, incomplete source-name recognition, existing-database upgrades and validators checking unrelated or repeated evidence.
 
-- Enterprise context and device inventory did not initially agree.
-- Compound source names were identified incorrectly.
-- The tracked schema did not upgrade the existing database.
-- Repeated malformed inputs affected validator totals.
-- Non-device assets entered device evaluation.
-- A known unregistered device was classified as unknown.
-- Normal identity events were created outside normal access hours.
-- A Stage 3 validator searched beyond its intended evidence.
-- Access and network-policy conflicts needed deterministic priority.
-- The first Stage 6 Restrict mapping used an identity action.
+Decision work also exposed conflicting policy outcomes, an unsuitable network-response mapping, repeated isolation requests and disagreement between calculated and stored response state.
 
 ### How the problems were fixed
 
-- Enterprise context and the CYOD inventory were aligned.
-- Complete source names were recognised.
-- Repeatable migrations were added.
-- Validators were limited to distinct and stage-specific evidence.
-- Device evaluation was limited to relevant device context.
-- Known unregistered activity received its own classification.
-- Normal identity events were moved inside the approved period.
-- Fixed decision precedence was added.
-- The Stage 6 Restrict mapping was changed to an approval-controlled network action.
+Authoritative records were aligned, source recognition was corrected and repeatable migrations were added.
+
+Validators were limited to distinct, stage-specific evidence. Policy precedence and ACL mappings were clarified. Endpoint requests were consolidated, the established approval status was reused and the runner was changed to report stored state.
 
 ### Engineering observations
 
-The most important problems appeared where a new stage reused data or assumptions from earlier work.
+Repeated execution confirmed more than duplicate protection: it also preserved closed reviews, approval details and original evidence.
 
-Valid later-stage evidence was not removed to satisfy an earlier validator. The validator boundary was corrected instead.
-
-Repeated execution confirmed duplicate protection across migrations, accepted events, alerts, access decisions and timeline records.
+Later-stage data was not removed simply to satisfy earlier validators. Their evidence boundaries were corrected instead.
 
 ### What I Learned
 
-Extending a working security project requires compatibility across configuration, data, permissions, validation and runtime behaviour.
+A working upgrade requires configuration, database constraints, security rules, validation and operational output to agree.
 
-Security results are easier to investigate when supporting evidence, reason codes, exceptions and response permissions remain visible.
+Findings are easier to investigate when their reasons, exceptions, review history and response permissions remain visible.
 
 ### Next expansion scope
 
-Later work can use the identity, device, access-policy and network evidence for:
+Stage 8 will add asset-linked vulnerability and application-security findings, prioritisation, remediation tracking, review and evidence linking.
 
-- Wider cross-source correlation
-- Vulnerability prioritisation
-- Incident creation and investigation
-- Approval-controlled response
-- Recovery verification
-- Continuous monitoring
-- Enterprise reporting
+Its saved preparation is not a completed implementation. A vulnerability alone will not automatically become an incident; exploitation activity or other supporting evidence is required.
 
-The project will remain local, controlled and simulated unless a future phase introduces an explicitly approved integration.
+The project remains local, controlled and simulated.

@@ -23,6 +23,8 @@ python -m unittest discover -s tests
 python -m scripts.validate_stage11
 ```
 
+The Stage 8–10 results printed by the original Stage 11 validator refer to the completed Phase 3 project, not the pending V2 stages.
+
 ## Stage 1 — Enterprise project foundation
 
 Initialise and validate the V2 foundation:
@@ -694,9 +696,395 @@ grep -n '198.51.100.66' \
   data/blocklists/ip_blocklist.txt
 ```
 
+## Stage 7 — Endpoint monitoring and investigation
+
+### Existing shared preparation
+
+Stage 7 and Stage 8 initially shared database preparation, event generation and import. These commands prepare both stages; they do not run a Stage 8 vulnerability engine.
+
+The preparation is already complete. Repeat it only when checking migration or import behaviour, or rebuilding the controlled inputs.
+
+```bash
+python -m scripts.initialize_v2_stage7_8
+python -m scripts.initialize_v2_stage7_8
+
+python -m scripts.generate_v2_stage7_8_events
+python -m scripts.import_v2_stage7_8_events
+```
+
+Run the shared import again to check duplicate-event protection:
+
+```bash
+python -m scripts.import_v2_stage7_8_events
+```
+
+Review the prepared source files:
+
+```bash
+find data/raw/v2/stage7_8 \
+  -maxdepth 1 \
+  -type f \
+  -name '*.jsonl' \
+  -printf '%f %s bytes\n' | sort
+
+wc -l data/raw/v2/stage7_8/*.jsonl
+```
+
+Review accepted Stage 7 endpoint events only:
+
+```bash
+sqlite3 -header -column database/netshield.db "
+SELECT
+  source_file,
+  source_type,
+  COUNT(*) AS stored_events,
+  COUNT(DISTINCT source_event_id) AS unique_events
+FROM security_events
+WHERE source_file = 'endpoint_v2_stage7_8_events.jsonl'
+GROUP BY source_file, source_type;
+"
+```
+
+### Endpoint monitoring
+
+Run Stage 7 endpoint monitoring:
+
+```bash
+python -m scripts.run_v2_stage7_endpoint_monitoring
+```
+
+Run it again to check duplicate protection and preservation of reviews and approvals:
+
+```bash
+python -m scripts.run_v2_stage7_endpoint_monitoring
+```
+
+Run the Stage 7 tests and validator:
+
+```bash
+python -m unittest -v \
+  tests.test_v2_stage7_endpoint_monitoring
+
+python -m scripts.validate_v2_stage7
+```
+
+### Endpoint alerts and timeline
+
+Review stored endpoint alerts:
+
+```bash
+sqlite3 -header -column database/netshield.db "
+SELECT
+  alert_id,
+  source_event_ids,
+  detection_type,
+  severity,
+  confidence,
+  device_id,
+  process_name,
+  process_owner,
+  parent_process_name,
+  reason_codes,
+  status,
+  classification
+FROM v2_endpoint_alerts
+ORDER BY alert_id;
+"
+```
+
+Review alert totals:
+
+```bash
+sqlite3 -header -column database/netshield.db "
+SELECT
+  detection_type,
+  severity,
+  COUNT(*) AS alert_count
+FROM v2_endpoint_alerts
+GROUP BY detection_type, severity
+ORDER BY detection_type, severity;
+"
+```
+
+Review the crash or restart evidence:
+
+```bash
+sqlite3 -header -column database/netshield.db "
+SELECT
+  alert_id,
+  detection_type,
+  first_event_time,
+  last_event_time,
+  source_event_ids,
+  json_extract(
+    evidence,
+    '$.observations.event_count'
+  ) AS event_count,
+  json_extract(
+    evidence,
+    '$.observations.configured_window_minutes'
+  ) AS configured_window_minutes,
+  json_extract(
+    evidence,
+    '$.observations.observed_window_minutes'
+  ) AS observed_window_minutes,
+  status,
+  classification
+FROM v2_endpoint_alerts
+WHERE detection_type = 'Repeated Process Crash or Restart';
+"
+```
+
+Review the endpoint activity timeline:
+
+```bash
+sqlite3 -header -column database/netshield.db "
+SELECT
+  source_event_id,
+  event_time,
+  event_type,
+  device_id,
+  username,
+  health_state,
+  compliance_state,
+  device_risk_state,
+  process_name,
+  process_owner,
+  parent_process_name,
+  cpu_percent,
+  isolation_state,
+  status
+FROM v2_endpoint_activity_timeline
+ORDER BY event_time, source_event_id;
+"
+```
+
+Check Stage 7 duplicate protection:
+
+```bash
+sqlite3 -header -column database/netshield.db "
+SELECT
+  COUNT(*) AS stored_alerts,
+  COUNT(DISTINCT alert_key) AS unique_alert_keys
+FROM v2_endpoint_alerts;
+
+SELECT
+  COUNT(*) AS timeline_events,
+  COUNT(DISTINCT source_event_id) AS unique_timeline_events
+FROM v2_endpoint_activity_timeline;
+
+SELECT
+  COUNT(*) AS isolation_records,
+  COUNT(DISTINCT isolation_key) AS unique_isolation_keys
+FROM v2_endpoint_isolation_actions;
+"
+```
+
+### Simulated isolation and approval
+
+Review the current isolation records before performing any approval:
+
+```bash
+sqlite3 -header -column database/netshield.db "
+SELECT
+  isolation_id,
+  device_id,
+  action,
+  acl_control_level,
+  status,
+  approved_by,
+  approved_at,
+  json_extract(
+    evidence,
+    '$.alert_count'
+  ) AS critical_alerts,
+  json_array_length(
+    json_extract(evidence, '$.alert_keys')
+  ) AS preserved_alert_keys,
+  network_state_changed,
+  real_action_executed
+FROM v2_endpoint_isolation_actions
+ORDER BY isolation_id;
+"
+```
+
+Review the approval command options:
+
+```bash
+python -m scripts.approve_v2_stage7_endpoint_isolation --help
+```
+
+The following command was used to approve the controlled request. It updates the project record only and performs no real isolation.
+
+Record `11` is already approved in the current database. Do not repeat this as a routine validation command. For another database, verify the request ID and pending status first.
+
+```bash
+python -m scripts.approve_v2_stage7_endpoint_isolation \
+  --isolation-id 11 \
+  --actor responder01 \
+  --notes "Reviewed the 10 Critical endpoint alerts and approved the simulated isolation record. No real isolation or network change was performed."
+```
+
+Review approval evidence and audit history:
+
+```bash
+sqlite3 -header -column database/netshield.db "
+SELECT
+  isolation_id,
+  device_id,
+  status,
+  approved_by,
+  approved_at,
+  json_extract(
+    evidence,
+    '$.simulated_approval.approver_role'
+  ) AS approver_role,
+  json_extract(
+    evidence,
+    '$.simulated_approval.notes'
+  ) AS approval_notes,
+  network_state_changed,
+  real_action_executed
+FROM v2_endpoint_isolation_actions
+ORDER BY isolation_id;
+"
+
+sqlite3 -header -column database/netshield.db "
+SELECT
+  actor,
+  action,
+  target,
+  result,
+  details
+FROM audit_events
+WHERE action = 'approve_v2_stage7_endpoint_isolation'
+ORDER BY event_id DESC;
+"
+```
+
+### Endpoint-alert investigation
+
+Review the endpoint-alert review options:
+
+```bash
+python -m scripts.review_v2_stage7_endpoint_alert --help
+```
+
+The following command was used for the controlled false-positive investigation. It changes the alert classification and investigation state.
+
+Alert `18` is already closed in the current database. Do not repeat this as a routine validation command. Verify the alert ID, status and evidence before reviewing another record.
+
+```bash
+python -m scripts.review_v2_stage7_endpoint_alert \
+  --alert-id 18 \
+  --actor analyst01 \
+  --classification "False Positive" \
+  --notes "Reviewed three crash and restart events within seven minutes. The detected process is approved, and the registered device is compliant with a low-risk state. No malicious activity is established by this alert evidence."
+```
+
+Review the stored investigation:
+
+```bash
+sqlite3 -header -column database/netshield.db "
+SELECT
+  alert_id,
+  detection_type,
+  source_event_ids,
+  device_id,
+  process_name,
+  status,
+  classification,
+  investigation_notes,
+  reviewed_by,
+  reviewed_at
+FROM v2_endpoint_alerts
+WHERE detection_type = 'Repeated Process Crash or Restart';
+"
+
+sqlite3 -header -column database/netshield.db "
+SELECT
+  actor,
+  action,
+  target,
+  result,
+  details
+FROM audit_events
+WHERE action = 'review_v2_stage7_endpoint_alert'
+ORDER BY event_id DESC;
+"
+```
+
+### Configuration, schema and completion records
+
+Review the Stage 7 configuration and permission:
+
+```bash
+python -m json.tool config/v2_endpoint_monitoring.json
+
+stat -c '%a %n' \
+  config/v2_endpoint_monitoring.json
+```
+
+Review the tracked Stage 7 table definitions:
+
+```bash
+grep -n \
+  'CREATE TABLE IF NOT EXISTS v2_endpoint_' \
+  database/schema.sql
+```
+
+Inspect complete working table definitions, including constraints:
+
+```bash
+sqlite3 database/netshield.db "
+SELECT sql
+FROM sqlite_master
+WHERE type = 'table'
+  AND name IN (
+    'v2_endpoint_alerts',
+    'v2_endpoint_activity_timeline',
+    'v2_endpoint_isolation_actions'
+  )
+ORDER BY name;
+"
+```
+
+Review Stage 7 metadata and audit records:
+
+```bash
+sqlite3 -header -column database/netshield.db "
+SELECT key, value
+FROM system_metadata
+WHERE key = 'v2_stage_7_status';
+
+SELECT
+  actor,
+  action,
+  target,
+  result,
+  details
+FROM audit_events
+WHERE action IN (
+  'initialize_v2_stage7_8',
+  'import_v2_stage7_8_events',
+  'run_v2_stage7_endpoint_monitoring',
+  'approve_v2_stage7_endpoint_isolation',
+  'review_v2_stage7_endpoint_alert'
+)
+ORDER BY event_id DESC
+LIMIT 10;
+"
+```
+
+## Stage 8 preparation status
+
+Stage 8 configuration, database preparation and controlled source events exist from the initial shared preparation.
+
+The V2 vulnerability-processing engine has not been implemented or validated. No V2 Stage 8 engine or validator command is included here.
+
 ## Phase 3A V2 focused tests
 
-Run the V2 Stage 1–6 test groups:
+Run the V2 Stage 1–7 test groups:
 
 ```bash
 python -m unittest -v \
@@ -708,7 +1096,8 @@ python -m unittest -v \
   tests.test_v2_stage4_identity_review \
   tests.test_v2_stage5_access_policy \
   tests.test_v2_stage6_network_monitoring \
-  tests.test_v2_stage6_network_alert_review
+  tests.test_v2_stage6_network_alert_review \
+  tests.test_v2_stage7_endpoint_monitoring
 ```
 
 Run the SQLite connection tests:
@@ -727,6 +1116,7 @@ python -m scripts.validate_v2_stage3
 python -m scripts.validate_v2_stage4
 python -m scripts.validate_v2_stage5
 python -m scripts.validate_v2_stage6
+python -m scripts.validate_v2_stage7
 ```
 
 ## Complete project validation
@@ -756,6 +1146,7 @@ python -m scripts.validate_v2_stage3
 python -m scripts.validate_v2_stage4
 python -m scripts.validate_v2_stage5
 python -m scripts.validate_v2_stage6
+python -m scripts.validate_v2_stage7
 
 python -m scripts.validate_stage11
 ```
@@ -826,15 +1217,15 @@ Review the working tree without opening the Git pager:
 git status --short --branch
 git --no-pager diff --stat
 git --no-pager diff
-git log --oneline --decorate -5
+git --no-pager log --oneline --decorate -5
 ```
 
-Review staged changes:
+Review staged changes without opening the Git pager:
 
 ```bash
 git diff --cached --check
-git diff --cached --stat
-git diff --cached --name-status
+git --no-pager diff --cached --stat
+git --no-pager diff --cached --name-status
 ```
 
 Check that runtime files have not been staged:

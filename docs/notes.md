@@ -334,6 +334,8 @@ After the correction:
 - V2 Stage 5 passed 14 out of 14 checks.
 - The original Stage 11 full-project validation passed.
 
+These are the results from the Stage 4–5 connection correction. Later regression totals are recorded under their respective stages.
+
 ### Lesson
 
 A passing functional test suite does not prove that resources are handled correctly. Runtime warnings can expose reliability problems that become harder to correct as the project grows.
@@ -538,10 +540,259 @@ Controlled wireless logs allow the security logic to be tested without interacti
 
 ---
 
+## Stage 7 — Endpoint monitoring and investigation
+
+### Observations and decisions
+
+- Stage 7 used 26 controlled endpoint events.
+- Device, process, owner, parent-child, command, CPU, file and inventory evidence were retained for investigation.
+- The agreed crash or restart threshold was changed from ten minutes to three events within eight minutes.
+- Administrative and testing exceptions required exact configured evidence.
+- Critical alerts used the existing approval-required `quarantine_device` action.
+- Isolation remained simulation-only. No Wi-Fi, firewall, network, process or operating-system changes were performed.
+- Stage 7 and Stage 8 preparation initially shared a migration and event pipeline, but implementation continued one stage at a time.
+
+### Shared preparation boundary
+
+The first Stage 7–8 migration created six tables and 29 indexes. Running it again created zero tables and zero indexes.
+
+The shared source set contained 42 events:
+
+- 26 endpoint events for Stage 7
+- 6 application-security events prepared for Stage 8
+- 10 vulnerability events prepared for Stage 8
+
+The first import accepted all 42 records with no rejected events or failed files.
+
+The repeated import accepted zero records and rejected all 42 as duplicates. The accepted-event total remained 42.
+
+The 16 Stage 8 records are preparation only. They do not demonstrate a completed vulnerability-processing engine.
+
+The SQL injection lab asset `AST-WEB-001` was added to enterprise context as a sandbox web-application asset with Medium criticality, not as a CYOD device. Stage 1 tests and validation still passed.
+
+### Metadata-query finding
+
+An inspection query used `project_metadata`, which does not exist in the established database.
+
+The project uses `system_metadata`. The query was corrected without creating another metadata table.
+
+### Incomplete source-file finding
+
+The event generator initially contained duplicated text in an `endpoint_event` call and failed syntax checking.
+
+A later endpoint-engine replacement ended inside a return annotation at line 1204. The file tail confirmed that the pasted file was incomplete.
+
+The source files were corrected and checked with Python compilation before execution.
+
+The complete endpoint-engine replacement then passed checks for alert counts, Critical alerts, consolidated requests and simulation-only safety.
+
+### Detection results
+
+The controlled endpoint run produced:
+
+- 26 alerts
+- 13 detection types
+- 10 Critical alerts
+- 13 High alerts
+- 3 Medium alerts
+- 0 Low alerts
+- 26 activity-timeline records
+- 2 approved exceptions with no alerts
+
+One event could support several findings. For example, a suspicious process could also be unapproved or have a suspicious parent-child relationship. The alert total therefore did not represent 26 separate affected devices or attacks.
+
+### Crash or restart evidence
+
+The related events were:
+
+- `S78-END-017` at `09:40` UTC
+- `S78-END-018` at `09:44` UTC
+- `S78-END-019` at `09:47` UTC
+
+The stored observations showed:
+
+- Event count: 3
+- Configured window: 8 minutes
+- Observed window: 7 minutes
+
+The rule correctly created one Repeated Process Crash or Restart alert for `netshield_worker`.
+
+### Isolation-consolidation finding
+
+The first run created ten approval-required isolation requests for `CYOD-002`, one for each Critical alert.
+
+This repeated the device-level request unnecessarily.
+
+The request builder was changed to consolidate Critical alerts by device while preserving every supporting alert key.
+
+After the corrected engine passed its checks, the ten superseded pending simulation records were removed. A database backup was made before this correction.
+
+The next run created one consolidated request. It retained:
+
+- Device: `CYOD-002`
+- Action: `quarantine_device`
+- Control level: `approval_required`
+- Critical alert count: 10
+- Preserved Critical alert keys: 10
+- Real actions: 0
+- Network changes: 0
+
+Repeating the run created zero new requests and identified the consolidated request as existing.
+
+### Approval-status constraint finding
+
+The approval script initially attempted to store `simulated_approved`.
+
+SQLite rejected the update because the existing table constraint permits only:
+
+- `approval_required`
+- `simulated_isolated`
+- `rejected`
+
+The failed transaction left the request pending, with its original evidence intact.
+
+The script was corrected to use the established `simulated_isolated` status rather than changing the database constraint.
+
+This also matched the status already defined in the endpoint configuration.
+
+### Simulated approval result
+
+Analyst approval was rejected because the role lacked `execute_approved_containment`.
+
+`responder01` successfully approved isolation record `11`.
+
+The stored record showed:
+
+- Status: `simulated_isolated`
+- Approver role: `responder`
+- Critical alert count: 10
+- Preserved alert keys: 10
+- Network state changed: 0
+- Real action executed: 0
+
+Approval notes, actor and UTC approval time were retained. The successful action was recorded in the audit trail.
+
+A repeated approval attempt was rejected because the request was no longer awaiting approval.
+
+Focused tests also confirmed that an Administrator could approve the simulated record.
+
+### Runner-reporting finding
+
+After approval, the runner printed `approval_required` from the newly calculated request even though the stored record correctly remained `simulated_isolated`.
+
+The database had not reverted, but the console output was misleading.
+
+The runner was corrected to load the stored isolation record after processing.
+
+The verified output then showed:
+
+```text
+[ISOLATION RECORD] device=CYOD-002 | action=quarantine_device | status=simulated_isolated | approved_by=responder01 | real_action=False | network_change=False
+```
+
+The summary reported zero new isolation requests and one existing request.
+
+### Endpoint-alert query finding
+
+An inspection query requested `source_event_id` from the alert table.
+
+Endpoint alerts store `source_event_ids` as a JSON list because a finding can involve several events.
+
+The query was corrected to use the existing plural field. No schema change was required.
+
+### False-positive investigation
+
+Alert `18`, Repeated Process Crash or Restart, was reviewed by `analyst01`.
+
+Its evidence recorded an approved `netshield_worker` process and a registered, compliant device with a low-risk inventory state.
+
+The threshold match was valid. The security investigation classified the alert as a False Positive and closed it with these notes:
+
+```text
+Reviewed three crash and restart events within seven minutes. The detected process is approved, and the registered device is compliant with a low-risk state. No malicious activity is established by this alert evidence.
+```
+
+The notes did not claim that maintenance or service-recovery work had occurred, because that was not established by the supplied events.
+
+Viewer review was rejected. Repeated review of the closed alert was also rejected.
+
+The original source-event references, severity, confidence, investigation notes, reviewer and UTC review time remained available. The successful review was audited.
+
+### Repeated-run result
+
+After approval and false-positive review, the monitoring run reported:
+
+- 26 detections
+- 0 new alerts and 26 existing alerts
+- 0 new timeline records and 26 existing records
+- 0 new isolation requests and 1 existing request
+- 2 approved exceptions
+- 0 real actions
+- 0 network changes
+
+Alert `18` remained Closed with its False Positive classification.
+
+Isolation record `11` remained `simulated_isolated` with `responder01` recorded as approver.
+
+The controlled post-isolation event remained monitored. This represents supplied simulation evidence, not proof of real network isolation.
+
+### Tracked-schema result
+
+The working migration had already created the Stage 7 tables, but they were initially absent from `database/schema.sql`.
+
+Only the Stage 7 objects were added:
+
+- 3 endpoint tables
+- 16 indexes
+
+The combined tracked schema was executed successfully against a temporary in-memory database before being saved.
+
+Stage 8 tables and indexes were not added to the tracked schema during this step.
+
+### Final testing result
+
+The saved Stage 7 test file compiled successfully.
+
+All 17 focused tests passed.
+
+Stage 7 validation passed 14 out of 14 checks.
+
+The final project regression produced:
+
+```text
+Ran 191 tests in 2.060s
+
+OK
+```
+
+The warning-enabled regression reported zero unclosed-database warnings.
+
+V2 Stages 1–7 passed their validators.
+
+The original Phase 3 Stage 11 full-project validation passed. Its references to Stages 8–10 concern the completed original Phase 3 project, not the pending V2 Stage 8 implementation.
+
+SQLite integrity checking returned `ok`, and foreign-key checking reported no violations.
+
+Python syntax compilation and `git diff --check` completed without errors.
+
+### Lessons
+
+Several Critical findings on one device can support one isolation request without losing their separate evidence.
+
+The full table definition must be inspected before choosing a stored status. Column listings alone do not show SQLite `CHECK` constraints.
+
+Printed output must reflect the stored approval or investigation state rather than only the current detector calculation.
+
+A process crash pattern can be correctly detected without establishing malicious activity. Investigation notes must distinguish observed symptoms from conclusions and must not invent a maintenance explanation.
+
+Repeated processing should preserve reviews and approvals, not reset them.
+
+Compilation and file-tail checks are useful when a complete source file is transferred through copy-paste.
+
+---
+
 ## Next improvement
 
-Stage 6 uses controlled network and Wi-Fi evidence, fixed thresholds and a small approved-access-point list.
+Stage 8 remains paused. Its configuration, asset context, database preparation and controlled source events are available, but its vulnerability-processing engine has not been implemented or validated.
 
-Future improvement can add longer connection baselines, more network zones and broader approved access-point evidence.
-
-Any later integration must preserve default deny, narrow exceptions, complete reason codes, duplicate protection, audit history and approval-controlled responses.
+The next stage will stay within the agreed vulnerability and application-security scope. Findings will not automatically become incidents, and any finding-to-alert or finding-to-incident link must retain supporting evidence.

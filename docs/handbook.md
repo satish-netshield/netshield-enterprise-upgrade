@@ -6,36 +6,36 @@ This handbook explains the engineering journey behind Phase 3A V2 — NetShield 
 
 It is for someone who wants to understand the project without reading every script, configuration file or database table.
 
-The README presents the completed components, outputs and test results in more detail. This handbook focuses on the wider goals, important decisions, improvements and lessons from the project.
+The README presents the completed components, outputs and test results. This handbook focuses on the goals, important decisions, improvements and lessons from the project.
 
 NetShield Enterprise Upgrade extends the completed Phase 3 Automation project. It remains a local Python and SQLite project inside an Ubuntu VirtualBox sandbox.
 
-The users, devices, applications, identity risks, access requests and network events are simulated. Microsoft Entra, Defender, Sentinel, Conditional Access and XDR are design references only. No Microsoft services or real enterprise actions are used.
+Enterprise users, devices, applications and security events are simulated. Microsoft Entra, Defender, Sentinel, Conditional Access and XDR are design references only. No Microsoft services or real enterprise response actions are used.
+
+The completed upgrade currently covers Stages 1–7. Stage 8 has preparation work saved, but its vulnerability-management implementation is not complete.
 
 ---
 
 ## Engineering Goals
 
-The main goal is to move NetShield from a smaller security-automation project towards a more complete enterprise security-operations model.
+The goal is to understand how identity, device, network and endpoint evidence can support security investigation and controlled access decisions.
 
-The upgrade is being built gradually so each component can be understood, tested and corrected before another component depends on it.
+I build each component gradually, check its behaviour and confirm that earlier components still work.
 
-The current work aims to:
+The work aims to:
 
-- Preserve the completed Phase 3 controls.
-- Add simulated enterprise users, devices, applications and services.
-- Process more types of security data.
-- Improve device identity and inventory checks.
-- Detect wider identity and sign-in risks.
-- Make explainable identity and network-access decisions.
-- Monitor controlled network and Wi-Fi activity.
+- Reuse the completed Phase 3 foundation.
+- Add simulated enterprise context.
+- Process several types of security data reliably.
+- Improve device identity and inventory consistency.
+- Detect identity, network and endpoint risks.
+- Make access decisions that retain their reasons.
 - Apply default deny and least privilege.
 - Keep disruptive responses behind approval controls.
-- Preserve evidence and audit history.
-- Support safe repeated runs.
-- Prepare the project for later cloud and security-operations work.
+- Preserve original evidence and investigation history.
+- Handle repeated runs without duplicating accepted records.
 
-The project is not intended to copy a commercial security platform. It applies the main security ideas locally so I can understand how the decisions work.
+The project does not copy a commercial security platform. It applies security concepts locally so I can understand how the evidence and decisions fit together.
 
 ---
 
@@ -43,55 +43,51 @@ The project is not intended to copy a commercial security platform. It applies t
 
 ### Build incrementally
 
-Each stage adds a limited capability to the existing project.
+I verify the existing project, add the next component, test it independently and then run the wider regression.
 
-I first verify the current project, add the new component, test it independently and then run the wider regression.
-
-This makes it easier to identify which change caused a failure.
+This helps identify which change caused a failure.
 
 ### Preserve compatibility
 
-The enterprise upgrade extends NetShield instead of replacing it.
+The upgrade extends NetShield rather than replacing its roles, database or response controls.
 
-Existing roles, access controls, evidence handling, alert storage and validation continue to operate unless a genuine improvement is required.
+Existing components remain operational while new capabilities are added.
 
-### Use controlled evidence
+### Use genuine evidence
 
-The project uses simulated events designed for specific security scenarios.
+Controlled events exercise normal, suspicious, malformed, duplicate and exception cases.
 
-Normal, suspicious, malformed, duplicate and exception cases are included so the result is based on evidence rather than only a successful script run.
+Recorded results come from actual project runs. Simulated evidence is identified as simulated rather than presented as live activity.
 
-Wireless security and rogue-access-point scenarios also use controlled logs. The project does not test attacks against a real wireless network.
+### Fix the responsible problem
 
-### Fix genuine problems
+When testing finds a failure, I check whether it belongs to the implementation, configuration, test data or validator.
 
-When testing exposes a real issue, I correct the implementation, data or validation boundary responsible for it.
-
-I do not change a security rule only to make a test pass.
+A security rule should not be weakened simply to make a test pass.
 
 ### Keep decisions explainable
 
-Alerts and access decisions retain their supporting events, reason codes and relevant context.
+Alerts and decisions retain their supporting events, reasons and relevant context.
 
-A result should be understandable without guessing why the project created it.
+The result should explain why it was produced.
 
-### Keep responses controlled
+### Separate detection from response
 
-Detection, access decisions and automated responses remain separate.
+A serious alert does not give the project permission to perform a disruptive action.
 
-A serious alert does not automatically permit a disruptive action. The automation ACL still decides whether the response is automatic, approval-required or manual-only.
+RBAC controls who may act, and the automation ACL controls the permitted response.
 
-### Validate repeated behaviour
+### Test repeated behaviour
 
-Initialisation, imports, detections and policy decisions are run more than once.
+Initialisation, imports, detections and storage are repeated.
 
-A secure automation project should handle repeated execution without duplicating valid records or changing earlier evidence unexpectedly.
+These checks confirm that accepted events, alerts, timelines and response records are not duplicated or reset unexpectedly.
 
-### Maintain meaningful Git history
+### Keep documentation and Git history aligned
 
-Implementation, tests and documentation are reviewed together before a stage is committed.
+Implementation, tests and documentation are reviewed before committing completed work.
 
-Runtime databases, logs and generated outputs remain outside Git unless they are controlled project fixtures or test inputs.
+Runtime databases and logs remain outside Git. Controlled test inputs and fixtures are tracked where needed.
 
 ---
 
@@ -99,310 +95,262 @@ Runtime databases, logs and generated outputs remain outside Git unless they are
 
 ### Enterprise foundation
 
-Stage 1 added simulated enterprise users, devices, applications and services while preserving the existing Phase 3 foundation.
+Stage 1 added simulated enterprise users, devices, applications and services.
 
-The upgrade reused the original RBAC roles, automation ACL, logging, SQLite database, evidence controls and sandbox restrictions.
-
-Retention settings and sensitive-field masking were also added.
+It reused the existing RBAC, automation ACL, SQLite database, logging, evidence controls and sandbox boundaries. Retention settings and sensitive-field masking were also added.
 
 ### Extended security data pipeline
 
-Stage 2 expanded the pipeline to accept more enterprise-style sources, including identity risk, access policy, database, vulnerability, incident and response events.
+Stage 2 added enterprise-style event sources.
 
-Events are validated, normalised to UTC and stored in SQLite. Malformed records are quarantined, original evidence is preserved and duplicate accepted events are prevented.
+The pipeline validates records, normalises timestamps to UTC, preserves original events and prevents duplicate accepted events. Malformed records retain their evidence and rejection reason.
 
 ### Enterprise asset and device identity
 
-Stage 3 added a stronger device inventory and separated unknown, unregistered, stale and mismatched device findings.
+Stage 3 strengthened the device inventory and distinguished unknown, unregistered, stale and mismatched device findings.
 
-Device ID and asset ID are the main identity references. MAC addresses remain supporting evidence only.
+Device ID and asset ID are the main references. MAC addresses remain supporting evidence.
 
-This device context is reused by identity monitoring, access policy and network monitoring.
+### Identity monitoring and investigation
 
-### Identity monitoring and risk detection
+Stage 4 added wider sign-in and identity-risk detection, including failure patterns, unusual activity, MFA problems and privilege changes.
 
-Stage 4 added wider identity monitoring across authentication and identity-risk events.
-
-It detects repeated failures, password spraying, successful login after failures, impossible travel, unusual sign-ins, MFA failures, privilege changes, dormant-account use, service-account interactive login and risky sign-in behaviour.
-
-Alerts contain user, device, location, time, risk, severity, confidence and reason-code context.
-
-Known VPN and approved-testing exceptions are considered.
-
-### Identity-alert investigation
-
-An authorised Analyst can review an identity alert, record investigation notes and classify it.
-
-A controlled abnormal-time alert was classified as a False Positive and closed without deleting its original evidence or audit history.
+It also supports authorised alert review, investigation notes and false-positive classification.
 
 ### Zero Trust access policy
 
-Stage 5 added a local policy engine that evaluates identity, role, device, application, location, network, MFA and risk evidence.
+Stage 5 evaluates identity, role, device, application, location, network, MFA and risk evidence.
 
-The engine supports four outcomes:
-
-- Allow
-- Deny
-- Challenge
-- Restrict
-
-Every decision records its winning policy, reason codes, evaluated evidence and response status.
-
-This applies Zero Trust, RBAC and Conditional Access ideas locally without reproducing Microsoft Conditional Access.
+It produces Allow, Deny, Challenge or Restrict decisions with supporting reasons and the winning policy.
 
 ### Network, Wi-Fi and access monitoring
 
-Stage 6 added controlled network and wireless monitoring.
+Stage 6 detects controlled network and wireless problems, including suspicious addresses, connection patterns, restricted services, unknown devices and wireless-policy violations.
 
-It detects suspicious addresses, port scans, repeated connections, restricted services, unknown devices, possible MAC reuse, wireless-policy failures, rogue access points and zone violations.
+It stores network-access decisions, a connection timeline and false-positive reviews.
 
-Every network or Wi-Fi event receives an explainable Allow, Deny, Challenge or Restrict decision.
+### Endpoint monitoring and investigation
 
-The stage also stores a connection timeline and supports controlled false-positive review.
+Stage 7 added endpoint health, compliance and risk checks alongside process, command, CPU, persistence and file-hash monitoring.
+
+It stores an endpoint activity timeline, considers approved administrative and testing exceptions, and supports false-positive investigation.
+
+Critical alerts for the same device are consolidated into a simulated isolation request. Authorised approval changes only the project record; it does not disconnect the device or change its network state.
 
 ### Validation
 
-The completed work through Stage 6 passed:
+The Stage 7 tests, V2 Stage 1–7 validators and complete unit-test suite passed.
 
-- V2 Stage 1 validation: 12 out of 12
-- V2 Stage 2 validation: 13 out of 13
-- V2 Stage 3 validation: 19 out of 19
-- V2 Stage 4 validation: 12 out of 12
-- V2 Stage 5 validation: 14 out of 14
-- V2 Stage 6 validation: 15 out of 15
-- Complete unit-test suite: 174 tests
-- SQLite integrity check: `ok`
-- Original Stage 11 full-project validation: PASS
+The original Phase 3 full-project validator also passed. Database integrity checks found no integrity or foreign-key violations.
+
+Detailed outputs and totals belong in the README and engineering notes.
 
 ---
 
 ## Major Engineering Decisions
 
-### Extend the existing project
+### Extend one foundation
 
-I kept the original Phase 3 project as the foundation.
+I reused the original database, roles and response controls.
 
-This avoided creating separate roles, databases or response rules that could disagree with each other.
+Creating separate versions could leave different parts of the project making conflicting decisions.
 
 ### Keep default deny
 
-Unknown permissions, applications, policy conditions, devices and network access are not accepted automatically.
+Missing permissions or insufficient access evidence should not silently produce an Allow decision.
 
-Access is allowed only when the required evidence is present.
+Access must satisfy the configured requirements.
 
 ### Separate severity from confidence
 
-Severity describes the possible impact of a finding.
+Severity describes possible impact. Confidence describes how strongly the evidence supports a finding.
 
-Confidence describes how strongly the available evidence supports it.
+A high-impact possibility and a well-supported finding are not the same thing.
 
-Keeping them separate makes an alert easier to understand.
+### Combine device evidence
 
-### Treat device identity as combined evidence
+A MAC address can be changed or reused.
 
-A MAC address alone is not reliable proof of device identity.
+Device and asset identifiers provide the main references, supported by user, hostname, registration, compliance and network context.
 
-The project uses device ID, asset ID, registration, compliance, user, hostname, location and network context together.
+### Preserve rejected evidence
 
-### Preserve malformed evidence
+Malformed events remain outside accepted-event storage, but their original content is retained.
 
-Malformed events remain outside the accepted-event table, but they are not discarded.
+This allows the reason for rejection to be investigated.
 
-Their original content and rejection reason are retained for investigation.
+### Support existing databases
 
-### Use repeatable migrations
+Changing the tracked schema prepares a new database but does not upgrade a working database.
 
-The tracked schema file supports new databases, but it cannot upgrade an existing database by itself.
-
-Repeatable migrations allow the working database to gain new tables and indexes without deleting earlier project data.
+Repeatable migrations add the required structures while preserving earlier records.
 
 ### Make policy conflicts predictable
 
-Identity and network-access decisions use explicit priority.
+Identity access policies use explicit priority and restrictive tie-breaking. Network decisions use a configured decision order.
 
-When an event matches several outcomes, the more restrictive result wins according to the configured order.
+The same evidence should not produce a different outcome because rules were listed in a different order.
 
-This prevents configuration order from creating an unintended Allow decision.
+### Keep simulations separate from real actions
 
-### Keep decisions and responses separate
+Wireless scenarios use controlled logs. Endpoint isolation records are also simulated.
 
-An access decision does not automatically provide permission to perform a response.
+Approval does not stop traffic, disable Wi-Fi, terminate processes or change the operating system.
 
-For example, Stage 6 can produce a Restrict decision, but the proposed firewall action remains approval-required.
+### Consolidate isolation requests
 
-### Preserve investigation history
+Several Critical alerts can concern the same device.
 
-Alerts, classifications, notes, reviewer details and audit events remain available after review.
+One consolidated request avoids repeated requests while retaining the supporting Critical alert keys.
 
-Closing an alert changes its investigation state but does not remove the original evidence.
+### Preserve review history
 
-### Keep wireless testing controlled
+Closing an alert changes its investigation state, not its original evidence.
 
-WPA, downgrade and rogue-access-point scenarios use simulated logs.
-
-This allows the detection logic to be tested without interacting with a real wireless network or access point.
+Classifications, notes, reviewer details and audit records remain available.
 
 ---
 
 ## Improvements Made
 
-### Enterprise-context consistency
+### Aligned enterprise context and inventory
 
-A registered device appeared in the enterprise context but was missing from the authoritative CYOD inventory.
+A registered device appeared in enterprise context but was missing from the authoritative CYOD inventory.
 
 The inventory was corrected and a consistency check was added.
 
-### Complete source-name handling
+### Recognised complete source names
 
-The first source-name logic read only the first filename word.
+The first filename logic shortened compound source names.
 
-It was corrected so a source such as `identity_risk` remains `identity_risk`.
+It was corrected to preserve supported names such as `identity_risk`.
 
-### Safe migration for existing databases
+### Improved migration and validation boundaries
 
-The first schema changes prepared only new databases.
+Repeatable migrations were added for existing databases.
 
-Repeatable migrations were added so the existing NetShield database could be upgraded safely.
+Validators were also corrected to allow approved new sources and check their intended evidence rather than unrelated later-stage records.
 
-### More accurate malformed-event validation
+### Counted distinct malformed evidence
 
-Repeated imports could create several rejection rows for the same malformed input.
+Repeated imports could record the same malformed input more than once.
 
-The validator was changed to verify distinct malformed evidence rather than treating every rejection row as a separate malformed event.
+Validation was changed to distinguish repeated rejection records from distinct malformed inputs.
 
-### Compatible source validation
+### Corrected device classification
 
-The original Stage 2 validator expected exactly five source types.
+Non-device assets initially entered device evaluation. The detector was restricted to relevant device context.
 
-It was corrected to require the original five while allowing approved V2 sources.
+A known but unregistered device was also separated from a completely unknown device.
 
-### Better device boundaries
+### Aligned controlled timestamps
 
-Database and application assets were initially considered during device evaluation.
+Some normal identity events fell outside the configured normal access hours.
 
-The detector was limited to records containing relevant device identity evidence.
+Their timestamps were corrected, while deliberate abnormal-time evidence was retained.
 
-### Correct unregistered-device classification
+### Clarified network decisions and responses
 
-`CYOD-003` was initially classified as unknown.
+Stage 6 gained a fixed decision order for conflicting conditions.
 
-The enterprise context showed that it was known but unregistered, so the result was corrected.
+Its Restrict outcome was mapped to the existing network-related firewall action, which remained approval-required.
 
-### Accurate access-time test data
+### Completed damaged source files
 
-Normal Stage 4 events originally began outside the configured normal access period.
+The Stage 7 generator contained a duplicated function name, and an endpoint-engine paste ended inside a function signature.
 
-The events were moved inside the approved hours, while one deliberate late event remained to test abnormal access.
+The files were corrected and syntax-checked before execution continued.
 
-### Clear validator boundaries
+### Reduced repeated isolation requests
 
-Later Stage 4–5 data affected a Stage 3 validator that searched too broadly.
+The first endpoint run created a request for each Critical alert.
 
-The validator was limited to its intended Stage 3 source evidence instead of removing valid later-stage records.
+The requests were consolidated by device while preserving their supporting alert keys. Repeated runs then retained one stored request.
 
-### Deterministic network decisions
+### Used the established isolation status
 
-The first Stage 6 policy did not define which result should win when one event matched several rules.
+An approval attempt used a status that the database did not permit.
 
-A fixed decision order was added so the same evidence always produces the same result.
+The implementation was corrected to use the existing `simulated_isolated` status rather than changing the schema unnecessarily.
 
-### Network-related response mapping
+### Reported stored response state
 
-The first Stage 6 Restrict outcome proposed an identity-related account restriction.
+The endpoint runner initially printed a newly calculated pending status even after approval was stored.
 
-It was changed to the network-related firewall action already controlled by the automation ACL.
-
-The action still requires approval and is not executed automatically.
+It was changed to display the actual stored isolation record. Repeated runs preserved both approval and closed alert reviews.
 
 ---
 
 ## Lessons Learned
 
-### Security context must agree
+### Context must agree
 
-User, device, role, inventory, application and network records are connected.
+User, device, inventory, application and network records are connected.
 
-A mismatch between them can produce a technically valid but incorrect security result.
+Inconsistent context can produce a valid-looking but incorrect result.
 
-### Test data is part of the engineering work
+### Test data needs careful design
 
-A detector can behave correctly and still produce misleading findings when controlled data does not match its baseline.
+Timestamps, locations, process names and risk values must match the scenario being tested.
 
-Test timestamps, locations, devices, addresses and risk values must be designed carefully.
+Otherwise, the detector may correctly identify a problem that the test did not intend to create.
 
-### Exceptions need evidence
+### One event can support several findings
 
-VPN and approved-testing exceptions should not be hidden.
+A process event can match suspicious-process, approval and parent-child rules at the same time.
 
-Recording them shows why a finding was suppressed and confirms that the exception matched its intended boundary.
+These findings are not automatically duplicates. Their separate reasons should remain available.
 
-### Explainability matters
+### Several alerts do not always need several actions
 
-An Allow, Deny, Challenge or Restrict result is not enough by itself.
+Related Critical alerts can support one device-level isolation request.
 
-The matching rules, reason codes and evidence make the decision useful for investigation.
+Consolidation should retain evidence rather than hide it.
 
-### One event can match several rules
+### Check the full schema
 
-A network event can be a port scan, use a restricted port and come from a restricted network at the same time.
+A list of column names does not show every database restriction.
 
-The project should preserve every valid reason while producing one predictable final decision.
+The isolation-status failure showed why the complete table definition must be checked before introducing a new value.
 
-### Validators must grow with the project
+### Printed output must match stored state
 
-A validator that works in one stage can become inaccurate when later stages add valid records to the same database.
+A calculated request is not necessarily the current database record.
 
-Each validator needs a clear evidence boundary.
+Operational output should reflect stored approval and investigation states.
 
-### Repeated runs need deliberate testing
+### Exceptions need specific evidence
 
-Duplicate protection cannot be assumed because a database has unique fields.
+Approved administrative or testing activity should match its intended exception.
 
-Initialisation, imports, detections, decisions and timeline storage need to be repeated and checked directly.
+An approved process or compliant device alone does not prove that every activity is harmless.
 
-### Automation still needs limits
+### False-positive review needs reasoning
 
-Detection confidence and risk severity do not automatically justify a disruptive response.
+The crash-and-restart threshold was genuinely reached.
 
-Approval and manual-control boundaries remain necessary even when the decision itself is clear.
+Review required checking the supporting process and device evidence and recording the conclusion without deleting the alert or inventing a cause.
 
-### Device identity needs more than a MAC address
+### Repeated runs test more than duplicates
 
-A shared MAC address can indicate reuse or possible spoofing, but it cannot confirm device identity by itself.
+They also check whether approval, classifications and investigation notes survive later detection runs.
 
-Primary device and asset identifiers must remain part of the decision.
+### Simulation limits must stay clear
 
-### Controlled simulations have value
+A simulated post-isolation event is controlled evidence, not proof of a real network disconnection.
 
-Simulated wireless evidence can test WPA, downgrade, access-point and zone logic safely.
-
-The result is useful when the project is honest about the boundary and does not present simulated activity as live network evidence.
+The project must describe what it actually recorded and avoid claiming actions it did not perform.
 
 ---
 
 ## Future Expansion
 
-The identity alerts, access-policy decisions and network evidence can support later correlation, incident management and response work.
+Stage 8 is the next implementation component. Its saved configuration and controlled inputs do not mean the vulnerability-management stage is complete.
 
-Future expansion can include:
+The planned work will add asset-linked findings, prioritisation, remediation tracking, review and evidence linking.
 
-- Wider correlation between identity, device, application and network evidence
-- Incident creation from combined V2 risk
-- Temporary restriction management
-- Longer identity and network baselines
-- Broader approved access-point and network-zone inventories
-- Retention enforcement
-- Additional evidence reporting
-- Live cloud identity and security telemetry
-- AWS migration and cloud-native monitoring
-- AI-assisted security analysis in a later project phase
+A vulnerability alone will not automatically become an incident. Activity or other evidence must indicate attempted or successful exploitation.
 
-Any future integration should preserve the same principles used here:
+The completed identity, network and endpoint components provide context for that later work.
 
-- Verify the evidence.
-- Use least privilege.
-- Follow default deny.
-- Preserve audit history.
-- Keep disruptive actions controlled.
-- Test repeated behaviour.
-- Maintain compatibility with completed work.
+Future phases can build on this foundation while preserving evidence, least privilege, approval boundaries and compatibility with completed components.

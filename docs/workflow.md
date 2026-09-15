@@ -371,18 +371,74 @@ MAC reuse is useful evidence, but it should not identify a device by itself.
 
 ---
 
+## Stage 7 — Endpoint monitoring and investigation
+
+Stage 7 added vendor-neutral endpoint investigation using device, process, user and activity evidence.
+
+### Workflow
+
+1. Define endpoint health, compliance, risk, process and exception policies.
+2. Create the endpoint alert, timeline and simulated-isolation tables through a repeatable migration.
+3. Import controlled endpoint events through the existing V2 pipeline.
+4. Load accepted events and the CYOD inventory from SQLite.
+5. Evaluate endpoint health, device compliance and device-risk states.
+6. Check process approval, ownership, parent-child relationships and command activity.
+7. Group CPU activity and repeated crashes or restarts within their configured time windows.
+8. Check possible persistence indicators and unexpected file-hash changes.
+9. Apply approved administrative and testing exceptions using exact evidence.
+10. Store traceable alerts and the activity timeline with duplicate protection.
+11. Consolidate Critical alerts into one simulated-isolation request per device.
+12. Require an authorised Responder or Administrator to approve the request through the existing RBAC and `quarantine_device` ACL controls.
+13. Record approval as `simulated_isolated` without changing real network connectivity.
+14. Continue monitoring endpoint events, including controlled post-isolation activity.
+15. Review an endpoint alert and preserve its evidence, classification and audit history.
+16. Add the Stage 7 tables and indexes to the tracked schema and run stage and project validation.
+
+### Engineering reasoning
+
+Endpoint findings use observed activity alongside inventory context. A registered device or approved process can still produce an alert when its behaviour matches a rule.
+
+Repeated crashes or restarts use the agreed threshold of three events within eight minutes.
+
+Detection and isolation approval remain separate. Approval changes only the project record; it does not disable Wi-Fi, stop network traffic, terminate processes or change the operating system.
+
+### Problems and solutions
+
+- The first implementation created a separate isolation request for every Critical alert on the same device. Requests were consolidated by device while preserving all supporting Critical alert keys.
+- After approval, the runner printed the newly calculated pending status rather than the stored status. It was corrected to read and display the existing isolation record.
+
+### Testing
+
+Twenty-six controlled endpoint events produced 26 alerts across 13 detection types. Approved administrative and testing exceptions produced no alerts.
+
+One consolidated request preserved all 10 Critical alert keys. Analyst approval was rejected, and `responder01` recorded simulated approval. Repeated approval and monitoring runs preserved the approved record without creating another request.
+
+The crash or restart alert was reviewed by `analyst01`, classified as a False Positive and closed with evidence-based notes. Re-running detection preserved the review.
+
+All 17 Stage 7 tests and 14 validation checks passed. Earlier V2 validators, the complete regression and original Phase 3 validation also passed.
+
+### What I learned
+
+Several alerts on one device do not require several isolation requests. One device-level request can retain every supporting finding.
+
+Printed output must reflect the stored investigation state, especially after approval or review.
+
+A crash or restart pattern is evidence for investigation, not proof of malicious activity. Classification needs process, device and event context.
+
+---
+
 ## Next improvement
 
-Stage 6 currently uses controlled network and Wi-Fi logs, fixed thresholds and a small approved-access-point list.
+Stage 8 will add vulnerability and application-security findings using the prepared asset context, configuration and controlled events.
 
-Future improvement can use longer connection baselines, more network zones and additional approved access-point evidence while keeping the same safe testing boundaries.
+Its vulnerability engine has not been implemented or validated. Stage 7 completion does not mean Stage 8 is complete.
 
-The same engineering process will continue:
+The same engineering process will continue, one stage at a time:
 
-1. Build a limited component.
-2. Test it independently.
+1. Build within the agreed scope.
+2. Test the implemented component.
 3. Run it with the existing project.
-4. Review the actual output.
+4. Review the actual output and stored evidence.
 5. Record meaningful failures and decisions.
 6. Correct genuine problems.
 7. Run the affected tests and complete regression.

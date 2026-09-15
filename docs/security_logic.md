@@ -4,7 +4,7 @@
 
 Phase 3A V2 extends the completed NetShield Phase 3 Automation project.
 
-It runs locally with Python and SQLite inside an Ubuntu VirtualBox sandbox. Enterprise users, devices, applications, identity risks, access requests and network events are simulated.
+It runs locally with Python and SQLite inside an Ubuntu VirtualBox sandbox. Enterprise users, devices, applications, identity risks, access requests, network events and endpoint activity are simulated.
 
 Microsoft Entra, Conditional Access, Defender, Sentinel and XDR are security design references only. The project does not connect to these services or perform real enterprise actions.
 
@@ -38,14 +38,14 @@ The schema can retain:
 - Event and received times
 - Source system and source type
 - Event type and status
-- Username and role
+- Username
 - Device and asset identifiers
 - Application and service identifiers
 - IP address, MAC address, hostname and location
 - Severity, risk and decision context
 - Original event evidence
 
-Not every source requires every field. Validation depends on the event type and schema version.
+Not every source requires every field. Validation checks the supported schema and required fields without inventing missing context.
 
 This allows different security sources to be searched together without creating false values for fields they do not use.
 
@@ -81,7 +81,7 @@ Accepted events are protected by their source file and source event ID.
 
 Alerts and policy decisions use deterministic keys based on their supporting evidence.
 
-Connection-timeline records use the source event ID as their unique reference.
+Connection and endpoint timeline records use the source event ID as their unique reference.
 
 Repeated imports and processing runs therefore do not create duplicate accepted events, alerts, decisions or timeline records.
 
@@ -95,7 +95,7 @@ Repeatable migrations add missing columns, tables and indexes without deleting e
 
 ## Relevant Stage 3 device decisions
 
-Stage 3 provides device evidence used by later identity, access and network decisions.
+Stage 3 provides device evidence used by later identity, access, network and endpoint decisions.
 
 Device ID and asset ID are the main identity references. A MAC address is supporting evidence only because it can change, be absent or be copied.
 
@@ -466,41 +466,125 @@ The controlled Abnormal Connection Pattern alert was closed as a False Positive 
 
 ---
 
+## Stage 7 — Endpoint monitoring and investigation
+
+Stage 7 evaluates controlled endpoint activity using device, process, user and inventory evidence.
+
+Its alerts, timeline and simulated-isolation records are stored separately from the original Phase 3 endpoint storage.
+
+### Endpoint detection decisions
+
+| Detection | Security decision and reason |
+|---|---|
+| Endpoint Health State | Degraded, unhealthy or unknown health states require review because protection or telemetry may be incomplete. |
+| Device Compliance State | Non-compliant or unknown compliance states identify devices that may not satisfy the expected controls. |
+| Device Risk State | High, Critical or unknown device-risk states provide context for investigation; they do not prove compromise by themselves. |
+| Suspicious Process | A match against the configured suspicious-process list identifies activity requiring investigation. |
+| Unknown or Unapproved Process | A process outside the approved baseline or carrying an unapproved status requires verification. |
+| Unexpected Process Owner | A process owner outside the configured baseline may indicate execution under an unexpected account. |
+| Suspicious Parent-Child Process Relationship | A configured unexpected process relationship can reveal activity that process names alone would miss. |
+| High CPU Activity | Sustained high CPU activity can indicate abnormal execution, although legitimate workloads can produce the same symptom. |
+| Repeated Process Crash or Restart | Repeated failures or restarts can indicate instability or suspicious interference and require investigation. |
+| Suspicious Command Activity | Configured command indicators identify potentially unsafe behaviour in controlled event evidence. |
+| Possible Persistence Indicator | Startup, scheduled-task or service-autostart indicators may represent an attempt to maintain execution. |
+| Unexpected File-Hash Change | A hash outside the approved baseline indicates that the observed file content differs from the expected content. |
+| Post-Isolation Endpoint Activity | Controlled activity marked as occurring after simulated isolation remains visible for investigation. |
+
+### Activity thresholds
+
+The CPU warning threshold is 80%, and the Critical threshold is 95%. The repeated CPU rule uses three related events within two minutes.
+
+The crash or restart rule uses three related events within eight minutes.
+
+These are fixed local detection thresholds, not universal indicators of an attack. Alerts retain the related events so the pattern can be reviewed.
+
+### File-integrity evidence
+
+SHA-256 hashes are compared with configured approved values.
+
+An unexpected hash change creates an investigation finding. It does not automatically remove, replace or repair the file.
+
+### Administrative and testing exceptions
+
+Exceptions must match the configured administrative or testing evidence.
+
+A familiar process name alone does not permit all activity from that process. Narrow exceptions prevent controlled testing from becoming a general bypass.
+
+### Consolidated simulated isolation
+
+Critical endpoint alerts create one consolidated isolation request per device, retaining all supporting Critical alert keys.
+
+The request uses `quarantine_device` with the existing approval-required automation ACL. Several alerts on one device therefore remain separate findings without creating several identical device-isolation requests.
+
+### Authorised approval
+
+The initial status is `approval_required`.
+
+An active Responder or Administrator with `execute_approved_containment` may record approval. The stored status then becomes `simulated_isolated`.
+
+Approval preserves the supporting alert evidence and records the actor, UTC time and notes. Repeated approval is rejected.
+
+No real isolation occurs. The project does not disable Wi-Fi, block network traffic, terminate processes, enter safe mode or change firewall rules.
+
+### Post-isolation monitoring
+
+Endpoint processing continues after simulated approval.
+
+The post-isolation rule evaluates the simulated isolation context supplied by the controlled logs. It does not verify that a real device has been disconnected.
+
+Repeated processing preserves the existing approved isolation record instead of resetting it to a pending request.
+
+### Endpoint timeline
+
+Every accepted Stage 7 endpoint event is stored once in the activity timeline.
+
+Process, owner, parent, command, CPU, file and device-state evidence remain available to reconstruct the activity sequence.
+
+### Endpoint-alert review
+
+An authorised investigator can classify an alert as Confirmed or False Positive and record notes.
+
+False-positive classification requires the existing investigation, note-taking and false-positive permissions. A Viewer cannot review an alert.
+
+A False Positive is closed without deleting its original evidence. Closed alerts cannot be reviewed again through this command, and repeated detection preserves the recorded review.
+
+An approved process or compliant device is not automatically harmless. Crash, CPU and other behavioural findings still need investigation before classification.
+
+---
+
 ## Security-logic checks and corrections
 
-Testing identified two important Stage 6 decision issues.
-
-The first policy did not define how conflicting outcomes should be resolved. A fixed precedence was added so the same evidence always produces the same final result.
+The first Stage 6 policy did not define how conflicting outcomes should be resolved. A fixed precedence was added so the same evidence always produces the same final result.
 
 The first Restrict mapping proposed `restrict_account`, which was an identity action. It was replaced with the network-related `apply_ubuntu_firewall_rule` action already controlled by the automation ACL.
 
 Testing also confirmed that one port-scan event could correctly match scanning, restricted-network and restricted-port rules at the same time. The final decision keeps every reason while applying one outcome.
 
+Stage 7 isolation requests were consolidated by device without removing the supporting findings. The runner was also corrected to display the stored approval state rather than a newly calculated pending state.
+
 ---
 
 ## Verification
 
-Stage 4 stored 16 identity alerts and passed 12 out of 12 validation checks.
+The security decisions were checked through focused tests, V2 stage validators, the complete regression and the original Phase 3 full-project validation.
 
-Stage 5 stored nine access decisions and passed 14 out of 14 validation checks.
+Stored events, alerts, timelines, reviews and approvals were checked against SQLite evidence. Repeated processing preserved duplicate protection and investigation state.
 
-Stage 6 processed 34 network and Wi-Fi events, produced 18 alerts and stored 34 access decisions and 34 timeline records.
-
-The Stage 6 focused tests passed 23 tests. Stage 6 validation passed 15 out of 15 checks.
-
-The complete project passed 174 unit tests. The original Stage 11 validation passed, and SQLite integrity returned `ok`.
+Detailed results and test observations are recorded in the README and testing notes.
 
 ---
 
 ## What I learned
 
-Identity, device and network evidence become more useful when the reason for each decision is stored clearly.
+Identity, device, network and endpoint evidence become more useful when the reason for each decision is stored clearly.
 
 One event can match several valid rules. Preserving all matching reasons while applying deterministic precedence makes the final outcome easier to explain.
 
 A security decision remains separate from permission to perform a response.
 
-Exceptions should be narrow, supported by matching evidence and recorded in the decision.
+Exceptions should be narrow, supported by matching evidence and recorded.
+
+Endpoint symptoms such as high CPU activity or repeated crashes require investigation; a threshold match alone does not establish malicious activity.
 
 A MAC address can support an investigation, but it should not identify a device by itself.
 
@@ -508,10 +592,10 @@ A MAC address can support an investigation, but it should not identify a device 
 
 ## Current limitations and next improvement
 
-The project uses controlled local data instead of live identity-provider, device-management, network-sensor or wireless-controller telemetry.
+The project uses controlled local data instead of live identity-provider, device-management, network-sensor, wireless-controller or endpoint telemetry.
 
-Locations, network zones, risk values, Wi-Fi security events and rogue-access-point events are simulated.
+Locations, network zones, risk values, wireless security events and endpoint activity are simulated.
 
-Access outcomes and responses are stored or simulated locally. They do not change real accounts, devices, applications, firewall rules or networks.
+Access outcomes and responses are stored or simulated locally. They do not change real accounts, devices, applications, processes, firewall rules or networks.
 
-Future improvement can use longer activity baselines and broader approved network, access-point and zone inventories while preserving the same evidence, default-deny, audit and approval controls.
+Stage 8 will add vulnerability and application-security findings using the prepared asset context and controlled events. Its finding-processing engine has not yet been implemented or validated.
