@@ -17,8 +17,7 @@ Completed Phase 3A V2 stages:
 - Stage 5 — Zero Trust and policy-based access decisions
 - Stage 6 — Network, Wi-Fi and access monitoring
 - Stage 7 — Endpoint monitoring and investigation
-
-Stage 8 has saved configuration, database preparation and controlled inputs. Its vulnerability-management engine is not implemented or validated.
+- Stage 8 — Vulnerability and application-security findings
 
 The original Phase 3 components remain operational. This README concentrates on the enterprise upgrade.
 
@@ -445,6 +444,68 @@ The complete database definition and stored state must agree with approval logic
 
 ---
 
+## Stage 8 — Vulnerability and Application-Security Findings
+
+### What the component does
+
+Stage 8 stores and prioritises controlled vulnerability and application-security findings linked to the registered sandbox web application.
+
+### Why it exists or how it behaves
+
+A vulnerability is useful for prevention and remediation, but it is not automatically an incident. Alert and incident links require supporting activity or exploitation evidence.
+
+### Information, rules and capabilities
+
+- Configuration, dependency, package, exposed-service and SQL injection findings
+- Severity, confidence, exploitability and asset-criticality context
+- Weighted priority scoring from 0 to 100
+- Remediation status and verification history
+- Duplicate-safe findings, history and links
+- Authorised false-positive review
+- Controlled penetration-testing evidence
+- Automatic incident creation disabled
+
+Approved testing remains local and does not become a vulnerability finding by itself.
+
+### Scoring and remediation workflow
+
+1. Load the controlled application-security and vulnerability events.
+2. Confirm that each finding belongs to an authoritative asset.
+3. Calculate priority from severity, exploitability, asset criticality, exposure and confidence.
+4. Store the finding and original risk evidence.
+5. Record later remediation and verification history separately.
+6. Create alert or incident links only when supporting evidence exists.
+7. Preserve authorised reviews during repeated processing.
+
+### Observed example output
+
+```text
+[High] SQL injection authentication bypass | finding=S78-FND-SQL-001 | asset=AST-WEB-001 | score=71.05 | status=Verified
+[Low] Version-only finding requiring analyst review | finding=S78-FND-FP-001 | asset=AST-WEB-001 | score=39.50 | status=False Positive
+
+V2 STAGE 8 VULNERABILITY MANAGEMENT: events=16 findings=7 findings_new=0 findings_existing=7 history=12 history_new=0 history_existing=12 links=2 links_new=0 links_existing=2 critical=0 high=1 medium=4 low=2 open=1 planned=2 verified=3 false_positive=1 alert_links=1 incident_links=1 approved_tests=2 automatic_incidents=0 external_targets=0
+```
+
+### Testing Notes
+
+Fourteen focused Stage 8 tests passed. Stage 8 validation passed 16 out of 16 checks.
+
+Repeated processing created no duplicate findings, source-driven history or evidence links. The completed False Positive review remained stored.
+
+Seven findings used the authoritative `AST-WEB-001` asset. Two approved testing events remained evidence, and no automatic incident or external action occurred.
+
+### Engineering observations
+
+Later verification events initially replaced the original risk values. The logic was corrected so remediation changes status without erasing severity, exploitability or exploitation evidence.
+
+The runner also displayed a rebuilt Open status after a False Positive was stored. It was corrected to reload the saved investigation state.
+
+### What I Learned
+
+Remediation should update the current state without rewriting the original risk. A vulnerability-to-incident relationship also needs activity or exploitation evidence.
+
+---
+
 ## System Validation
 
 ### Clean-state validation workflow
@@ -454,28 +515,29 @@ The project’s validation sequence covers:
 1. Compile Python source.
 2. Initialise the foundation and apply repeatable migrations.
 3. Generate and import controlled events.
-4. Run device, identity, access-policy, network and endpoint monitoring.
-5. Record controlled reviews and simulated isolation approval.
+4. Run device, identity, access-policy, network, endpoint and vulnerability processing.
+5. Record controlled reviews, remediation verification and simulated isolation approval.
 6. Repeat imports, monitoring and storage checks.
 7. Run focused tests and the complete unit-test suite.
-8. Run V2 Stage 1–7 validators.
+8. Run V2 Stage 1–8 validators.
 9. Run the original Phase 3 full-project validator.
 10. Check database integrity, foreign keys, permissions and repository whitespace.
 
-The final Stage 7 regression checked the populated project database. Earlier clean-state checks remain part of the original Phase 3 validation.
+The final Stage 8 regression checked the populated project database. Earlier clean-state checks remain part of the original Phase 3 validation.
 
 ### Genuine end-to-end results
 
 ```text
 V2 STAGE 1 VALIDATION: PASS (12/12)
-V2 STAGE 2 VALIDATION: PASS (13//13)
+V2 STAGE 2 VALIDATION: PASS (13/13)
 Stage 3 validation: 19/19 checks passed
 V2 STAGE 4 VALIDATION: PASS (12/12)
 V2 STAGE 5 VALIDATION: PASS (14/14)
 V2 STAGE 6 VALIDATION: PASS (15/15)
 V2 STAGE 7 VALIDATION: PASS (14/14)
+V2 STAGE 8 VALIDATION: PASS (16/16)
 
-Ran 191 tests in 2.060s
+Ran 205 tests in 2.200s
 
 OK
 
@@ -488,23 +550,23 @@ Earlier Stage 4–5 regression result:
 
 151 tests passed with zero unclosed-database warnings.
 
-The Stage 11 result belongs to the original Phase 3 project. It does not indicate completion of V2 Stage 8.
+The Stage 11 result belongs to the original Phase 3 project and remains separate from the V2 Stage 8 validator.
 
 ### Problems discovered
 
 The main integration problems involved inconsistent inventory context, incomplete source-name recognition, existing-database upgrades and validators checking unrelated or repeated evidence.
 
-Decision work also exposed conflicting policy outcomes, an unsuitable network-response mapping, repeated isolation requests and disagreement between calculated and stored response state.
+Decision work also exposed conflicting policy outcomes, an unsuitable network-response mapping, repeated isolation requests, overwritten vulnerability risk and disagreement between calculated and stored state.
 
 ### How the problems were fixed
 
 Authoritative records were aligned, source recognition was corrected and repeatable migrations were added.
 
-Validators were limited to distinct, stage-specific evidence. Policy precedence and ACL mappings were clarified. Endpoint requests were consolidated, the established approval status was reused and the runner was changed to report stored state.
+Validators were limited to distinct, stage-specific evidence. Policy precedence and ACL mappings were clarified. Endpoint requests were consolidated, original vulnerability risk was preserved and runners were changed to report stored state.
 
 ### Engineering observations
 
-Repeated execution confirmed more than duplicate protection: it also preserved closed reviews, approval details and original evidence.
+Repeated execution confirmed more than duplicate protection: it also preserved closed reviews, approval details, remediation states and original evidence.
 
 Later-stage data was not removed simply to satisfy earlier validators. Their evidence boundaries were corrected instead.
 
@@ -512,12 +574,10 @@ Later-stage data was not removed simply to satisfy earlier validators. Their evi
 
 A working upgrade requires configuration, database constraints, security rules, validation and operational output to agree.
 
-Findings are easier to investigate when their reasons, exceptions, review history and response permissions remain visible.
+Findings are easier to investigate when their reasons, exceptions, original risk, review history and response permissions remain visible.
 
 ### Next expansion scope
 
-Stage 8 will add asset-linked vulnerability and application-security findings, prioritisation, remediation tracking, review and evidence linking.
+Stages 1–8 are complete and validated.
 
-Its saved preparation is not a completed implementation. A vulnerability alone will not automatically become an incident; exploitation activity or other supporting evidence is required.
-
-The project remains local, controlled and simulated.
+Later work will be handled separately and only within its agreed scope. The project will remain local, controlled and simulated while preserving completed evidence and compatibility.

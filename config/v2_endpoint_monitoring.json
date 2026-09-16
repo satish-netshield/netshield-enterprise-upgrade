@@ -1,0 +1,188 @@
+{
+  "stage": 7,
+  "version": "0.1.0",
+  "simulation_only": true,
+  "source_files": [
+    "endpoint_v2_stage7_8_events.jsonl"
+  ],
+  "device_identity": {
+    "inventory_path": "data/allowlists/cyod_devices.csv",
+    "primary_identifiers": [
+      "device_id",
+      "asset_id"
+    ],
+    "mac_address_identity": "supporting_evidence_only"
+  },
+  "health_policy": {
+    "allowed_states": [
+      "healthy",
+      "degraded",
+      "unhealthy",
+      "unknown"
+    ],
+    "alert_states": {
+      "degraded": {
+        "severity": "Medium",
+        "confidence": 70
+      },
+      "unhealthy": {
+        "severity": "High",
+        "confidence": 90
+      },
+      "unknown": {
+        "severity": "Medium",
+        "confidence": 60
+      }
+    }
+  },
+  "compliance_policy": {
+    "alert_states": {
+      "non_compliant": {
+        "severity": "High",
+        "confidence": 90
+      },
+      "unknown": {
+        "severity": "Medium",
+        "confidence": 65
+      }
+    }
+  },
+  "device_risk_policy": {
+    "alert_states": {
+      "high": {
+        "severity": "High",
+        "confidence": 85
+      },
+      "critical": {
+        "severity": "Critical",
+        "confidence": 95
+      },
+      "unknown": {
+        "severity": "Medium",
+        "confidence": 60
+      }
+    }
+  },
+  "process_policy": {
+    "approved_processes": [
+      "netshield_worker",
+      "python3",
+      "sshd",
+      "systemd"
+    ],
+    "controlled_testing_processes": [
+      "controlled_cpu_test",
+      "stress-ng"
+    ],
+    "suspicious_processes": [
+      "credential_dump_simulator",
+      "persistence_simulator",
+      "unapproved_remote_shell_simulator"
+    ],
+    "unapproved_statuses": [
+      "unknown",
+      "unapproved"
+    ],
+    "approved_owners_by_process": {
+      "netshield_worker": [
+        "netshield01"
+      ],
+      "python3": [
+        "analyst01",
+        "netshield01"
+      ],
+      "sshd": [
+        "root"
+      ],
+      "systemd": [
+        "root"
+      ]
+    },
+    "suspicious_parent_child_pairs": [
+      {
+        "parent": "office_simulator",
+        "child": "command_shell_simulator"
+      },
+      {
+        "parent": "web_server_simulator",
+        "child": "unapproved_remote_shell_simulator"
+      }
+    ],
+    "suspicious_command_indicators": [
+      "credential_dump_simulation",
+      "disable_security_control_simulation",
+      "encoded_command_simulation"
+    ],
+    "persistence_indicators": [
+      "scheduled_task_created",
+      "service_autostart_created",
+      "startup_entry_created"
+    ]
+  },
+  "thresholds": {
+    "cpu_warning_percent": 80,
+    "cpu_critical_percent": 95,
+    "cpu_window_minutes": 2,
+    "repeated_cpu_events": 3,
+    "process_crash_restart_events": 3,
+    "process_crash_restart_window_minutes": 8
+  },
+  "file_integrity": {
+    "hash_algorithm": "sha256",
+    "approved_hashes": {
+      "/simulated/netshield/agent.py": "c972dc732aea55266906c98c978581803ae2027b0709d9b0b025436381fe9e47",
+      "/simulated/netshield/policy.json": "32aa9c20ba03393024629c2dcc9e5eefe20024bd230ef53ca89289c88d5f3673"
+    },
+    "unexpected_change_severity": "High",
+    "unexpected_change_confidence": 90
+  },
+  "approved_exceptions": {
+    "administrative_event_ids": [
+      "S78-END-ADMIN-001"
+    ],
+    "testing_ids": [
+      "S78-END-TEST-001"
+    ],
+    "exceptions_must_match_exact_evidence": true
+  },
+  "isolation_policy": {
+    "enabled": true,
+    "trigger_severities": [
+      "Critical"
+    ],
+    "action": "quarantine_device",
+    "initial_status": "approval_required",
+    "approval_roles": [
+      "administrator",
+      "responder"
+    ],
+    "approval_permission": "execute_approved_containment",
+    "approved_status": "simulated_isolated",
+    "real_isolation_allowed": false,
+    "change_network_state": false,
+    "post_isolation_monitoring": true
+  },
+  "detection_rules": {
+    "endpoint_health": true,
+    "device_compliance": true,
+    "device_risk": true,
+    "suspicious_process": true,
+    "unknown_or_unapproved_process": true,
+    "unexpected_process_owner": true,
+    "suspicious_parent_child_relationship": true,
+    "high_cpu_activity": true,
+    "repeated_process_crash_or_restart": true,
+    "suspicious_command_activity": true,
+    "possible_persistence": true,
+    "unexpected_file_hash_change": true,
+    "post_isolation_activity": true
+  },
+  "sandbox_policy": {
+    "simulated_events_only": true,
+    "real_external_targets_allowed": false,
+    "real_device_isolation_allowed": false,
+    "real_process_termination_allowed": false,
+    "real_network_changes_allowed": false,
+    "disruptive_actions_require_approval": true
+  }
+}

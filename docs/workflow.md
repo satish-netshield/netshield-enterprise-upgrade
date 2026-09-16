@@ -81,7 +81,7 @@ Database and web assets were initially treated as devices. Device evaluation was
 
 Three relevant device events produced one High-severity Unregistered Device alert for `CYOD-003`. Approved `CYOD-002` activity produced no false alert.
 
-Stage 3 passed 19 out of 19 validation checks, and the project reached 116 passing unit tests.
+Stage 3 passed 19 out of 19 validation checks.
 
 The main lesson was that reliable device identity requires several matching pieces of inventory and event evidence.
 
@@ -427,20 +427,117 @@ A crash or restart pattern is evidence for investigation, not proof of malicious
 
 ---
 
+## Stage 8 — Vulnerability and application-security findings
+
+Stage 8 added controlled vulnerability and application-security findings linked to the authoritative sandbox asset.
+
+### Workflow
+
+1. Register the SQL injection lab as the authoritative `AST-WEB-001` sandbox web-application asset.
+2. Define vulnerability scoring, remediation, review, linking and testing boundaries.
+3. Create the finding, remediation-history and evidence-link tables through a repeatable migration.
+4. Import the controlled application-security and vulnerability events through the existing V2 pipeline.
+5. Verify that every finding refers to an authoritative asset.
+6. Build findings from configuration checks, dependency checks, package checks, exposed-service evidence and the local SQL injection lab.
+7. Preserve severity, confidence, exploitability, exploitation status, exposed-service context and asset criticality.
+8. Calculate a weighted priority score from the five configured factors.
+9. Store findings and remediation history with duplicate protection.
+10. Preserve the original risk evidence when remediation status changes.
+11. Record remediation verification as later evidence without replacing the original finding.
+12. Keep approved penetration-testing events as testing evidence rather than treating them as vulnerabilities.
+13. Create alert and incident links only when supporting activity or exploitation evidence exists.
+14. Prevent a vulnerability from automatically creating an incident.
+15. Allow an authorised Analyst to review a supported false-positive candidate.
+16. Preserve the classification, investigation notes, remediation history and audit record.
+17. Re-run the engine to confirm that stored reviews and verification states remain unchanged.
+18. Run focused tests, Stage 8 validation, the complete regression and database-integrity checks.
+
+### Priority workflow
+
+The priority score uses the configured weighted model:
+
+- Severity: 30%
+- Exploitability: 25%
+- Asset criticality: 20%
+- Exposed-service context: 15%
+- Confidence: 10%
+
+The combined score produces a priority level from Low to Critical.
+
+Remediation does not reduce or erase the original severity, confidence or exploitability evidence. It changes the finding’s remediation status and adds verification history.
+
+### Engineering reasoning
+
+A vulnerability finding is not proof that exploitation occurred. The project keeps vulnerability evidence separate from alert and incident evidence.
+
+Finding-to-alert and finding-to-incident links require supporting activity or exploitation context. Automatic incident creation remains disabled.
+
+Controlled penetration-testing records confirm that approved local testing occurred. They remain evidence and do not become findings by themselves.
+
+The engine uses the registered sandbox asset rather than accepting unknown assets. This keeps findings connected to known project context.
+
+### Problems and solutions
+
+- The first remediation handling replaced the original SQL injection and dependency risk values with later Low-severity verification data. The logic was corrected so verification updates the remediation state while preserving the original risk evidence.
+- After the false-positive review, a repeated engine run printed the rebuilt `Open` status instead of the stored `False Positive` status. The runner was corrected to reload and display the saved finding state.
+
+### Testing
+
+Two Stage 8 source files contained 16 unique events:
+
+- 6 application-security events
+- 10 vulnerability events
+
+The engine stored seven duplicate-safe findings linked to `AST-WEB-001`:
+
+- 1 High-priority finding
+- 4 Medium-priority findings
+- 2 Low-priority findings
+
+The final remediation states were:
+
+- 1 Open
+- 2 Planned
+- 3 Verified
+- 1 False Positive
+
+The SQL injection finding retained its original High severity, demonstrated exploitability and successful exploitation evidence after remediation verification.
+
+One alert link and one incident link were stored for the SQL injection finding because successful exploitation evidence was available. No incident was created automatically.
+
+Two approved controlled-testing events remained evidence and used no external targets.
+
+`analyst01` reviewed the version-only finding, classified it as a False Positive and preserved the investigation notes and review history. A repeated engine run retained that decision.
+
+All 14 Stage 8 tests passed. Stage 8 validation passed 16 out of 16 checks.
+
+The complete project passed 205 unit tests. The original Stage 11 validation passed, and SQLite integrity returned `ok`.
+
+### What I learned
+
+Remediation evidence should not rewrite the original risk. A verified finding still needs its earlier severity, exploitability and exploitation context for investigation and audit history.
+
+A vulnerability should be linked to an incident only when activity or exploitation evidence supports the relationship.
+
+Stored investigation state must take priority over newly rebuilt output. Otherwise, a repeated run can display an outdated status even when the database record is correct.
+
+Approved security testing is evidence of a controlled test, not evidence that every test target contains a vulnerability.
+
+---
+
 ## Next improvement
 
-Stage 8 will add vulnerability and application-security findings using the prepared asset context, configuration and controlled events.
+Stage 8 is complete and validated.
 
-Its vulnerability engine has not been implemented or validated. Stage 7 completion does not mean Stage 8 is complete.
+Later work should continue one stage at a time and only within its agreed scope:
 
-The same engineering process will continue, one stage at a time:
-
-1. Build within the agreed scope.
-2. Test the implemented component.
-3. Run it with the existing project.
-4. Review the actual output and stored evidence.
-5. Record meaningful failures and decisions.
-6. Correct genuine problems.
-7. Run the affected tests and complete regression.
-8. Update only the relevant documentation.
-9. Sign off after final validation.
+1. Confirm the stage boundary.
+2. Build only the required capability.
+3. Test the implemented component.
+4. Run it with the existing project.
+5. Review the actual output and stored evidence.
+6. Record meaningful failures and decisions.
+7. Correct genuine problems.
+8. Run the affected tests and complete regression.
+9. Update only the relevant documentation.
+10. Sign off after final validation.

@@ -49,6 +49,16 @@
       "compliance_status": "unknown"
     }
   ],
+  "assets": [
+    {
+      "asset_id": "AST-WEB-001",
+      "name": "SQL Injection Lab",
+      "asset_type": "web_application",
+      "environment": "sandbox",
+      "criticality": "medium",
+      "external_target": false
+    }
+  ],
   "applications": [
     {
       "application_id": "APP-001",

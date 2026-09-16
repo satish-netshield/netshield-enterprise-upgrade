@@ -4,7 +4,7 @@
 
 Phase 3A V2 extends the completed NetShield Phase 3 Automation project.
 
-It runs locally with Python and SQLite inside an Ubuntu VirtualBox sandbox. Enterprise users, devices, applications, identity risks, access requests, network events and endpoint activity are simulated.
+It runs locally with Python and SQLite inside an Ubuntu VirtualBox sandbox. Enterprise users, devices, applications, identity risks, access requests, network events, endpoint activity and vulnerability findings are simulated.
 
 Microsoft Entra, Conditional Access, Defender, Sentinel and XDR are security design references only. The project does not connect to these services or perform real enterprise actions.
 
@@ -79,11 +79,11 @@ This allows a later alert or policy decision to be traced back to the supplied e
 
 Accepted events are protected by their source file and source event ID.
 
-Alerts and policy decisions use deterministic keys based on their supporting evidence.
+Alerts, findings and policy decisions use deterministic keys based on their supporting evidence.
 
 Connection and endpoint timeline records use the source event ID as their unique reference.
 
-Repeated imports and processing runs therefore do not create duplicate accepted events, alerts, decisions or timeline records.
+Repeated imports and processing runs therefore do not create duplicate accepted events, alerts, findings, decisions, links, history or timeline records.
 
 ### Safe database migration
 
@@ -552,6 +552,147 @@ An approved process or compliant device is not automatically harmless. Crash, CP
 
 ---
 
+## Stage 8 — Vulnerability and application-security findings
+
+Stage 8 evaluates controlled vulnerability and application-security evidence linked to the registered sandbox web-application asset.
+
+### Authoritative asset context
+
+Every managed finding must refer to an asset in the enterprise context.
+
+The SQL injection lab uses `AST-WEB-001`, which is registered as a Medium-criticality sandbox web application with no external target.
+
+Findings for unknown assets are rejected. This prevents vulnerability records from being stored without confirmed ownership and context.
+
+### Finding sources
+
+Stage 8 supports controlled findings from:
+
+- Safe local configuration checks
+- Dependency checks
+- Package checks
+- Exposed-service checks
+- The local SQL injection lab
+
+Approved penetration-testing events remain testing evidence. They do not become vulnerability findings by themselves.
+
+### Severity and confidence
+
+Finding severity represents the possible impact of the weakness.
+
+Confidence represents how strongly the supplied evidence supports the finding.
+
+These values remain separate because a high-confidence observation does not always have high business impact.
+
+### Exploitability context
+
+Exploitability records whether exploitation is unavailable, low, medium, high or demonstrated in the controlled evidence.
+
+Exploitation status records whether an attempt or successful exploitation was observed.
+
+A finding is not treated as exploited only because a vulnerable version, configuration or service was identified.
+
+### Exposed-service context
+
+A finding records whether the affected service is exposed inside the controlled environment.
+
+Exposure increases priority because a reachable service presents a different risk from an inactive or inaccessible component.
+
+Internal sandbox exposure does not mean the service is exposed to the public internet.
+
+### Asset criticality
+
+The authoritative asset’s criticality contributes to finding priority.
+
+The asset context is loaded from the enterprise configuration rather than accepted directly from an event. This prevents event data from silently changing the importance of an asset.
+
+### Priority scoring
+
+Stage 8 calculates a score from five configured factors:
+
+| Factor | Weight |
+|---|---:|
+| Severity | 30% |
+| Exploitability | 25% |
+| Asset criticality | 20% |
+| Exposed service | 15% |
+| Confidence | 10% |
+
+The weighted score is converted to Low, Medium, High or Critical priority.
+
+Priority supports investigation and remediation order. It does not change the original severity or prove exploitation.
+
+### Original-risk preservation
+
+Later remediation events do not overwrite the finding’s original severity, confidence, exploitability or exploitation status.
+
+A finding can become Verified while retaining the evidence that originally made it important.
+
+This preserves the difference between the original security risk and the current remediation state.
+
+### Remediation status and history
+
+Status changes are stored separately in duplicate-safe remediation history.
+
+The history records the previous status, new status, supporting event and verification result.
+
+Remediation verification confirms that later evidence was received. It does not delete the original finding or its earlier status changes.
+
+### Duplicate-finding protection
+
+Each source finding ID identifies one managed finding.
+
+Repeated processing preserves the existing finding, investigation state, remediation history and evidence links.
+
+Deterministic history and link keys prevent the same source evidence from creating duplicate records.
+
+### False-positive review
+
+A finding can be classified as a False Positive only when its source evidence identifies it as a supported review candidate.
+
+An authorised Analyst must have the existing investigation, note-taking and false-positive permissions. A Viewer cannot perform the review.
+
+The review records the classification, notes, reviewer and UTC time. It adds remediation history without deleting the finding or source evidence.
+
+A repeated engine run preserves the completed review.
+
+### Controlled testing evidence
+
+Approved security-testing events must remain inside the configured local sandbox boundary.
+
+The stored evidence confirms that:
+
+- No external target was used
+- No real external action was performed
+- The SQL injection activity used the controlled local lab
+- Approved testing evidence was not converted into a vulnerability automatically
+
+### Finding-to-alert linking
+
+A finding can link to an alert only when supporting activity or exploitation evidence explains the relationship.
+
+The link retains the finding, alert reference, exploitation context and source evidence.
+
+This keeps vulnerability information separate from observed security activity while allowing them to be investigated together.
+
+### Finding-to-incident linking
+
+A vulnerability does not automatically become an incident.
+
+An incident link requires attempted or successful exploitation, or other supporting activity evidence accepted by the configured rule.
+
+A vulnerability without that evidence remains a finding for prevention and remediation. Automatic incident creation is disabled.
+
+### SQL injection evidence
+
+The SQL injection finding uses the controlled local lab evidence.
+
+Successful exploitation evidence supports its alert and incident links. Later remediation verification changes its status to Verified without replacing the original High severity, demonstrated exploitability or successful exploitation context.
+
+No external application or target is tested.
+
+---
+
 ## Security-logic checks and corrections
 
 The first Stage 6 policy did not define how conflicting outcomes should be resolved. A fixed precedence was added so the same evidence always produces the same final result.
@@ -562,13 +703,19 @@ Testing also confirmed that one port-scan event could correctly match scanning, 
 
 Stage 7 isolation requests were consolidated by device without removing the supporting findings. The runner was also corrected to display the stored approval state rather than a newly calculated pending state.
 
+Stage 8 remediation handling initially replaced original finding risk with later verification values. It was corrected so remediation changes status and history without rewriting the original severity, confidence, exploitability or exploitation evidence.
+
+The Stage 8 runner initially displayed a rebuilt Open status after a False Positive had already been stored. It was corrected to load and display the saved investigation state.
+
 ---
 
 ## Verification
 
 The security decisions were checked through focused tests, V2 stage validators, the complete regression and the original Phase 3 full-project validation.
 
-Stored events, alerts, timelines, reviews and approvals were checked against SQLite evidence. Repeated processing preserved duplicate protection and investigation state.
+Stored events, alerts, findings, timelines, reviews, approvals, remediation history and evidence links were checked against SQLite evidence.
+
+Repeated processing preserved duplicate protection, remediation state and completed investigations.
 
 Detailed results and test observations are recorded in the README and testing notes.
 
@@ -576,7 +723,7 @@ Detailed results and test observations are recorded in the README and testing no
 
 ## What I learned
 
-Identity, device, network and endpoint evidence become more useful when the reason for each decision is stored clearly.
+Identity, device, network, endpoint and vulnerability evidence become more useful when the reason for each decision is stored clearly.
 
 One event can match several valid rules. Preserving all matching reasons while applying deterministic precedence makes the final outcome easier to explain.
 
@@ -588,14 +735,22 @@ Endpoint symptoms such as high CPU activity or repeated crashes require investig
 
 A MAC address can support an investigation, but it should not identify a device by itself.
 
+A vulnerability finding does not prove exploitation. Alert and incident links need supporting activity evidence.
+
+Remediation should change the finding’s current state without removing the original risk and exploitation context.
+
+Approved penetration testing should remain controlled evidence rather than automatically becoming a vulnerability or incident.
+
 ---
 
 ## Current limitations and next improvement
 
-The project uses controlled local data instead of live identity-provider, device-management, network-sensor, wireless-controller or endpoint telemetry.
+The project uses controlled local data instead of live identity-provider, device-management, network-sensor, wireless-controller, endpoint, vulnerability-scanner or application-security telemetry.
 
-Locations, network zones, risk values, wireless security events and endpoint activity are simulated.
+Locations, network zones, risk values, wireless security events, endpoint activity and vulnerability evidence are simulated.
 
 Access outcomes and responses are stored or simulated locally. They do not change real accounts, devices, applications, processes, firewall rules or networks.
 
-Stage 8 will add vulnerability and application-security findings using the prepared asset context and controlled events. Its finding-processing engine has not yet been implemented or validated.
+Vulnerability findings use controlled configuration, dependency, package, service and SQL injection evidence. The project does not scan external assets, retrieve live vulnerability intelligence or perform real penetration testing.
+
+Stage 8 is complete and validated. Any later project stage will be handled separately within its agreed scope.

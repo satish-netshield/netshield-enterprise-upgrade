@@ -23,7 +23,7 @@ python -m unittest discover -s tests
 python -m scripts.validate_stage11
 ```
 
-The Stage 8–10 results printed by the original Stage 11 validator refer to the completed Phase 3 project, not the pending V2 stages.
+The Stage 8–10 results printed by the original Stage 11 validator refer to the completed Phase 3 project. They are separate from the Phase 3A V2 stage validators.
 
 ## Stage 1 — Enterprise project foundation
 
@@ -700,7 +700,7 @@ grep -n '198.51.100.66' \
 
 ### Existing shared preparation
 
-Stage 7 and Stage 8 initially shared database preparation, event generation and import. These commands prepare both stages; they do not run a Stage 8 vulnerability engine.
+Stage 7 and Stage 8 share database preparation, event generation and import. Their monitoring and vulnerability engines run separately.
 
 The preparation is already complete. Repeat it only when checking migration or import behaviour, or rebuilding the controlled inputs.
 
@@ -1076,15 +1076,252 @@ LIMIT 10;
 "
 ```
 
-## Stage 8 preparation status
+## Stage 8 — Vulnerability and application-security findings
 
-Stage 8 configuration, database preparation and controlled source events exist from the initial shared preparation.
+The shared Stage 7–8 preparation commands create and import the controlled Stage 8 inputs. Run them only when rebuilding the source data or checking repeatable migration and import behaviour.
 
-The V2 vulnerability-processing engine has not been implemented or validated. No V2 Stage 8 engine or validator command is included here.
+Review the accepted Stage 8 events:
+
+```bash
+sqlite3 -header -column database/netshield.db "
+SELECT
+  source_file,
+  source_type,
+  COUNT(*) AS stored_events,
+  COUNT(DISTINCT source_event_id) AS unique_events
+FROM security_events
+WHERE source_file IN (
+  'application_security_v2_stage7_8_events.jsonl',
+  'vulnerability_v2_stage7_8_events.jsonl'
+)
+GROUP BY source_file, source_type
+ORDER BY source_file;
+"
+```
+
+Run Stage 8 vulnerability management:
+
+```bash
+python -m scripts.run_v2_stage8_vulnerability_management
+```
+
+Run it again to check finding, history and link duplicate protection and preservation of the completed review:
+
+```bash
+python -m scripts.run_v2_stage8_vulnerability_management
+```
+
+Run the Stage 8 tests and validator:
+
+```bash
+python -m unittest -v \
+  tests.test_v2_stage8_vulnerability_management
+
+python -m scripts.validate_v2_stage8
+```
+
+Review the stored findings:
+
+```bash
+sqlite3 -header -column database/netshield.db "
+SELECT
+  source_finding_id,
+  title,
+  asset_id,
+  finding_source,
+  severity,
+  confidence,
+  exploitability,
+  exploitation_status,
+  exposure_level,
+  exposed_service,
+  asset_criticality,
+  priority_score,
+  priority_level,
+  remediation_status,
+  classification,
+  reviewed_by
+FROM v2_vulnerability_findings
+ORDER BY priority_score DESC, source_finding_id;
+"
+```
+
+Review finding totals by priority and remediation status:
+
+```bash
+sqlite3 -header -column database/netshield.db "
+SELECT
+  priority_level,
+  remediation_status,
+  COUNT(*) AS finding_count
+FROM v2_vulnerability_findings
+GROUP BY priority_level, remediation_status
+ORDER BY
+  CASE priority_level
+    WHEN 'Critical' THEN 1
+    WHEN 'High' THEN 2
+    WHEN 'Medium' THEN 3
+    WHEN 'Low' THEN 4
+  END,
+  remediation_status;
+"
+```
+
+Review remediation and verification history:
+
+```bash
+sqlite3 -header -column database/netshield.db "
+SELECT
+  history_id,
+  source_finding_id,
+  source_event_id,
+  previous_status,
+  new_status,
+  verification_result,
+  recorded_at
+FROM v2_vulnerability_remediation_history
+ORDER BY history_id;
+"
+```
+
+Review finding-to-alert and finding-to-incident links:
+
+```bash
+sqlite3 -header -column database/netshield.db "
+SELECT
+  source_finding_id,
+  link_type,
+  linked_record_id,
+  exploitation_status,
+  created_at
+FROM v2_vulnerability_links
+ORDER BY link_type, linked_record_id;
+"
+```
+
+Check Stage 8 duplicate protection:
+
+```bash
+sqlite3 -header -column database/netshield.db "
+SELECT
+  COUNT(*) AS stored_findings,
+  COUNT(DISTINCT finding_key) AS unique_finding_keys
+FROM v2_vulnerability_findings;
+
+SELECT
+  COUNT(*) AS history_records,
+  COUNT(DISTINCT history_key) AS unique_history_keys
+FROM v2_vulnerability_remediation_history;
+
+SELECT
+  COUNT(*) AS stored_links,
+  COUNT(DISTINCT link_key) AS unique_link_keys
+FROM v2_vulnerability_links;
+"
+```
+
+Review the Stage 8 finding-review options:
+
+```bash
+python -m scripts.review_v2_stage8_vulnerability_finding --help
+```
+
+Review the completed false-positive investigation:
+
+```bash
+sqlite3 -header -column database/netshield.db "
+SELECT
+  source_finding_id,
+  title,
+  remediation_status,
+  classification,
+  investigation_notes,
+  reviewed_by,
+  reviewed_at
+FROM v2_vulnerability_findings
+WHERE source_finding_id = 'S78-FND-FP-001';
+
+SELECT
+  actor,
+  action,
+  target,
+  result,
+  details
+FROM audit_events
+WHERE action = 'review_v2_stage8_vulnerability_finding'
+ORDER BY event_id DESC;
+"
+```
+
+Review the Stage 8 configuration and protected-file permission:
+
+```bash
+python -m json.tool config/v2_vulnerability_management.json
+
+python -m json.tool \
+  lab/sql_injection/outputs/stage6_detection_report.json
+
+stat -c '%a %n' \
+  config/v2_vulnerability_management.json
+```
+
+Review the tracked Stage 8 table definitions:
+
+```bash
+grep -n \
+  'CREATE TABLE IF NOT EXISTS v2_vulnerability_' \
+  database/schema.sql
+```
+
+Inspect the complete working table definitions and named indexes:
+
+```bash
+sqlite3 database/netshield.db "
+SELECT type, name, sql
+FROM sqlite_master
+WHERE sql IS NOT NULL
+  AND (
+    name LIKE 'v2_vulnerability_%'
+    OR (
+      type = 'index'
+      AND tbl_name LIKE 'v2_vulnerability_%'
+    )
+  )
+ORDER BY
+  CASE type WHEN 'table' THEN 0 ELSE 1 END,
+  name;
+"
+```
+
+Review Stage 8 completion metadata and audit records:
+
+```bash
+sqlite3 -header -column database/netshield.db "
+SELECT key, value
+FROM system_metadata
+WHERE key = 'v2_stage_8_status';
+
+SELECT
+  actor,
+  action,
+  target,
+  result,
+  details
+FROM audit_events
+WHERE action IN (
+  'initialize_v2_stage7_8',
+  'import_v2_stage7_8_events',
+  'run_v2_stage8_vulnerability_management',
+  'review_v2_stage8_vulnerability_finding'
+)
+ORDER BY event_id DESC
+LIMIT 12;
+"
+```
 
 ## Phase 3A V2 focused tests
 
-Run the V2 Stage 1–7 test groups:
+Run the V2 Stage 1–8 test groups:
 
 ```bash
 python -m unittest -v \
@@ -1097,7 +1334,8 @@ python -m unittest -v \
   tests.test_v2_stage5_access_policy \
   tests.test_v2_stage6_network_monitoring \
   tests.test_v2_stage6_network_alert_review \
-  tests.test_v2_stage7_endpoint_monitoring
+  tests.test_v2_stage7_endpoint_monitoring \
+  tests.test_v2_stage8_vulnerability_management
 ```
 
 Run the SQLite connection tests:
@@ -1117,6 +1355,7 @@ python -m scripts.validate_v2_stage4
 python -m scripts.validate_v2_stage5
 python -m scripts.validate_v2_stage6
 python -m scripts.validate_v2_stage7
+python -m scripts.validate_v2_stage8
 ```
 
 ## Complete project validation
@@ -1147,6 +1386,7 @@ python -m scripts.validate_v2_stage4
 python -m scripts.validate_v2_stage5
 python -m scripts.validate_v2_stage6
 python -m scripts.validate_v2_stage7
+python -m scripts.validate_v2_stage8
 
 python -m scripts.validate_stage11
 ```

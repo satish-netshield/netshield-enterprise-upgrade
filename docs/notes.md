@@ -566,7 +566,7 @@ The first import accepted all 42 records with no rejected events or failed files
 
 The repeated import accepted zero records and rejected all 42 as duplicates. The accepted-event total remained 42.
 
-The 16 Stage 8 records are preparation only. They do not demonstrate a completed vulnerability-processing engine.
+At that point, the 16 Stage 8 records were preparation only. Stage 8 implementation and validation are recorded separately below.
 
 The SQL injection lab asset `AST-WEB-001` was added to enterprise context as a sandbox web-application asset with Medium criticality, not as a CYOD device. Stage 1 tests and validation still passed.
 
@@ -791,8 +791,231 @@ Compilation and file-tail checks are useful when a complete source file is trans
 
 ---
 
+## Stage 8 — Vulnerability and application-security findings
+
+### Observations and decisions
+
+- Stage 8 used six application-security events and ten vulnerability events.
+- All 16 events were already stored once through the shared V2 pipeline.
+- Findings required authoritative asset context from `config/enterprise_context.json`.
+- All managed findings used the registered sandbox asset `AST-WEB-001`.
+- Severity, confidence, exploitability, exploitation status, exposed-service context and asset criticality remained separate fields.
+- Priority used the configured weighted score instead of severity alone.
+- Approved penetration-testing events remained testing evidence and did not become findings.
+- Automatic incident creation remained disabled.
+- A finding-to-incident link required exploitation or other supporting activity evidence.
+- No external target or real penetration-testing action was used.
+
+### Finding results
+
+The controlled evidence produced seven duplicate-safe findings:
+
+| Finding | Priority | Score | Remediation status |
+|---|---:|---:|---|
+| SQL injection authentication bypass | High | 71.05 | Verified |
+| Restricted service exposed inside the sandbox | Medium | 64.65 | Open |
+| Outdated local demonstration dependency | Medium | 64.20 | Verified |
+| Outdated sandbox package | Medium | 53.60 | Planned |
+| Missing local security header | Medium | 43.80 | Planned |
+| Version-only finding requiring analyst review | Low | 39.50 | False Positive |
+| Sensitive configuration permission check | Low | 27.50 | Verified |
+
+The final totals were:
+
+- 1 High-priority finding
+- 4 Medium-priority findings
+- 2 Low-priority findings
+- 1 Open finding
+- 2 Planned findings
+- 3 Verified findings
+- 1 False Positive
+
+### Original-risk preservation problem
+
+The first remediation handling allowed later Low-severity verification events to replace the original risk fields.
+
+This reduced the SQL injection finding to a Low priority score of `31.15` and the dependency finding to `31.05`, even though their original evidence remained more serious.
+
+The SQL injection result also appeared to have no exploitability or exploitation context after successful controlled exploitation had already been recorded.
+
+### Fix
+
+Remediation events were limited to updating the component information and remediation status.
+
+They no longer replace the original:
+
+- Severity
+- Confidence
+- Exploitability
+- Exploitation status
+- Exposed-service context
+- Asset criticality
+
+After the correction:
+
+- The SQL injection finding retained High severity, demonstrated exploitability and successful exploitation evidence, producing a High priority score of `71.05`.
+- The dependency finding retained High severity and high exploitability, producing a Medium priority score of `64.20`.
+- Both findings could remain Verified without losing their original risk evidence.
+
+### Remediation history observation
+
+The engine built 12 duplicate-safe history records from the controlled source events.
+
+The false-positive review added one later review record, bringing the stored total to 13 unique history records.
+
+Remediation verification preserved the later supporting evidence without removing the original finding or its earlier status changes.
+
+### Finding-link decisions
+
+The SQL injection finding retained two evidence-based links:
+
+- One alert link to `S78-END-020`
+- One incident link to `INC-V2-001`
+
+Both links retained successful exploitation context.
+
+A separate test confirmed that an incident link without exploitation evidence was rejected.
+
+No incident was created automatically.
+
+### Approved-testing evidence
+
+The controlled testing records were:
+
+- `S78-APPSEC-TEST-001` for the local SQL injection lab
+- `S78-VULN-TEST-001` for the local sandbox
+
+Both records confirmed that the target was local and that no external target was used.
+
+The events remained approved testing evidence and were not converted into vulnerability findings.
+
+### False-positive investigation
+
+The version-only finding `S78-FND-FP-001` was reviewed by `analyst01`.
+
+The stored notes were:
+
+```text
+Reviewed the version-only match for demo-utility 3.0.0-simulated. The controlled evidence contains no exploitation activity and does not confirm that the component is vulnerable.
+```
+
+The finding was classified as a False Positive.
+
+Its remediation status, classification, reviewer, UTC review time and review history were preserved.
+
+Viewer review was rejected because the role lacked the required investigation permissions.
+
+A finding without supporting review-candidate evidence was also rejected from the false-positive workflow.
+
+### Runner-reporting finding
+
+After the false-positive review, the engine rebuilt the controlled finding with an Open status and printed that calculated state.
+
+The stored database record correctly remained False Positive, but the console output did not reflect it.
+
+The runner was corrected to reload the stored findings after duplicate-safe storage.
+
+The repeated output then showed:
+
+```text
+[Low] Version-only finding requiring analyst review | finding=S78-FND-FP-001 | asset=AST-WEB-001 | score=39.50 | status=False Positive
+```
+
+The summary also recorded one False Positive instead of counting the reviewed finding as Open.
+
+### Duplicate testing
+
+The repeated Stage 8 run reported:
+
+- 7 findings
+- 0 new findings and 7 existing findings
+- 0 new source-driven history records and 12 existing records
+- 0 new links and 2 existing links
+- 1 preserved False Positive
+- 0 automatic incidents
+- 0 external targets
+
+The Analyst review remained stored after repeated processing.
+
+### Tracked-schema observation
+
+The Stage 8 database objects already existed through the shared migration, but they had not yet been added to `database/schema.sql`.
+
+The tracked schema was updated with:
+
+- 3 vulnerability tables
+- 13 named indexes
+
+SQLite also reported three automatic indexes created for unique constraints. These were database-managed indexes rather than additional named Stage 8 indexes.
+
+The complete tracked schema executed successfully against an in-memory database.
+
+Repeated migration created no additional tables or indexes.
+
+### Metadata validation finding
+
+The Stage 8 validator initially found `v2_stage_8_status` set to `vulnerability_management_foundation_ready`.
+
+This occurred because the shared initialisation script had been run again after the vulnerability engine had previously completed.
+
+The initialisation, import, engine and review audit events were present, but the metadata correctly reflected the most recent initialisation step.
+
+The Stage 8 engine was run again after migration testing. It restored the operational status to `vulnerability_management_complete` without duplicating findings, history or links.
+
+The validator then passed the metadata and audit check.
+
+### Python 3.14 warning check
+
+The first Stage 8 focused-test run used direct SQLite connection contexts in the new test file and produced unclosed-database warnings under Python 3.14.
+
+The test connections were changed to use the project’s managed connection helper.
+
+The warning-enabled complete regression then reported zero unclosed-database warnings.
+
+This did not require another project-wide connection rewrite. The issue was limited to the new Stage 8 test connections.
+
+### Final testing result
+
+All 14 focused Stage 8 tests passed.
+
+Stage 8 validation passed 16 out of 16 checks.
+
+Stage 7 validation still passed 14 out of 14 checks after the shared Stage 7–8 components were exercised.
+
+The complete project regression produced:
+
+```text
+Ran 205 tests in 2.200s
+
+OK
+```
+
+The warning-enabled regression reported zero unclosed-database warnings.
+
+The original Phase 3 Stage 11 full-project validation passed.
+
+SQLite integrity checking returned `ok`, and foreign-key checking reported no violations.
+
+Python syntax compilation and `git diff --check` completed without errors.
+
+### Lessons
+
+Remediation verification must not erase the original risk that caused a finding to be prioritised.
+
+A vulnerability alone is not an incident. Alert and incident links need supporting activity or exploitation evidence.
+
+Stored investigation state must be loaded after processing so repeated output reflects completed reviews.
+
+Approved penetration-testing activity is evidence of controlled testing, not automatically a vulnerability finding.
+
+Authoritative asset context prevents findings from being stored against unknown or invented assets.
+
+A validator should report the latest operational state accurately. If an initialisation step resets readiness metadata, the completed engine must run again before final validation.
+
+---
+
 ## Next improvement
 
-Stage 8 remains paused. Its configuration, asset context, database preparation and controlled source events are available, but its vulnerability-processing engine has not been implemented or validated.
+Stage 8 is complete and validated.
 
-The next stage will stay within the agreed vulnerability and application-security scope. Findings will not automatically become incidents, and any finding-to-alert or finding-to-incident link must retain supporting evidence.
+Any later project stage will be handled separately and only within its agreed scope. Completed findings, remediation history, reviews and evidence links must remain available when the project is extended.

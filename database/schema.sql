@@ -735,3 +735,365 @@ ON v2_network_connection_timeline(ip_address);
 
 CREATE INDEX IF NOT EXISTS idx_v2_network_timeline_mac
 ON v2_network_connection_timeline(mac_address);
+
+-- Phase 3A V2 Stage 7 endpoint monitoring
+
+CREATE TABLE IF NOT EXISTS v2_endpoint_activity_timeline (
+    timeline_id INTEGER PRIMARY KEY AUTOINCREMENT,
+    source_event_id TEXT NOT NULL UNIQUE,
+    event_time TEXT NOT NULL,
+    source_type TEXT NOT NULL,
+    event_type TEXT NOT NULL,
+    device_id TEXT,
+    asset_id TEXT,
+    username TEXT,
+    hostname TEXT,
+    ip_address TEXT,
+    mac_address TEXT,
+    location TEXT,
+    health_state TEXT,
+    compliance_state TEXT,
+    device_risk_state TEXT,
+    process_name TEXT,
+    process_id INTEGER,
+    process_owner TEXT,
+    parent_process_name TEXT,
+    command_line TEXT,
+    cpu_percent REAL,
+    file_path TEXT,
+    observed_hash TEXT,
+    isolation_state TEXT,
+    status TEXT,
+    raw_event TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS v2_endpoint_alerts (
+    alert_id INTEGER PRIMARY KEY AUTOINCREMENT,
+    alert_key TEXT NOT NULL UNIQUE,
+    created_at TEXT NOT NULL,
+    detection_type TEXT NOT NULL,
+    severity TEXT NOT NULL
+        CHECK (
+            severity IN (
+                'Low',
+                'Medium',
+                'High',
+                'Critical'
+            )
+        ),
+    confidence INTEGER NOT NULL
+        CHECK (
+            confidence BETWEEN 0 AND 100
+        ),
+    first_event_time TEXT NOT NULL,
+    last_event_time TEXT NOT NULL,
+    source_event_ids TEXT NOT NULL,
+    source_types TEXT NOT NULL,
+    device_id TEXT,
+    asset_id TEXT,
+    username TEXT,
+    hostname TEXT,
+    ip_address TEXT,
+    mac_address TEXT,
+    location TEXT,
+    health_state TEXT,
+    compliance_state TEXT,
+    device_risk_state TEXT,
+    process_name TEXT,
+    process_id INTEGER,
+    process_owner TEXT,
+    parent_process_name TEXT,
+    command_line TEXT,
+    cpu_percent REAL,
+    file_path TEXT,
+    expected_hash TEXT,
+    observed_hash TEXT,
+    reason_codes TEXT NOT NULL,
+    evidence TEXT NOT NULL,
+    status TEXT NOT NULL DEFAULT 'New'
+        CHECK (
+            status IN (
+                'New',
+                'Investigating',
+                'Confirmed',
+                'False Positive',
+                'Closed'
+            )
+        ),
+    classification TEXT,
+    investigation_notes TEXT,
+    reviewed_by TEXT,
+    reviewed_at TEXT
+);
+
+CREATE TABLE IF NOT EXISTS v2_endpoint_isolation_actions (
+    isolation_id INTEGER PRIMARY KEY AUTOINCREMENT,
+    isolation_key TEXT NOT NULL UNIQUE,
+    alert_key TEXT NOT NULL,
+    requested_at TEXT NOT NULL,
+    device_id TEXT NOT NULL,
+    asset_id TEXT,
+    action TEXT NOT NULL
+        CHECK (
+            action = 'quarantine_device'
+        ),
+    acl_control_level TEXT NOT NULL
+        CHECK (
+            acl_control_level = 'approval_required'
+        ),
+    status TEXT NOT NULL
+        CHECK (
+            status IN (
+                'approval_required',
+                'simulated_isolated',
+                'rejected'
+            )
+        ),
+    request_reason TEXT NOT NULL,
+    approved_by TEXT,
+    approved_at TEXT,
+    network_state_changed INTEGER NOT NULL DEFAULT 0
+        CHECK (
+            network_state_changed = 0
+        ),
+    real_action_executed INTEGER NOT NULL DEFAULT 0
+        CHECK (
+            real_action_executed = 0
+        ),
+    evidence TEXT NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_v2_endpoint_alerts_asset
+ON v2_endpoint_alerts(asset_id);
+
+CREATE INDEX IF NOT EXISTS idx_v2_endpoint_alerts_device
+ON v2_endpoint_alerts(device_id);
+
+CREATE INDEX IF NOT EXISTS idx_v2_endpoint_alerts_process
+ON v2_endpoint_alerts(process_name);
+
+CREATE INDEX IF NOT EXISTS idx_v2_endpoint_alerts_severity
+ON v2_endpoint_alerts(severity);
+
+CREATE INDEX IF NOT EXISTS idx_v2_endpoint_alerts_status
+ON v2_endpoint_alerts(status);
+
+CREATE INDEX IF NOT EXISTS idx_v2_endpoint_alerts_time
+ON v2_endpoint_alerts(first_event_time, last_event_time);
+
+CREATE INDEX IF NOT EXISTS idx_v2_endpoint_alerts_type
+ON v2_endpoint_alerts(detection_type);
+
+CREATE INDEX IF NOT EXISTS idx_v2_endpoint_isolation_device
+ON v2_endpoint_isolation_actions(device_id);
+
+CREATE INDEX IF NOT EXISTS idx_v2_endpoint_isolation_requested
+ON v2_endpoint_isolation_actions(requested_at);
+
+CREATE INDEX IF NOT EXISTS idx_v2_endpoint_isolation_status
+ON v2_endpoint_isolation_actions(status);
+
+CREATE INDEX IF NOT EXISTS idx_v2_endpoint_timeline_asset
+ON v2_endpoint_activity_timeline(asset_id);
+
+CREATE INDEX IF NOT EXISTS idx_v2_endpoint_timeline_device
+ON v2_endpoint_activity_timeline(device_id);
+
+CREATE INDEX IF NOT EXISTS idx_v2_endpoint_timeline_isolation
+ON v2_endpoint_activity_timeline(isolation_state);
+
+CREATE INDEX IF NOT EXISTS idx_v2_endpoint_timeline_process
+ON v2_endpoint_activity_timeline(process_name);
+
+CREATE INDEX IF NOT EXISTS idx_v2_endpoint_timeline_source
+ON v2_endpoint_activity_timeline(source_event_id);
+
+CREATE INDEX IF NOT EXISTS idx_v2_endpoint_timeline_time
+ON v2_endpoint_activity_timeline(event_time);
+
+-- Phase 3A V2 Stage 8 vulnerability management
+
+CREATE TABLE IF NOT EXISTS v2_vulnerability_findings (
+    finding_record_id INTEGER PRIMARY KEY AUTOINCREMENT,
+    finding_key TEXT NOT NULL UNIQUE,
+    source_finding_id TEXT NOT NULL,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL,
+    asset_id TEXT NOT NULL,
+    finding_type TEXT NOT NULL,
+    title TEXT NOT NULL,
+    finding_source TEXT NOT NULL,
+    severity TEXT NOT NULL
+        CHECK (
+            severity IN (
+                'Low',
+                'Medium',
+                'High',
+                'Critical'
+            )
+        ),
+    confidence INTEGER NOT NULL
+        CHECK (
+            confidence BETWEEN 0 AND 100
+        ),
+    confidence_level TEXT NOT NULL
+        CHECK (
+            confidence_level IN (
+                'Low',
+                'Medium',
+                'High',
+                'Very High'
+            )
+        ),
+    exploitability TEXT NOT NULL
+        CHECK (
+            exploitability IN (
+                'none',
+                'low',
+                'medium',
+                'high',
+                'demonstrated'
+            )
+        ),
+    exploitation_status TEXT NOT NULL DEFAULT 'none'
+        CHECK (
+            exploitation_status IN (
+                'none',
+                'attempted',
+                'successful'
+            )
+        ),
+    exposure_level TEXT NOT NULL
+        CHECK (
+            exposure_level IN (
+                'none',
+                'internal',
+                'restricted',
+                'exposed',
+                'internet_facing'
+            )
+        ),
+    exposed_service TEXT,
+    asset_criticality TEXT NOT NULL
+        CHECK (
+            asset_criticality IN (
+                'low',
+                'medium',
+                'high',
+                'critical'
+            )
+        ),
+    priority_score REAL NOT NULL
+        CHECK (
+            priority_score BETWEEN 0 AND 100
+        ),
+    priority_level TEXT NOT NULL
+        CHECK (
+            priority_level IN (
+                'Low',
+                'Medium',
+                'High',
+                'Critical'
+            )
+        ),
+    component_name TEXT,
+    component_version TEXT,
+    safe_check TEXT NOT NULL,
+    source_event_ids TEXT NOT NULL,
+    reason_codes TEXT NOT NULL,
+    evidence TEXT NOT NULL,
+    remediation_status TEXT NOT NULL
+        CHECK (
+            remediation_status IN (
+                'Open',
+                'Planned',
+                'In Progress',
+                'Remediated',
+                'Verified',
+                'False Positive'
+            )
+        ),
+    verification_status TEXT,
+    verified_at TEXT,
+    classification TEXT,
+    investigation_notes TEXT,
+    reviewed_by TEXT,
+    reviewed_at TEXT
+);
+
+CREATE TABLE IF NOT EXISTS v2_vulnerability_links (
+    link_id INTEGER PRIMARY KEY AUTOINCREMENT,
+    link_key TEXT NOT NULL UNIQUE,
+    finding_key TEXT NOT NULL,
+    source_finding_id TEXT NOT NULL,
+    link_type TEXT NOT NULL
+        CHECK (
+            link_type IN (
+                'alert',
+                'incident'
+            )
+        ),
+    linked_record_id TEXT NOT NULL,
+    exploitation_status TEXT NOT NULL DEFAULT 'none'
+        CHECK (
+            exploitation_status IN (
+                'none',
+                'attempted',
+                'successful'
+            )
+        ),
+    created_at TEXT NOT NULL,
+    evidence TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS v2_vulnerability_remediation_history (
+    history_id INTEGER PRIMARY KEY AUTOINCREMENT,
+    history_key TEXT NOT NULL UNIQUE,
+    finding_key TEXT NOT NULL,
+    source_finding_id TEXT NOT NULL,
+    source_event_id TEXT NOT NULL,
+    recorded_at TEXT NOT NULL,
+    previous_status TEXT,
+    new_status TEXT NOT NULL,
+    verification_result TEXT,
+    evidence TEXT NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_v2_vulnerability_findings_asset
+ON v2_vulnerability_findings(asset_id);
+
+CREATE INDEX IF NOT EXISTS idx_v2_vulnerability_findings_priority
+ON v2_vulnerability_findings(priority_level, priority_score);
+
+CREATE INDEX IF NOT EXISTS idx_v2_vulnerability_findings_severity
+ON v2_vulnerability_findings(severity);
+
+CREATE INDEX IF NOT EXISTS idx_v2_vulnerability_findings_source
+ON v2_vulnerability_findings(source_finding_id);
+
+CREATE INDEX IF NOT EXISTS idx_v2_vulnerability_findings_status
+ON v2_vulnerability_findings(remediation_status);
+
+CREATE INDEX IF NOT EXISTS idx_v2_vulnerability_findings_type
+ON v2_vulnerability_findings(finding_type);
+
+CREATE INDEX IF NOT EXISTS idx_v2_vulnerability_findings_updated
+ON v2_vulnerability_findings(updated_at);
+
+CREATE INDEX IF NOT EXISTS idx_v2_vulnerability_history_finding
+ON v2_vulnerability_remediation_history(finding_key);
+
+CREATE INDEX IF NOT EXISTS idx_v2_vulnerability_history_status
+ON v2_vulnerability_remediation_history(new_status);
+
+CREATE INDEX IF NOT EXISTS idx_v2_vulnerability_history_time
+ON v2_vulnerability_remediation_history(recorded_at);
+
+CREATE INDEX IF NOT EXISTS idx_v2_vulnerability_links_finding
+ON v2_vulnerability_links(finding_key);
+
+CREATE INDEX IF NOT EXISTS idx_v2_vulnerability_links_record
+ON v2_vulnerability_links(linked_record_id);
+
+CREATE INDEX IF NOT EXISTS idx_v2_vulnerability_links_type
+ON v2_vulnerability_links(link_type);
