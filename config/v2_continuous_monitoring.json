@@ -1,0 +1,106 @@
+{
+  "stage": 9,
+  "version": "0.1.0",
+  "simulation_only": true,
+  "schedule": {
+    "interval_minutes": 15,
+    "source_freshness_minutes": 30,
+    "allow_overlapping_cycles": false
+  },
+  "risk_entities": [
+    "user",
+    "device",
+    "asset",
+    "incident"
+  ],
+  "evidence_sources": {
+    "identity": "v2_identity_alerts",
+    "access_policy": "access_policy_decisions",
+    "device_identity": "device_alerts",
+    "network": "v2_network_alerts",
+    "endpoint": "v2_endpoint_alerts",
+    "vulnerability": "v2_vulnerability_findings",
+    "incident_link": "v2_vulnerability_links"
+  },
+  "risk_scoring": {
+    "scale": {
+      "minimum": 0,
+      "maximum": 100
+    },
+    "weights": {
+      "severity": 40,
+      "confidence": 30,
+      "asset_criticality": 30
+    },
+    "severity_values": {
+      "Low": 25,
+      "Medium": 50,
+      "High": 75,
+      "Critical": 100
+    },
+    "asset_criticality_values": {
+      "low": 25,
+      "medium": 50,
+      "high": 75,
+      "critical": 100,
+      "unknown": 0
+    },
+    "risk_thresholds": {
+      "Critical": 85,
+      "High": 65,
+      "Medium": 40,
+      "Low": 0
+    },
+    "independent_source_agreement": {
+      "minimum_sources": 2,
+      "points_per_additional_source": 10,
+      "maximum_increase": 20
+    },
+    "validated_exception_reduction": {
+      "points_per_exception": 15,
+      "maximum_reduction": 30,
+      "accepted_classifications": [
+        "False Positive"
+      ],
+      "require_completed_review": true
+    },
+    "time_decay": {
+      "grace_period_hours": 24,
+      "points_per_24_hours": 5,
+      "minimum_score": 0
+    }
+  },
+  "alerting": {
+    "risk_alert_threshold": 65,
+    "escalation_threshold": 85,
+    "cooldown_minutes": 60,
+    "suppress_during_cooldown": true,
+    "preserve_suppressed_evidence": true
+  },
+  "health_monitoring": {
+    "pipeline_failure_alert_after": 1,
+    "detection_unhealthy_after_failures": 2,
+    "track_last_successful_run": true,
+    "required_components": [
+      "ingestion",
+      "identity_detection",
+      "access_policy",
+      "network_detection",
+      "endpoint_detection",
+      "vulnerability_management",
+      "risk_assessment"
+    ]
+  },
+  "evidence_policy": {
+    "preserve_original_evidence": true,
+    "risk_scores_replace_evidence": false,
+    "duplicate_protection": true
+  },
+  "sandbox_policy": {
+    "real_external_targets_allowed": false,
+    "automatic_response_actions_allowed": false,
+    "real_account_changes_allowed": false,
+    "real_device_changes_allowed": false,
+    "real_network_changes_allowed": false
+  }
+}

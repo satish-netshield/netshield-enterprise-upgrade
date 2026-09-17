@@ -1097,3 +1097,280 @@ ON v2_vulnerability_links(linked_record_id);
 
 CREATE INDEX IF NOT EXISTS idx_v2_vulnerability_links_type
 ON v2_vulnerability_links(link_type);
+
+-- Phase 3A V2 Stage 9 continuous monitoring
+
+CREATE TABLE IF NOT EXISTS v2_monitoring_cycles (
+    cycle_id INTEGER PRIMARY KEY AUTOINCREMENT,
+    cycle_key TEXT NOT NULL UNIQUE,
+    scheduled_for TEXT NOT NULL,
+    started_at TEXT NOT NULL,
+    completed_at TEXT,
+    status TEXT NOT NULL
+        CHECK (
+            status IN (
+                'running',
+                'completed',
+                'completed_with_warnings',
+                'failed',
+                'suppressed_cooldown'
+            )
+        ),
+    ingestion_status TEXT NOT NULL
+        CHECK (
+            ingestion_status IN (
+                'not_started',
+                'healthy',
+                'degraded',
+                'failed',
+                'skipped'
+            )
+        ),
+    detection_status TEXT NOT NULL
+        CHECK (
+            detection_status IN (
+                'not_started',
+                'healthy',
+                'degraded',
+                'failed',
+                'skipped'
+            )
+        ),
+    risk_status TEXT NOT NULL
+        CHECK (
+            risk_status IN (
+                'not_started',
+                'healthy',
+                'degraded',
+                'failed',
+                'skipped'
+            )
+        ),
+    last_successful_run TEXT,
+    records_assessed INTEGER NOT NULL DEFAULT 0
+        CHECK (records_assessed >= 0),
+    entities_scored INTEGER NOT NULL DEFAULT 0
+        CHECK (entities_scored >= 0),
+    alerts_created INTEGER NOT NULL DEFAULT 0
+        CHECK (alerts_created >= 0),
+    alerts_suppressed INTEGER NOT NULL DEFAULT 0
+        CHECK (alerts_suppressed >= 0),
+    metrics TEXT NOT NULL,
+    failure_details TEXT
+);
+
+CREATE TABLE IF NOT EXISTS v2_continuous_risk_scores (
+    risk_id INTEGER PRIMARY KEY AUTOINCREMENT,
+    risk_key TEXT NOT NULL UNIQUE,
+    entity_type TEXT NOT NULL
+        CHECK (
+            entity_type IN (
+                'user',
+                'device',
+                'asset',
+                'incident'
+            )
+        ),
+    entity_id TEXT NOT NULL,
+    assessed_at TEXT NOT NULL,
+    risk_score REAL NOT NULL
+        CHECK (risk_score BETWEEN 0 AND 100),
+    risk_level TEXT NOT NULL
+        CHECK (
+            risk_level IN (
+                'Low',
+                'Medium',
+                'High',
+                'Critical'
+            )
+        ),
+    severity_component REAL NOT NULL,
+    confidence_component REAL NOT NULL,
+    asset_criticality_component REAL NOT NULL,
+    agreement_adjustment REAL NOT NULL,
+    exception_adjustment REAL NOT NULL,
+    decay_adjustment REAL NOT NULL,
+    independent_source_count INTEGER NOT NULL
+        CHECK (independent_source_count >= 0),
+    source_types TEXT NOT NULL,
+    evidence_refs TEXT NOT NULL,
+    evidence TEXT NOT NULL,
+    last_evidence_time TEXT NOT NULL,
+    original_evidence_preserved INTEGER NOT NULL DEFAULT 1
+        CHECK (original_evidence_preserved = 1),
+    UNIQUE (entity_type, entity_id)
+);
+
+CREATE TABLE IF NOT EXISTS v2_continuous_risk_history (
+    history_id INTEGER PRIMARY KEY AUTOINCREMENT,
+    history_key TEXT NOT NULL UNIQUE,
+    cycle_key TEXT NOT NULL,
+    entity_type TEXT NOT NULL
+        CHECK (
+            entity_type IN (
+                'user',
+                'device',
+                'asset',
+                'incident'
+            )
+        ),
+    entity_id TEXT NOT NULL,
+    assessed_at TEXT NOT NULL,
+    previous_score REAL,
+    new_score REAL NOT NULL
+        CHECK (new_score BETWEEN 0 AND 100),
+    previous_level TEXT,
+    new_level TEXT NOT NULL
+        CHECK (
+            new_level IN (
+                'Low',
+                'Medium',
+                'High',
+                'Critical'
+            )
+        ),
+    change_reason TEXT NOT NULL,
+    source_types TEXT NOT NULL,
+    evidence_refs TEXT NOT NULL,
+    calculation TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS v2_monitoring_alerts (
+    alert_id INTEGER PRIMARY KEY AUTOINCREMENT,
+    alert_key TEXT NOT NULL UNIQUE,
+    alert_type TEXT NOT NULL
+        CHECK (
+            alert_type IN (
+                'risk_threshold',
+                'risk_escalation',
+                'detection_health',
+                'pipeline_failure'
+            )
+        ),
+    created_at TEXT NOT NULL,
+    last_observed_at TEXT NOT NULL,
+    entity_type TEXT,
+    entity_id TEXT,
+    component TEXT,
+    risk_score REAL
+        CHECK (
+            risk_score IS NULL
+            OR risk_score BETWEEN 0 AND 100
+        ),
+    threshold REAL,
+    severity TEXT NOT NULL
+        CHECK (
+            severity IN (
+                'Low',
+                'Medium',
+                'High',
+                'Critical'
+            )
+        ),
+    status TEXT NOT NULL
+        CHECK (
+            status IN (
+                'New',
+                'Monitoring',
+                'Suppressed',
+                'Closed'
+            )
+        ),
+    cooldown_until TEXT,
+    suppression_reason TEXT,
+    occurrence_count INTEGER NOT NULL DEFAULT 1
+        CHECK (occurrence_count >= 1),
+    independent_source_count INTEGER NOT NULL DEFAULT 0
+        CHECK (independent_source_count >= 0),
+    source_types TEXT NOT NULL,
+    evidence_refs TEXT NOT NULL,
+    evidence TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS v2_detection_health (
+    health_id INTEGER PRIMARY KEY AUTOINCREMENT,
+    health_key TEXT NOT NULL UNIQUE,
+    cycle_key TEXT NOT NULL,
+    component TEXT NOT NULL,
+    checked_at TEXT NOT NULL,
+    status TEXT NOT NULL
+        CHECK (
+            status IN (
+                'healthy',
+                'degraded',
+                'failed'
+            )
+        ),
+    last_successful_run TEXT,
+    consecutive_failures INTEGER NOT NULL DEFAULT 0
+        CHECK (consecutive_failures >= 0),
+    records_processed INTEGER NOT NULL DEFAULT 0
+        CHECK (records_processed >= 0),
+    details TEXT NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_v2_monitoring_cycles_scheduled
+ON v2_monitoring_cycles(scheduled_for);
+
+CREATE INDEX IF NOT EXISTS idx_v2_monitoring_cycles_status
+ON v2_monitoring_cycles(status);
+
+CREATE INDEX IF NOT EXISTS idx_v2_monitoring_cycles_completed
+ON v2_monitoring_cycles(completed_at);
+
+CREATE INDEX IF NOT EXISTS idx_v2_monitoring_cycles_last_success
+ON v2_monitoring_cycles(last_successful_run);
+
+CREATE INDEX IF NOT EXISTS idx_v2_risk_scores_entity
+ON v2_continuous_risk_scores(entity_type, entity_id);
+
+CREATE INDEX IF NOT EXISTS idx_v2_risk_scores_level
+ON v2_continuous_risk_scores(risk_level);
+
+CREATE INDEX IF NOT EXISTS idx_v2_risk_scores_score
+ON v2_continuous_risk_scores(risk_score);
+
+CREATE INDEX IF NOT EXISTS idx_v2_risk_scores_assessed
+ON v2_continuous_risk_scores(assessed_at);
+
+CREATE INDEX IF NOT EXISTS idx_v2_risk_scores_last_evidence
+ON v2_continuous_risk_scores(last_evidence_time);
+
+CREATE INDEX IF NOT EXISTS idx_v2_risk_history_entity
+ON v2_continuous_risk_history(entity_type, entity_id);
+
+CREATE INDEX IF NOT EXISTS idx_v2_risk_history_cycle
+ON v2_continuous_risk_history(cycle_key);
+
+CREATE INDEX IF NOT EXISTS idx_v2_risk_history_time
+ON v2_continuous_risk_history(assessed_at);
+
+CREATE INDEX IF NOT EXISTS idx_v2_monitoring_alerts_type
+ON v2_monitoring_alerts(alert_type);
+
+CREATE INDEX IF NOT EXISTS idx_v2_monitoring_alerts_entity
+ON v2_monitoring_alerts(entity_type, entity_id);
+
+CREATE INDEX IF NOT EXISTS idx_v2_monitoring_alerts_component
+ON v2_monitoring_alerts(component);
+
+CREATE INDEX IF NOT EXISTS idx_v2_monitoring_alerts_status
+ON v2_monitoring_alerts(status);
+
+CREATE INDEX IF NOT EXISTS idx_v2_monitoring_alerts_severity
+ON v2_monitoring_alerts(severity);
+
+CREATE INDEX IF NOT EXISTS idx_v2_monitoring_alerts_cooldown
+ON v2_monitoring_alerts(cooldown_until);
+
+CREATE INDEX IF NOT EXISTS idx_v2_detection_health_component
+ON v2_detection_health(component);
+
+CREATE INDEX IF NOT EXISTS idx_v2_detection_health_status
+ON v2_detection_health(status);
+
+CREATE INDEX IF NOT EXISTS idx_v2_detection_health_checked
+ON v2_detection_health(checked_at);
+
+CREATE INDEX IF NOT EXISTS idx_v2_detection_health_last_success
+ON v2_detection_health(last_successful_run);
