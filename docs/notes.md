@@ -4,790 +4,335 @@
 
 Phase 3A V2 extends the completed NetShield Phase 3 Automation project.
 
-These notes record only meaningful test observations, failures, fixes, decisions and lessons from the enterprise upgrade.
+These notes contain only meaningful observations, failures, fixes, decisions and lessons from the enterprise upgrade.
 
-The project remains inside the Ubuntu VirtualBox sandbox and uses simulated enterprise data. No real Microsoft services, external accounts or production security actions are used.
+The project remains inside the Ubuntu VirtualBox sandbox and uses simulated security data. No real Microsoft services, external targets or production response actions are used.
 
 ---
 
-## Stage 1 — Enterprise project foundation
+## Stage 1 — Enterprise foundation
 
 ### Observations and decisions
 
-- The V2 project reused the existing SQLite database, RBAC roles, automation ACL, logging, evidence controls and sandbox boundaries.
-- Reusing the existing controls kept the upgrade connected to NetShield instead of creating a separate security model.
-- Retention periods were configured, but automatic deletion was not added because it requires its own controlled workflow.
+- Existing SQLite, RBAC, automation ACL, logging and evidence controls were reused.
+- Retention periods were configured without adding automatic deletion.
 - Sensitive values are masked in suitable output while original evidence remains unchanged.
 
 ### Problems and fixes
 
-- Nested SQL injection lab data, logs and outputs appeared as untracked runtime files. Their paths were added to `.gitignore`.
-- `CYOD-002` was registered in the enterprise context but missing from the authoritative CYOD inventory. The inventory was corrected and a consistency check was added.
-- Repository separation restored `config/settings.json` with permission `664`. Git does not preserve detailed non-executable modes such as `640`, so the required permission was reapplied.
-- Repeated V2 initialisation was checked to confirm that it did not create duplicate role assignments.
+- `CYOD-002` was present in enterprise context but missing from the authoritative inventory. The inventory and consistency checks were corrected.
+- Runtime SQL injection lab files appeared as untracked files. Their paths were added to `.gitignore`.
+- Sensitive configuration permissions were reapplied because Git does not preserve detailed non-executable permission modes.
 
-### Testing observation
+### Result and lesson
 
-V2 Stage 1 passed 12 out of 12 validation checks.
+Stage 1 passed 12 out of 12 validation checks.
 
-### Lesson
-
-New enterprise context must agree with the project’s existing authoritative records. Configuration, inventory and database state cannot be treated as separate sources of truth.
+Enterprise context, inventory and database state must agree. They cannot be treated as separate sources of truth.
 
 ---
 
 ## Stage 2 — Extended security data pipeline
 
-### Observations and decisions
+### Observations
 
-- Six V2 JSONL files contained 14 records.
-- Twelve valid records were accepted.
-- Two malformed records were quarantined.
+Six JSONL files contained 14 records:
+
+- 12 valid records were accepted.
+- 2 malformed records were quarantined.
 - Accepted timestamps were stored in UTC.
-- Original events were preserved with the normalised records.
-- Repeated imports did not duplicate accepted events.
+- Original events were preserved.
+- Repeated imports created no duplicate accepted events.
 
 ### Problems and fixes
 
-- Updating `database/schema.sql` did not upgrade the existing SQLite database. A repeatable migration was added so new columns and indexes could be applied without deleting earlier data.
-- The original filename logic read only the first word of a source name. This would have changed `identity_risk` into `identity`. Source detection was corrected to recognise the complete supported source name.
-- The V2 validator originally counted rejection rows. Repeated imports could therefore make two malformed inputs appear to be several different malformed events. Validation was changed to check distinct malformed evidence.
-- The original Stage 2 validator expected the supported-source list to equal the original five sources exactly. It was corrected to require those five while allowing approved V2 additions.
-- Some older tests depended on ignored runtime output files. Sanitised fixtures were added so tests did not depend on machine-specific or untracked data.
-- An unreadable source file was tested to confirm that a file-level failure creates a failed import batch instead of being silently ignored.
+- Updating `database/schema.sql` did not upgrade the existing database. A repeatable migration was added.
+- Source detection shortened `identity_risk` to `identity`. Complete supported source names are now recognised.
+- Repeated malformed inputs increased quarantine row counts. Validation was changed to check distinct malformed evidence.
+- The original validator expected exactly five sources. It was changed to require the original sources while allowing approved V2 additions.
 
-### Testing observation
+### Result and lesson
 
-V2 Stage 2 passed 13 out of 13 validation checks.
+Stage 2 passed 13 out of 13 validation checks.
 
-### Lesson
-
-Pipeline validation must distinguish between source evidence and database row counts. It must also remain compatible when new approved sources are added.
+Validation must distinguish source evidence from database row counts and remain compatible with approved future sources.
 
 ---
 
-## Stage 3 — Enterprise asset and device identity
+## Stage 3 — Asset and device identity
 
-### Observations and decisions
+### Observations and fixes
 
-- Device ID and asset ID were kept as the main identity references.
-- MAC addresses were treated as supporting evidence only.
-- Known but unregistered devices were kept separate from completely unknown devices.
-- Device removal preserved the inventory record and registration history.
+- Device ID and asset ID remain the primary device references.
+- MAC addresses remain supporting evidence only.
+- Database and web assets were initially treated as devices. Evaluation was limited to events with device evidence.
+- `CYOD-003` was corrected from Unknown to Unregistered because it already existed in enterprise context.
+- Device removal changes registration state instead of deleting history.
 
-### Problems and fixes
+### Result and lesson
 
-- Removing the existing `approval_status` field broke Phase 3 compatibility. The field was restored.
-- Database and application assets were initially treated as devices. Device evaluation was limited to events containing a device ID or an asset ID known to the device inventory.
-- `CYOD-003` was initially classified as unknown. Enterprise context confirmed that it was known but unregistered, so the finding was corrected.
-- Different labels for the same Auckland location created an unnecessary mismatch. Compatible location values were normalised.
+Three relevant events produced one High Unregistered Device alert for `CYOD-003`. Approved `CYOD-002` activity produced no false alert.
 
-### Testing observation
+Stage 3 passed 19 out of 19 validation checks.
 
-Three relevant V2 device events were evaluated.
-
-One meaningful High-severity Unregistered Device alert remained for `CYOD-003`. Approved `CYOD-002` activity produced no false alert.
-
-Repeated detection did not create another stored alert.
-
-V2 Stage 3 passed 19 out of 19 validation checks.
-
-### Lesson
-
-A device decision needs several pieces of evidence. A MAC address can support a result, but it should not be treated as proof of device identity.
+Reliable device identity requires inventory and event context. A MAC address alone is not enough.
 
 ---
 
-## Stage 4 — Identity monitoring and risk detection
+## Stage 4 — Identity monitoring
 
-### Observations and decisions
+### Observations
 
-- Stage 4 used 21 authentication events and three identity-risk events.
-- The controlled run evaluated 24 relevant events and produced 16 identity alerts.
-- Severity and confidence were stored separately.
-- Each alert included traceable source events and a reason code.
-- Known VPN and approved-testing exceptions were counted rather than silently ignored.
-- The run recorded two VPN exceptions and one approved-testing exception.
-- V2 alerts were stored separately from the original Phase 3 identity-alert table.
+Twenty-four controlled events produced 16 traceable identity alerts.
 
-### Detection results
+Severity and confidence were stored separately. VPN and testing exceptions were counted instead of being silently ignored.
 
-The controlled evidence produced:
+### Test-data problem
 
-- One Repeated Failed Logins alert
-- One Possible Brute Force alert
-- One Successful Login After Failures alert
-- One Password Spraying Pattern alert
-- One Multiple Accounts From One Source alert
-- One Impossible Travel alert
-- Two Unusual Sign-In Location alerts
-- One New-Device Sign-In alert
-- One MFA Failure or Fatigue Pattern alert
-- One Suspicious Privilege Change alert
-- One Dormant-Account Activity alert
-- One Service-Account Interactive Login alert
-- Two Risky Sign-In Behaviour alerts
-- One Abnormal Access Time alert
+The first normal authentication events occurred shortly after midnight UTC, outside the configured normal access period.
 
-### Problem found
-
-The first controlled authentication dataset began at `00:00` UTC.
-
-Normal access hours started later, so ordinary test activity would have been incorrectly treated as abnormal access. This was a test-data problem rather than a detector failure.
+This would have created unintended abnormal-time alerts even though the detector was working as configured.
 
 ### Fix
 
-Normal authentication events were moved inside the configured access period.
+Normal events were moved inside the configured period. One deliberate event remained at `23:00` UTC to test the abnormal-time rule.
 
-One deliberate event remained at `23:00` UTC so the abnormal-time rule still had controlled evidence.
+### Review and duplicate result
 
-The earlier Stage 4–5 source records and import batches were removed before the corrected files were regenerated and imported.
+The deliberate Abnormal Access Time alert was reviewed by `analyst01`, classified as a False Positive and closed with investigation notes.
 
-### Duplicate testing
+A repeated detector run created zero new alerts and identified all 16 as existing.
 
-The first identity-monitoring run stored 16 new alerts.
-
-The repeated run reported:
-
-- 16 detections
-- 0 new alerts
-- 16 existing alerts
-- 16 stored alert keys
-- 16 unique alert keys
-
-No accepted identity alerts were duplicated.
-
-### False-positive investigation
-
-The Abnormal Access Time alert for `viewer01` was reviewed by `analyst01`.
-
-It was classified as a False Positive and closed with the note that the event was controlled after-hours testing and no unauthorised access occurred.
-
-The review was recorded in the audit trail.
-
-### Testing result
-
-The Stage 4 identity-monitoring tests passed 12 tests.
-
-The alert-review tests passed seven tests.
-
-V2 Stage 4 passed 12 out of 12 validation checks.
+Stage 4 passed 12 out of 12 validation checks.
 
 ### Lesson
 
-Controlled security data must match its configured baseline. A correct detector can produce misleading results when normal test activity is created outside the normal period.
-
-Exceptions and false-positive review are also part of detection quality. They should be recorded without deleting the original alert.
+Controlled test data must agree with its configured baseline. Otherwise, a correct rule can produce misleading results.
 
 ---
 
-## Stage 5 — Zero Trust and policy-based access decisions
+## Stage 5 — Policy-based access decisions
 
-### Observations and decisions
+### Observations
 
-- Stage 5 evaluated nine controlled access requests.
-- Existing RBAC and automation ACL controls were reused.
-- Every decision stored its winning policy, reason codes and evaluated evidence.
-- The engine supported Allow, Deny, Challenge and Restrict.
-- Unknown or unverifiable access followed default deny.
-- Policy priority and same-priority conflict handling were explicit.
-- Proposed responses were checked against the automation ACL after the access decision was made.
-
-### Decision results
-
-The controlled run produced:
+Nine controlled requests produced:
 
 - 2 Allow decisions
 - 4 Deny decisions
 - 2 Challenge decisions
 - 1 Restrict decision
 
-The decisions covered:
+Every decision retained its winning policy, matching reasons, evidence and ACL result.
 
-- Verified access
-- Missing role permission
-- Unregistered and non-compliant device evidence
-- Critical identity risk
-- Restricted network
-- Missing MFA
-- Restricted location
-- Approved VPN evidence
-- Temporary access restriction
+### Policy decision
 
-### Policy-priority observation
-
-An active temporary restriction had the strongest priority.
-
-When policies had the same priority, the more restrictive result won in this order:
+When policies had the same priority, the more restrictive result won:
 
 1. Deny
 2. Restrict
 3. Challenge
 4. Allow
 
-This prevented a general Allow condition from overriding a stronger security rule.
+This prevented a general Allow condition from overriding a stronger policy.
 
-### ACL observation
+### ACL result
 
-The Challenge decisions proposed `increase_monitoring`.
+Challenge proposed the approved simulated `increase_monitoring` action.
 
-This action was allowed as an automatic simulated response.
+Restrict proposed `restrict_account`, which remained approval-required and was not executed.
 
-The Restrict decision proposed `restrict_account`.
+A repeated run created zero new decisions.
 
-That action required approval and was not executed.
-
-This confirmed that a policy decision does not bypass the automation ACL.
-
-### Duplicate testing
-
-The repeated policy run evaluated the same nine requests and reported:
-
-- 9 decisions
-- 0 new decisions
-- 9 existing decisions
-- 9 stored decision keys
-- 9 unique decision keys
-
-No policy decisions were duplicated.
-
-### Testing result
-
-The Stage 5 access-policy tests passed 13 tests.
-
-V2 Stage 5 passed 14 out of 14 validation checks.
+Stage 5 passed 14 out of 14 validation checks.
 
 ### Lesson
 
-An access result must be explainable. The decision, winning policy, reason codes, evidence and response permission need to remain visible as separate parts of the result.
+An access decision does not provide permission to perform a response. The automation ACL must still be enforced.
 
 ---
 
-## Cross-stage validator finding
+## Cross-stage validator boundary
 
-### Problem found
+### Problem
 
-After Stage 4–5 events were imported, the Stage 3 validator counted later device-related events because its query used a broad V2 event boundary.
-
-The validator expected three Stage 3 events but could see later-stage records as the project grew.
+The Stage 3 validator used a broad V2 event query. After later events were imported, it could see records outside Stage 3.
 
 ### Fix
 
-The Stage 3 query was limited to the intended Stage 3 V2 source files.
-
-The pipeline data was not removed because the later events were valid. Only the validator boundary was corrected.
+The query was limited to the intended Stage 3 source files. Valid later-stage data was not removed.
 
 ### Lesson
 
-A stage validator should identify its own evidence directly. It should not assume that later stages will never add records to the same database.
+A validator should identify its own evidence directly instead of assuming that later stages will not add records to the same database.
 
 ---
 
-## SQLite connection finding
+## Python 3.14 SQLite connection finding
 
-### Problem found
+### Original finding
 
-The complete test suite passed, but Python 3.14 reported many unclosed-database `ResourceWarning` messages.
+The complete test suite passed, but Python 3.14 reported unclosed-database `ResourceWarning` messages.
 
-A detailed diagnostic found:
+The first diagnostic found:
 
 - 100 Python files inspected
 - 89 SQLite connection calls
 - 38 affected files
-- 101 unclosed-database warnings during the complete test suite
-- No database integrity failure
-- No remaining database handles after the Python process ended
+- 101 unclosed-database warnings
+- No SQLite integrity failure
+- No remaining handles after the Python process ended
 
 The existing `with sqlite3.connect(...)` pattern handled commit and rollback but did not explicitly close the connection object.
 
-### Decision
+### Original fix
 
-The connection lifecycle was corrected immediately instead of allowing the warning pattern to continue into later stages.
+A shared managed connection helper was added.
 
-A shared managed connection helper was added and the affected call sites were updated.
-
-The helper now:
+It now:
 
 1. Opens the connection.
 2. Commits successful work.
 3. Rolls back failed work.
 4. Closes the connection in every case.
 
-### Testing result
+Three focused tests confirmed commit, rollback and closure behaviour.
 
-Three focused connection tests confirmed:
+The corrected project then passed 151 tests with zero unclosed-database warnings. SQLite integrity returned `ok`.
 
-- Successful transactions are committed.
-- Failed transactions are rolled back.
-- Connections are closed after leaving the context.
+### Stage 9 recurrence
 
-After the correction:
+Warning-enabled regression later found 20 unclosed connections in `tests/test_v2_stage9_continuous_monitoring.py`.
 
-- 151 unit tests passed.
-- Zero unclosed-database warnings remained.
-- SQLite integrity checking returned `ok`.
-- Foreign-key checking returned no errors.
-- V2 Stage 1 passed 12 out of 12 checks.
-- V2 Stage 2 passed 13 out of 13 checks.
-- V2 Stage 3 passed 19 out of 19 checks.
-- V2 Stage 4 passed 12 out of 12 checks.
-- V2 Stage 5 passed 14 out of 14 checks.
-- The original Stage 11 full-project validation passed.
+The warnings came from direct test connections, including setup and individual test queries. The application monitoring code was not the source.
 
-These are the results from the Stage 4–5 connection correction. Later regression totals are recorded under their respective stages.
+### Stage 9 fix
+
+The affected test connections were wrapped with `contextlib.closing` so leaving the block closed the connection explicitly.
+
+The focused Stage 9 suite then passed all 15 tests with zero unclosed-database warnings.
+
+Final regression after Stage 10 passed 237 tests with zero unclosed-database warnings.
 
 ### Lesson
 
-A passing functional test suite does not prove that resources are handled correctly. Runtime warnings can expose reliability problems that become harder to correct as the project grows.
+A passing functional test suite does not prove that resources are handled correctly.
+
+Python 3.14 warnings exposed connection-lifecycle problems that normal assertions did not detect. Test code needs the same resource discipline as application code.
 
 ---
 
-## Configuration-permission finding
+## Stage 6 — Network and Wi-Fi monitoring
 
-The two new Stage 4–5 security configuration files were initially created with permission `664`.
+### Observations
 
-They were changed to `640` to match the project’s sensitive configuration standard.
+Thirty-four controlled events produced:
 
-Verified permissions were:
-
-- `750` for the configuration directory
-- `640` for both Stage 4–5 configuration files
-- `700` for the database directory
-- `600` for the SQLite database
-
-### Lesson
-
-Git does not preserve detailed non-executable permission modes. Sensitive configuration permissions must be checked again after restoration, cloning or file creation.
-
----
-
-## Stage 6 — Network, Wi-Fi and access monitoring
-
-### Observations and decisions
-
-- Stage 6 used 27 network events and seven Wi-Fi events.
-- All 34 events used schema version `2.0` and had unique event IDs.
-- The source files used controlled documentation addresses and simulated network evidence.
-- The detector used device ID and asset ID as primary device references.
-- MAC addresses remained supporting evidence only.
-- The existing IP allowlist, IP blocklist, VPN allowlist, CYOD inventory and automation ACL were reused.
-- Network alerts, access decisions and connection-timeline records were stored separately from the original Phase 3 network tables.
-- Every accepted Stage 6 event received one access decision.
-- WPA, downgrade and rogue-access-point findings used controlled logs. No real wireless attack or network restriction was performed.
-
-### Database migration observation
-
-The first Stage 6 migration created:
-
-- 3 tables
-- 17 indexes
-
-The repeated migration created:
-
-- 0 tables
-- 0 indexes
-
-This confirmed that the migration was repeatable.
-
-The Stage 6 schema was also added to `database/schema.sql` so a new database can create the same tables and indexes.
-
-### Import result
-
-The first import produced:
-
-- 27 accepted network events
-- 7 accepted Wi-Fi events
-- 0 rejected events
-- 0 failed files
-
-The total was 34 accepted events.
-
-### Detection results
-
-The controlled evidence produced 18 alerts:
-
-- Three Suspicious IP Address alerts
-- One Port Scanning alert
-- One Repeated Connection Attempts alert
-- One Abnormal Connection Pattern alert
-- Four Restricted Port or Service alerts
-- One Unknown CYOD Device alert
-- One MAC Address Reuse or Possible Spoofing alert
-- One WPA3 Policy Violation alert
-- One WPA2 Downgrade Attempt alert
-- One Rogue Access Point alert
-- One Wi-Fi Zone Violation alert
-- One Unknown Wired Device alert
-- One Restricted Wired Access alert
-
-### Network-access decision results
-
-The 34 events produced:
-
+- 18 alerts
+- 34 access decisions
+- 34 timeline records
 - 4 Allow decisions
 - 18 Deny decisions
 - 11 Challenge decisions
 - 1 Restrict decision
 
-One approved VPN event was allowed with `APPROVED_VPN_EXCEPTION`.
-
-One controlled testing event was allowed with `APPROVED_TESTING_EXCEPTION`.
-
-The connection timeline stored all 34 events.
+Approved VPN and testing exceptions remained visible in their decisions.
 
 ### Decision-precedence problem
 
-The first network policy did not explicitly define which outcome should win when an event matched several rules.
+Several port-scan events also matched restricted-network and restricted-port rules. The first policy did not define which outcome should win.
 
-This became important because the controlled port-scan events also matched restricted-network and restricted-port conditions.
-
-### Fix
-
-A deterministic outcome order was added:
+A fixed order was added:
 
 1. Deny
 2. Restrict
 3. Challenge
 4. Allow
 
-One port-scan event matched `port_scanning`, `suspicious_ip_address` and `restricted_port_or_service`.
-
-The final decision was Deny, while all matching rules and reason codes remained in the stored evidence.
+All matching rules remained in the evidence.
 
 ### Response-mapping problem
 
-The first Restrict mapping proposed `restrict_account`.
+The first network Restrict mapping proposed the identity action `restrict_account`.
 
-That action belonged to identity response and did not match a network-access decision.
+It was replaced with `apply_ubuntu_firewall_rule`, which already existed as an approval-required action.
 
-### Fix
+No real firewall change occurred.
 
-The Restrict mapping was changed to `apply_ubuntu_firewall_rule`.
+### Other findings
 
-This action already existed in the automation ACL as approval-required.
+- A spelling error in the MAC-reuse rule name was corrected.
+- MAC reuse remained a possible spoofing indicator, not proof of spoofing.
+- One Abnormal Connection Pattern alert was reviewed and closed as a supported False Positive.
+- A repeated run created no new alerts, decisions or timeline records.
 
-The Rogue Access Point event therefore produced a Restrict decision, but the proposed firewall action remained `approval_required` and was not executed.
+### Result and lesson
 
-### MAC-rule correction
+Twenty-three focused tests passed. Stage 6 passed 15 out of 15 validation checks.
 
-The first configuration contained a spelling error in the `mac_reuse_or_possible_spoofing` rule name.
-
-The name was corrected before the detector was tested.
-
-The final rule created an alert only when different primary device identities used the same MAC address inside the configured overlap window.
-
-The result remained a possible spoofing indicator rather than confirmation that spoofing occurred.
-
-### Duplicate testing
-
-The first monitoring run stored:
-
-- 18 new alerts
-- 34 new access decisions
-- 34 new timeline records
-
-The repeated run reported:
-
-- 0 new alerts and 18 existing alerts
-- 0 new decisions and 34 existing decisions
-- 0 new timeline records and 34 existing records
-
-The stored totals remained:
-
-- 18 alerts and 18 unique alert keys
-- 34 decisions and 34 unique decision keys
-- 34 timeline records and 34 unique source event IDs
-
-### False-positive investigation
-
-The Abnormal Connection Pattern alert for `CYOD-002` was reviewed by `analyst01`.
-
-It was classified as a False Positive and closed after the activity was confirmed as controlled after-hours connection-volume testing.
-
-The review retained the device, IP address, investigation notes, reviewer and UTC review time.
-
-The audit trail recorded the successful review.
-
-### Testing result
-
-The Stage 6 monitoring tests passed 15 tests.
-
-The Stage 6 network-alert review tests passed eight tests.
-
-The focused Stage 6 total was 23 passing tests.
-
-V2 Stage 6 passed 15 out of 15 validation checks.
-
-The complete project passed 174 unit tests.
-
-V2 Stages 1–6 passed their validators.
-
-The original Stage 11 full-project validation passed.
-
-SQLite integrity checking returned `ok`, and foreign-key checking returned no errors.
-
-### Lesson
-
-One network event can match several valid security rules. The project needs to retain every matching reason while producing one deterministic final decision.
-
-A detection decision and permission to perform a response are separate. A Restrict result does not bypass approval controls.
-
-MAC reuse can support an investigation, but it should not be treated as proof of device identity.
-
-Approved exceptions should require matching evidence and remain visible in the stored decision.
-
-Controlled wireless logs allow the security logic to be tested without interacting with a real wireless network.
+One event can match several valid rules. Every reason should remain visible even when one final decision is selected.
 
 ---
 
 ## Stage 7 — Endpoint monitoring and investigation
 
-### Observations and decisions
+### Observations
 
-- Stage 7 used 26 controlled endpoint events.
-- Device, process, owner, parent-child, command, CPU, file and inventory evidence were retained for investigation.
-- The agreed crash or restart threshold was changed from ten minutes to three events within eight minutes.
-- Administrative and testing exceptions required exact configured evidence.
-- Critical alerts used the existing approval-required `quarantine_device` action.
-- Isolation remained simulation-only. No Wi-Fi, firewall, network, process or operating-system changes were performed.
-- Stage 7 and Stage 8 preparation initially shared a migration and event pipeline, but implementation continued one stage at a time.
-
-### Shared preparation boundary
-
-The first Stage 7–8 migration created six tables and 29 indexes. Running it again created zero tables and zero indexes.
-
-The shared source set contained 42 events:
-
-- 26 endpoint events for Stage 7
-- 6 application-security events prepared for Stage 8
-- 10 vulnerability events prepared for Stage 8
-
-The first import accepted all 42 records with no rejected events or failed files.
-
-The repeated import accepted zero records and rejected all 42 as duplicates. The accepted-event total remained 42.
-
-At that point, the 16 Stage 8 records were preparation only. Stage 8 implementation and validation are recorded separately below.
-
-The SQL injection lab asset `AST-WEB-001` was added to enterprise context as a sandbox web-application asset with Medium criticality, not as a CYOD device. Stage 1 tests and validation still passed.
-
-### Metadata-query finding
-
-An inspection query used `project_metadata`, which does not exist in the established database.
-
-The project uses `system_metadata`. The query was corrected without creating another metadata table.
-
-### Incomplete source-file finding
-
-The event generator initially contained duplicated text in an `endpoint_event` call and failed syntax checking.
-
-A later endpoint-engine replacement ended inside a return annotation at line 1204. The file tail confirmed that the pasted file was incomplete.
-
-The source files were corrected and checked with Python compilation before execution.
-
-The complete endpoint-engine replacement then passed checks for alert counts, Critical alerts, consolidated requests and simulation-only safety.
-
-### Detection results
-
-The controlled endpoint run produced:
+Twenty-six endpoint events produced:
 
 - 26 alerts
 - 13 detection types
 - 10 Critical alerts
 - 13 High alerts
 - 3 Medium alerts
-- 0 Low alerts
-- 26 activity-timeline records
+- 26 timeline records
 - 2 approved exceptions with no alerts
 
-One event could support several findings. For example, a suspicious process could also be unapproved or have a suspicious parent-child relationship. The alert total therefore did not represent 26 separate affected devices or attacks.
+The crash or restart threshold was three events within eight minutes.
 
-### Crash or restart evidence
+### Incomplete-file finding
 
-The related events were:
+The event generator contained duplicated text and failed syntax checking.
 
-- `S78-END-017` at `09:40` UTC
-- `S78-END-018` at `09:44` UTC
-- `S78-END-019` at `09:47` UTC
+A later endpoint-engine transfer ended inside a return annotation. File-tail inspection showed that the pasted file was incomplete.
 
-The stored observations showed:
+Both files were corrected and compiled before execution.
 
-- Event count: 3
-- Configured window: 8 minutes
-- Observed window: 7 minutes
+### Isolation-consolidation problem
 
-The rule correctly created one Repeated Process Crash or Restart alert for `netshield_worker`.
+The first run created ten isolation requests for `CYOD-002`, one for each Critical alert.
 
-### Isolation-consolidation finding
+The requests were consolidated by device while preserving all ten supporting alert keys.
 
-The first run created ten approval-required isolation requests for `CYOD-002`, one for each Critical alert.
-
-This repeated the device-level request unnecessarily.
-
-The request builder was changed to consolidate Critical alerts by device while preserving every supporting alert key.
-
-After the corrected engine passed its checks, the ten superseded pending simulation records were removed. A database backup was made before this correction.
-
-The next run created one consolidated request. It retained:
-
-- Device: `CYOD-002`
-- Action: `quarantine_device`
-- Control level: `approval_required`
-- Critical alert count: 10
-- Preserved Critical alert keys: 10
-- Real actions: 0
-- Network changes: 0
-
-Repeating the run created zero new requests and identified the consolidated request as existing.
-
-### Approval-status constraint finding
-
-The approval script initially attempted to store `simulated_approved`.
-
-SQLite rejected the update because the existing table constraint permits only:
-
-- `approval_required`
-- `simulated_isolated`
-- `rejected`
-
-The failed transaction left the request pending, with its original evidence intact.
-
-The script was corrected to use the established `simulated_isolated` status rather than changing the database constraint.
-
-This also matched the status already defined in the endpoint configuration.
-
-### Simulated approval result
-
-Analyst approval was rejected because the role lacked `execute_approved_containment`.
-
-`responder01` successfully approved isolation record `11`.
-
-The stored record showed:
+The final record remained simulation-only:
 
 - Status: `simulated_isolated`
-- Approver role: `responder`
-- Critical alert count: 10
-- Preserved alert keys: 10
-- Network state changed: 0
+- Approved by: `responder01`
 - Real action executed: 0
+- Network state changed: 0
 
-Approval notes, actor and UTC approval time were retained. The successful action was recorded in the audit trail.
+### Status and output corrections
 
-A repeated approval attempt was rejected because the request was no longer awaiting approval.
+The approval script first attempted to store `simulated_approved`, which the table constraint did not permit.
 
-Focused tests also confirmed that an Administrator could approve the simulated record.
+It was corrected to use the existing `simulated_isolated` status.
 
-### Runner-reporting finding
-
-After approval, the runner printed `approval_required` from the newly calculated request even though the stored record correctly remained `simulated_isolated`.
-
-The database had not reverted, but the console output was misleading.
-
-The runner was corrected to load the stored isolation record after processing.
-
-The verified output then showed:
-
-```text
-[ISOLATION RECORD] device=CYOD-002 | action=quarantine_device | status=simulated_isolated | approved_by=responder01 | real_action=False | network_change=False
-```
-
-The summary reported zero new isolation requests and one existing request.
-
-### Endpoint-alert query finding
-
-An inspection query requested `source_event_id` from the alert table.
-
-Endpoint alerts store `source_event_ids` as a JSON list because a finding can involve several events.
-
-The query was corrected to use the existing plural field. No schema change was required.
+The runner also printed a newly calculated pending state after approval. It was changed to read the stored isolation record before reporting status.
 
 ### False-positive investigation
 
-Alert `18`, Repeated Process Crash or Restart, was reviewed by `analyst01`.
+The Repeated Process Crash or Restart alert was reviewed by `analyst01`.
 
-Its evidence recorded an approved `netshield_worker` process and a registered, compliant device with a low-risk inventory state.
+Three events occurred within seven minutes, but the supplied evidence showed an approved process and a registered, compliant, low-risk device. The alert was classified as a False Positive without inventing a maintenance explanation.
 
-The threshold match was valid. The security investigation classified the alert as a False Positive and closed it with these notes:
+Repeated monitoring preserved both the completed review and simulated approval.
 
-```text
-Reviewed three crash and restart events within seven minutes. The detected process is approved, and the registered device is compliant with a low-risk state. No malicious activity is established by this alert evidence.
-```
+### Result and lesson
 
-The notes did not claim that maintenance or service-recovery work had occurred, because that was not established by the supplied events.
+All 17 focused tests passed. Stage 7 passed 14 out of 14 validation checks.
 
-Viewer review was rejected. Repeated review of the closed alert was also rejected.
+Several findings on one device can support one containment request without losing their separate evidence.
 
-The original source-event references, severity, confidence, investigation notes, reviewer and UTC review time remained available. The successful review was audited.
-
-### Repeated-run result
-
-After approval and false-positive review, the monitoring run reported:
-
-- 26 detections
-- 0 new alerts and 26 existing alerts
-- 0 new timeline records and 26 existing records
-- 0 new isolation requests and 1 existing request
-- 2 approved exceptions
-- 0 real actions
-- 0 network changes
-
-Alert `18` remained Closed with its False Positive classification.
-
-Isolation record `11` remained `simulated_isolated` with `responder01` recorded as approver.
-
-The controlled post-isolation event remained monitored. This represents supplied simulation evidence, not proof of real network isolation.
-
-### Tracked-schema result
-
-The working migration had already created the Stage 7 tables, but they were initially absent from `database/schema.sql`.
-
-Only the Stage 7 objects were added:
-
-- 3 endpoint tables
-- 16 indexes
-
-The combined tracked schema was executed successfully against a temporary in-memory database before being saved.
-
-Stage 8 tables and indexes were not added to the tracked schema during this step.
-
-### Final testing result
-
-The saved Stage 7 test file compiled successfully.
-
-All 17 focused tests passed.
-
-Stage 7 validation passed 14 out of 14 checks.
-
-The final project regression produced:
-
-```text
-Ran 191 tests in 2.060s
-
-OK
-```
-
-The warning-enabled regression reported zero unclosed-database warnings.
-
-V2 Stages 1–7 passed their validators.
-
-The original Phase 3 Stage 11 full-project validation passed. Its references to Stages 8–10 concern the completed original Phase 3 project, not the pending V2 Stage 8 implementation.
-
-SQLite integrity checking returned `ok`, and foreign-key checking reported no violations.
-
-Python syntax compilation and `git diff --check` completed without errors.
-
-### Lessons
-
-Several Critical findings on one device can support one isolation request without losing their separate evidence.
-
-The full table definition must be inspected before choosing a stored status. Column listings alone do not show SQLite `CHECK` constraints.
-
-Printed output must reflect the stored approval or investigation state rather than only the current detector calculation.
-
-A process crash pattern can be correctly detected without establishing malicious activity. Investigation notes must distinguish observed symptoms from conclusions and must not invent a maintenance explanation.
-
-Repeated processing should preserve reviews and approvals, not reset them.
-
-Compilation and file-tail checks are useful when a complete source file is transferred through copy-paste.
+Printed output must reflect stored state, and investigation notes must separate observed facts from assumptions.
 
 ---
 
@@ -795,227 +340,264 @@ Compilation and file-tail checks are useful when a complete source file is trans
 
 ### Observations and decisions
 
-- Stage 8 used six application-security events and ten vulnerability events.
-- All 16 events were already stored once through the shared V2 pipeline.
-- Findings required authoritative asset context from `config/enterprise_context.json`.
-- All managed findings used the registered sandbox asset `AST-WEB-001`.
-- Severity, confidence, exploitability, exploitation status, exposed-service context and asset criticality remained separate fields.
-- Priority used the configured weighted score instead of severity alone.
-- Approved penetration-testing events remained testing evidence and did not become findings.
-- Automatic incident creation remained disabled.
-- A finding-to-incident link required exploitation or other supporting activity evidence.
-- No external target or real penetration-testing action was used.
+Sixteen controlled events produced seven asset-linked findings:
 
-### Finding results
+| Finding | Priority | Status |
+|---|---:|---|
+| SQL injection authentication bypass | High — 71.05 | Verified |
+| Restricted service exposed inside the sandbox | Medium — 64.65 | Open |
+| Outdated local demonstration dependency | Medium — 64.20 | Verified |
+| Outdated sandbox package | Medium — 53.60 | Planned |
+| Missing local security header | Medium — 43.80 | Planned |
+| Version-only finding requiring analyst review | Low — 39.50 | False Positive |
+| Sensitive configuration permission check | Low — 27.50 | Verified |
 
-The controlled evidence produced seven duplicate-safe findings:
+Priority used severity, confidence, exploitability, exposed-service context and asset criticality.
 
-| Finding | Priority | Score | Remediation status |
-|---|---:|---:|---|
-| SQL injection authentication bypass | High | 71.05 | Verified |
-| Restricted service exposed inside the sandbox | Medium | 64.65 | Open |
-| Outdated local demonstration dependency | Medium | 64.20 | Verified |
-| Outdated sandbox package | Medium | 53.60 | Planned |
-| Missing local security header | Medium | 43.80 | Planned |
-| Version-only finding requiring analyst review | Low | 39.50 | False Positive |
-| Sensitive configuration permission check | Low | 27.50 | Verified |
+Original risk evidence remained unchanged when remediation or verification status changed.
 
-The final totals were:
+### Incident boundary
 
-- 1 High-priority finding
-- 4 Medium-priority findings
-- 2 Low-priority findings
-- 1 Open finding
-- 2 Planned findings
-- 3 Verified findings
-- 1 False Positive
+The successful SQL injection finding retained:
 
-### Original-risk preservation problem
+- One finding-to-alert link to `S78-END-020`
+- One finding-to-incident link to `INC-V2-001`
+- Successful exploitation evidence
 
-The first remediation handling allowed later Low-severity verification events to replace the original risk fields.
+Other vulnerabilities did not create incidents because vulnerability presence alone was not treated as exploitation.
 
-This reduced the SQL injection finding to a Low priority score of `31.15` and the dependency finding to `31.05`, even though their original evidence remained more serious.
+### False-positive review
 
-The SQL injection result also appeared to have no exploitability or exploitation context after successful controlled exploitation had already been recorded.
+A Viewer review was rejected.
 
-### Fix
+`analyst01` reviewed the version-only finding and recorded that the controlled evidence did not confirm exploitation or a vulnerable component.
 
-Remediation events were limited to updating the component information and remediation status.
+The finding became False Positive without deleting its evidence.
 
-They no longer replace the original:
+A repeated vulnerability run preserved the completed review.
 
-- Severity
-- Confidence
-- Exploitability
-- Exploitation status
-- Exposed-service context
-- Asset criticality
+### Metadata-status failure
 
-After the correction:
+The first Stage 8 validation passed its first 15 checks but failed the audit and completion check.
 
-- The SQL injection finding retained High severity, demonstrated exploitability and successful exploitation evidence, producing a High priority score of `71.05`.
-- The dependency finding retained High severity and high exploitability, producing a Medium priority score of `64.20`.
-- Both findings could remain Verified without losing their original risk evidence.
-
-### Remediation history observation
-
-The engine built 12 duplicate-safe history records from the controlled source events.
-
-The false-positive review added one later review record, bringing the stored total to 13 unique history records.
-
-Remediation verification preserved the later supporting evidence without removing the original finding or its earlier status changes.
-
-### Finding-link decisions
-
-The SQL injection finding retained two evidence-based links:
-
-- One alert link to `S78-END-020`
-- One incident link to `INC-V2-001`
-
-Both links retained successful exploitation context.
-
-A separate test confirmed that an incident link without exploitation evidence was rejected.
-
-No incident was created automatically.
-
-### Approved-testing evidence
-
-The controlled testing records were:
-
-- `S78-APPSEC-TEST-001` for the local SQL injection lab
-- `S78-VULN-TEST-001` for the local sandbox
-
-Both records confirmed that the target was local and that no external target was used.
-
-The events remained approved testing evidence and were not converted into vulnerability findings.
-
-### False-positive investigation
-
-The version-only finding `S78-FND-FP-001` was reviewed by `analyst01`.
-
-The stored notes were:
+The database still contained:
 
 ```text
-Reviewed the version-only match for demo-utility 3.0.0-simulated. The controlled evidence contains no exploitation activity and does not confirm that the component is vulnerable.
+vulnerability_management_foundation_ready
 ```
 
-The finding was classified as a False Positive.
+The audit records showed that initialisation, import, management and review had all succeeded.
 
-Its remediation status, classification, reviewer, UTC review time and review history were preserved.
-
-Viewer review was rejected because the role lacked the required investigation permissions.
-
-A finding without supporting review-candidate evidence was also rejected from the false-positive workflow.
-
-### Runner-reporting finding
-
-After the false-positive review, the engine rebuilt the controlled finding with an Open status and printed that calculated state.
-
-The stored database record correctly remained False Positive, but the console output did not reflect it.
-
-The runner was corrected to reload the stored findings after duplicate-safe storage.
-
-The repeated output then showed:
+The management runner was executed again, which correctly updated the metadata to:
 
 ```text
-[Low] Version-only finding requiring analyst review | finding=S78-FND-FP-001 | asset=AST-WEB-001 | score=39.50 | status=False Positive
+vulnerability_management_complete
 ```
 
-The summary also recorded one False Positive instead of counting the reviewed finding as Open.
+Stage 8 then passed all 16 validation checks.
 
-### Duplicate testing
+### Result and lesson
 
-The repeated Stage 8 run reported:
+All 14 focused tests passed. Stage 8 passed 16 out of 16 validation checks.
 
-- 7 findings
-- 0 new findings and 7 existing findings
-- 0 new source-driven history records and 12 existing records
-- 0 new links and 2 existing links
-- 1 preserved False Positive
-- 0 automatic incidents
-- 0 external targets
-
-The Analyst review remained stored after repeated processing.
-
-### Tracked-schema observation
-
-The Stage 8 database objects already existed through the shared migration, but they had not yet been added to `database/schema.sql`.
-
-The tracked schema was updated with:
-
-- 3 vulnerability tables
-- 13 named indexes
-
-SQLite also reported three automatic indexes created for unique constraints. These were database-managed indexes rather than additional named Stage 8 indexes.
-
-The complete tracked schema executed successfully against an in-memory database.
-
-Repeated migration created no additional tables or indexes.
-
-### Metadata validation finding
-
-The Stage 8 validator initially found `v2_stage_8_status` set to `vulnerability_management_foundation_ready`.
-
-This occurred because the shared initialisation script had been run again after the vulnerability engine had previously completed.
-
-The initialisation, import, engine and review audit events were present, but the metadata correctly reflected the most recent initialisation step.
-
-The Stage 8 engine was run again after migration testing. It restored the operational status to `vulnerability_management_complete` without duplicating findings, history or links.
-
-The validator then passed the metadata and audit check.
-
-### Python 3.14 warning check
-
-The first Stage 8 focused-test run used direct SQLite connection contexts in the new test file and produced unclosed-database warnings under Python 3.14.
-
-The test connections were changed to use the project’s managed connection helper.
-
-The warning-enabled complete regression then reported zero unclosed-database warnings.
-
-This did not require another project-wide connection rewrite. The issue was limited to the new Stage 8 test connections.
-
-### Final testing result
-
-All 14 focused Stage 8 tests passed.
-
-Stage 8 validation passed 16 out of 16 checks.
-
-Stage 7 validation still passed 14 out of 14 checks after the shared Stage 7–8 components were exercised.
-
-The complete project regression produced:
-
-```text
-Ran 205 tests in 2.200s
-
-OK
-```
-
-The warning-enabled regression reported zero unclosed-database warnings.
-
-The original Phase 3 Stage 11 full-project validation passed.
-
-SQLite integrity checking returned `ok`, and foreign-key checking reported no violations.
-
-Python syntax compilation and `git diff --check` completed without errors.
-
-### Lessons
-
-Remediation verification must not erase the original risk that caused a finding to be prioritised.
-
-A vulnerability alone is not an incident. Alert and incident links need supporting activity or exploitation evidence.
-
-Stored investigation state must be loaded after processing so repeated output reflects completed reviews.
-
-Approved penetration-testing activity is evidence of controlled testing, not automatically a vulnerability finding.
-
-Authoritative asset context prevents findings from being stored against unknown or invented assets.
-
-A validator should report the latest operational state accurately. If an initialisation step resets readiness metadata, the completed engine must run again before final validation.
+Remediation state must not replace original vulnerability evidence. A finding also needs activity or exploitation evidence before it can support an incident.
 
 ---
 
-## Next improvement
+## Stage 9 — Continuous monitoring and dynamic risk scoring
 
-Stage 8 is complete and validated.
+### Observations and decisions
 
-Any later project stage will be handled separately and only within its agreed scope. Completed findings, remediation history, reviews and evidence links must remain available when the project is extended.
+Stage 9 added:
+
+- Five monitoring and risk tables
+- Twenty-two indexes
+- Deterministic 15-minute cycles
+- User, device, asset and incident scores
+- Threshold and health alerts
+- Cooldown suppression
+- Last-successful-run tracking
+
+The risk engine loaded 171 evidence mappings and scored 20 entities.
+
+Risk scores retained their original evidence references and did not replace alerts or findings.
+
+### Evidence-loading check
+
+An early inspection assertion failed because the expected evidence assumptions did not match the actual stored data.
+
+The source counts and entity mappings were inspected instead of changing valid evidence.
+
+The final source loader found:
+
+- 171 evidence mappings
+- 20 scored entities
+- 9 validated exceptions
+- 3 mappings with unknown asset criticality
+- 0 empty evidence references
+
+### Unknown-criticality decision
+
+Some access-policy evidence used assets whose criticality was unknown.
+
+Unknown criticality was assigned zero additional points. It was not silently treated as Low.
+
+This kept missing context from increasing risk.
+
+### Risk result
+
+The current assessment produced four High threshold alerts:
+
+- Asset `AST-001`: 71.00
+- User `viewer01`: 71.00
+- Device `CYOD-001`: 66.00
+- User `responder01`: 66.00
+
+Independent sources increased risk. Validated exceptions and older evidence reduced it.
+
+### Cooldown behaviour
+
+The first cycle created four threshold alerts.
+
+A normal attempt to process the same interval was suppressed.
+
+A controlled repeated cycle assessed the evidence again but created no new alerts. All four existing alerts were suppressed during their active cooldown and retained their supporting evidence.
+
+### Health monitoring
+
+Seven components reported Healthy:
+
+- Access policy
+- Endpoint detection
+- Identity detection
+- Ingestion
+- Network detection
+- Risk assessment
+- Vulnerability management
+
+No health or pipeline-failure alert was required.
+
+### Inspection-query error
+
+An inspection query requested a non-existent `suppressed_count` column.
+
+The table uses `occurrence_count`, `suppression_reason` and `cooldown_until`.
+
+The query was corrected. No schema change was required.
+
+### Result and lesson
+
+All 15 focused tests passed. Stage 9 passed 20 out of 20 validation checks.
+
+The project regression passed 220 tests after the Stage 9 connection-warning correction.
+
+Risk scoring becomes more useful when independent agreement, validated exceptions and time are considered together. The score must still point back to the original evidence.
+
+---
+
+## Stage 10 — XDR-style cross-source correlation
+
+### Observations and decisions
+
+Stage 10 loaded 76 unique evidence records across:
+
+- Identity
+- Access policy
+- Network
+- Endpoint
+- Application
+- Vulnerability
+
+The correlation window was 2,160 minutes.
+
+Device ID, asset ID, username, IP address, hostname, file hash and process evidence were available for correlation. MAC address remained supporting evidence only.
+
+### Initial over-correlation problem
+
+The first unrestricted transitive grouping joined 65 of the 76 records into one incident.
+
+Shared context allowed evidence for `CYOD-001` and `CYOD-002` to become part of the same chain.
+
+The result retained evidence, but it did not keep unrelated device activity separate.
+
+### Fix
+
+Correlation was changed to use deterministic primary anchors.
+
+Strong device and asset identity was considered before weaker shared context. A common username, location, detection type or MAC address could no longer bridge otherwise separate device chains.
+
+Explicit exploitation links remained able to join their named records.
+
+A regression test confirmed that a shared username could not merge unrelated devices.
+
+### Final incident result
+
+Ten candidate groups produced three context-rich incidents:
+
+| Device | Severity | Confidence | Sources | Evidence |
+|---|---|---:|---:|---:|
+| `CYOD-001` | Critical | 95 | 3 | 13 |
+| `CYOD-002` | Critical | 88 | 6 | 49 |
+| `CYOD-003` | Medium | 70 | 2 | 3 |
+
+The incidents retained 65 duplicate-safe evidence links.
+
+Independent sources increased confidence. Validated exceptions and verified activity reduced confidence without deleting evidence.
+
+Repeated detections from one source event were retained but scored only once.
+
+### Vulnerability handling
+
+The successful SQL injection finding retained its explicit link to endpoint evidence.
+
+Unexploited findings remained `context_only` and did not create incidents by themselves.
+
+This preserved prevention context without presenting every vulnerability as an attack.
+
+### Indicator handling
+
+The final run stored:
+
+- 10 IoCs
+- 3 supporting observables
+- 13 indicators in total
+
+Supported IP addresses, hostnames, process names and a file hash were stored as IoCs.
+
+MAC addresses remained supporting observables.
+
+Suspicious behaviours and ATT&CK mappings remained separate from IoCs.
+
+### Duplicate result
+
+The repeated run reported:
+
+- 3 existing incidents and 0 new incidents
+- 65 existing evidence links and 0 new links
+- 13 existing indicators and 0 new indicators
+- 0 automatic response actions
+
+### Other operational findings
+
+- An inspection query used `metadata`, but the established table is `system_metadata`. The query was corrected without changing the schema.
+- A bracketed-paste sequence created an accidental file named with terminal control characters. The file was identified and moved to `/tmp`.
+
+### Result and lesson
+
+All 17 focused tests passed. Stage 10 passed 20 out of 20 validation checks.
+
+The final project regression passed 237 tests with zero unclosed-database warnings. SQLite integrity returned `ok`.
+
+Correlation needs strong anchors and clear boundaries. Shared context can support an incident, but it should not be allowed to merge unrelated activity.
+
+---
+
+## Final engineering observations
+
+- Risk scores and incidents support investigation; they do not replace evidence.
+- Independent sources should strengthen confidence, but repeated evidence must not inflate it.
+- Exceptions should reduce risk only after a supported review.
+- Vulnerabilities provide context unless activity supports attempted or successful exploitation.
+- MAC addresses can support an investigation but should not identify a device by themselves.
+- Stored investigation state must survive repeated processing.
+- Additional controlled datasets can improve future tuning of weights, decay, thresholds, cooldowns, correlation windows and anchor priority.

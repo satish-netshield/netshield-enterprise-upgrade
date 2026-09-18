@@ -4,753 +4,338 @@
 
 Phase 3A V2 extends the completed NetShield Phase 3 Automation project.
 
-It runs locally with Python and SQLite inside an Ubuntu VirtualBox sandbox. Enterprise users, devices, applications, identity risks, access requests, network events, endpoint activity and vulnerability findings are simulated.
+It runs locally with Python and SQLite inside an Ubuntu VirtualBox sandbox. Users, devices, applications, security events and responses are simulated.
 
-Microsoft Entra, Conditional Access, Defender, Sentinel and XDR are security design references only. The project does not connect to these services or perform real enterprise actions.
+Microsoft Entra, Conditional Access, Defender, Sentinel and XDR are design references only. The project does not connect to these services or perform real actions against accounts, devices or networks.
 
 ---
 
 ## Foundation security decisions
 
-| Decision | Security reason |
+| Decision | Why it exists |
 |---|---|
-| Default deny | Unknown permissions, access conditions and automation actions must not be accepted automatically. |
+| Default deny | Unknown access conditions, permissions and automation actions must not be accepted automatically. |
 | Least privilege | Users receive only the permissions assigned to their Viewer, Analyst, Responder or Administrator role. |
-| Existing RBAC reuse | Reusing the Phase 3 roles preserves compatibility and avoids creating a second access model. |
-| Automation ACL | A security decision cannot bypass the rules controlling whether a response is automatic, approval-required or manual-only. |
-| Sandbox-only operation | Controlled local testing prevents the project from affecting external accounts, devices or networks. |
-| Evidence preservation | Original evidence remains unchanged so integrity checks and investigation history remain valid. |
-| Sensitive-field masking | Passwords, tokens, API keys, secrets and session identifiers are hidden from suitable output. |
-| Retention configuration | Different record types have defined retention periods, although automatic deletion is not implemented yet. |
+| Existing RBAC reuse | Reusing the Phase 3 roles avoids creating a second permission model. |
+| Automation ACL | A detection, score or incident cannot bypass response approval rules. |
+| Sandbox-only testing | Controlled local testing prevents effects on external systems. |
+| Evidence preservation | Original evidence remains available for investigation and integrity checks. |
+| Sensitive-field masking | Passwords, tokens, secrets and session identifiers are hidden from suitable output. |
+| Duplicate protection | Repeated imports and processing must not create repeated security records. |
+| Separate severity and confidence | Possible impact and strength of evidence are assessed independently. |
 
 ---
 
 ## Security data decisions
 
-### Common event schema
+### Common event structure
 
-Events from different sources are converted into a common structure before being stored.
+Different event sources are normalised before storage so they can be investigated together.
 
-The schema can retain:
+The common structure can retain event time, source, user, device, asset, application, address, hostname, location, severity, risk and original evidence.
 
-- Event and source identifiers
-- Schema version
-- Event and received times
-- Source system and source type
-- Event type and status
-- Username
-- Device and asset identifiers
-- Application and service identifiers
-- IP address, MAC address, hostname and location
-- Severity, risk and decision context
-- Original event evidence
-
-Not every source requires every field. Validation checks the supported schema and required fields without inventing missing context.
-
-This allows different security sources to be searched together without creating false values for fields they do not use.
+Missing source fields are not invented.
 
 ### Complete source names
 
-Compound source names such as `identity_risk` and `access_policy` are matched as complete names.
+Compound names such as `identity_risk` and `access_policy` are matched as complete names.
 
-Reading only the first filename word would incorrectly classify `identity_risk` as `identity` and could apply the wrong validation logic.
+This prevents an event from being processed under the wrong validation or detection rules.
 
 ### UTC timestamps
 
-Accepted event timestamps are converted to UTC.
+Accepted timestamps are converted to UTC.
 
-Using one time standard makes sequence, threshold, travel and connection-window calculations consistent across sources.
+One time standard keeps event ordering, thresholds, correlation windows and risk decay consistent.
 
 ### Malformed-event quarantine
 
-Malformed events are excluded from the accepted-event table.
+Malformed records are excluded from accepted security data.
 
-Their source file, line number, reason, quarantine status and original content are retained separately.
+Their source, line number, rejection reason and original content remain available for review.
 
-This prevents invalid data from influencing detections while preserving evidence for review.
+### Original evidence
 
-### Raw-event preservation
+The raw event is stored with the normalised record.
 
-The original event is stored with the normalised record.
+Alerts, findings, decisions, scores and incidents can therefore be traced back to their source evidence.
 
-This allows a later alert or policy decision to be traced back to the supplied evidence.
+### Duplicate-safe storage
 
-### Duplicate protection
+Accepted events use stable source references. Later records use deterministic keys based on their evidence and purpose.
 
-Accepted events are protected by their source file and source event ID.
+Repeated runs preserve existing records, reviews and investigation states.
 
-Alerts, findings and policy decisions use deterministic keys based on their supporting evidence.
+### Repeatable migration
 
-Connection and endpoint timeline records use the source event ID as their unique reference.
+Updating `database/schema.sql` prepares a new database but does not upgrade an existing database.
 
-Repeated imports and processing runs therefore do not create duplicate accepted events, alerts, findings, decisions, links, history or timeline records.
-
-### Safe database migration
-
-Updating `database/schema.sql` prepares new databases but does not upgrade an existing SQLite database.
-
-Repeatable migrations add missing columns, tables and indexes without deleting earlier records. Running a migration again does not recreate existing objects.
+Repeatable migrations add missing objects without deleting earlier records or recreating existing tables and indexes.
 
 ---
 
 ## Relevant Stage 3 device decisions
 
-Stage 3 provides device evidence used by later identity, access, network and endpoint decisions.
+Stage 3 provides device context used by later access, network, endpoint, risk and correlation work.
 
-Device ID and asset ID are the main identity references. A MAC address is supporting evidence only because it can change, be absent or be copied.
+Device ID and asset ID are the primary identity references. A MAC address is supporting evidence only because it can change, be absent or be copied.
 
-The project separates unknown, unregistered, stale and mismatched devices. A known but unregistered device is not treated as completely unknown.
-
-Device removal changes its registration state rather than deleting its inventory and history.
+Unknown, unregistered, stale and mismatched devices remain separate conditions. Device removal changes registration state instead of deleting history.
 
 ---
 
-## Stage 4 — Identity monitoring and risk detection
+## Stage 4 — Identity monitoring
 
-Stage 4 evaluates controlled authentication and identity-risk events.
+Identity detections use user, source address, device, location, time, MFA, privilege and account-purpose evidence.
 
-The original Phase 3 identity storage remains unchanged. V2 findings are stored separately with user, device, location, time, risk, severity, confidence, reason-code and investigation context.
-
-### Identity detection decisions
-
-| Detection | Security decision and reason |
+| Decision | Why it exists |
 |---|---|
-| Repeated Failed Logins | Several failures for the same user and source inside the configured window indicate more than an isolated password mistake. |
-| Possible Brute Force | A higher failure count for one account and source represents a stronger concentrated attack pattern. |
-| Password Spraying Pattern | Failures against several usernames from one source can reveal low-volume attempts spread across accounts. |
-| Successful Login After Failures | A success following repeated failures may mean that earlier attempts eventually gained access. |
-| Multiple Accounts From One Source | Activity involving several accounts from one suspicious source provides shared-source risk context. |
-| Impossible Travel | Consecutive successful logins requiring travel above the configured speed require investigation. |
-| New-Device Sign-In | A sign-in from outside the user’s approved device baseline may represent new or unauthorised access. |
-| Unusual Sign-In Location | A location outside the user’s normal baseline adds risk context to the sign-in. |
-| Abnormal Access Time | A sign-in outside configured normal UTC hours may require review, although legitimate after-hours work is possible. |
-| MFA Failure or Fatigue Pattern | Repeated MFA failures may indicate repeated prompts, user error or attempted account access. |
-| Suspicious Privilege Change | A role change outside the expected baseline can materially increase account permissions. |
-| Dormant-Account Activity | An account marked dormant should not normally perform an interactive login. |
-| Service-Account Interactive Login | A service account is expected to perform defined non-interactive work. |
-| Risky Sign-In Behaviour | High sign-in risk or high user risk provides direct evidence for stronger investigation or access controls. |
+| Group related failures | Several failures inside a time window provide stronger evidence than an isolated mistake. |
+| Separate brute force and password spraying | Repeated attacks against one account differ from attempts spread across several accounts. |
+| Retain success after failures | A later successful sign-in may be connected to the earlier attempts. |
+| Compare device and location baselines | New context can increase risk without proving compromise. |
+| Check dormant and service accounts | Their expected use differs from normal interactive user accounts. |
+| Use narrow VPN and testing exceptions | Approved activity should suppress only the condition it explains. |
+| Preserve reviewed alerts | A False Positive classification must not delete the original evidence. |
 
-### Severity and confidence
-
-Severity describes the possible security impact.
-
-Confidence describes how strongly the available evidence supports the detection.
-
-Keeping these values separate prevents a strong match from automatically being presented as the highest operational impact.
-
-### Reason codes
-
-Every alert contains a reason code explaining why it was created.
-
-Examples include:
-
-- `REPEATED_FAILED_LOGINS`
-- `POSSIBLE_BRUTE_FORCE`
-- `PASSWORD_SPRAYING_PATTERN`
-- `SUCCESS_AFTER_REPEATED_FAILURES`
-- `IMPOSSIBLE_TRAVEL_SPEED`
-- `DEVICE_NOT_IN_USER_BASELINE`
-- `LOCATION_NOT_IN_USER_BASELINE`
-- `ACCESS_OUTSIDE_NORMAL_UTC_HOURS`
-- `REPEATED_MFA_FAILURES`
-- `ROLE_CHANGE_OUTSIDE_BASELINE`
-- `DORMANT_ACCOUNT_USED`
-- `SERVICE_ACCOUNT_INTERACTIVE_LOGIN`
-- `HIGH_RISK_SIGN_IN`
-- `HIGH_USER_RISK`
-
-Reason codes make alerts easier to explain, search and test.
-
-### VPN and testing exceptions
-
-Approved VPN evidence is checked before relevant device, location and impossible-travel alerts are created.
-
-Approved testing evidence can suppress a finding only when it matches the configured test boundary.
-
-Exceptions are counted instead of being silently ignored. They do not bypass unrelated security checks.
-
-### False-positive review
-
-An authorised Analyst can classify an alert, update its investigation status and add notes.
-
-Empty notes, unknown classifications and unknown alert IDs are rejected. A Viewer cannot perform the review.
-
-The alert and its audit history remain available after review.
+An authorised Analyst can add investigation notes and classify a supported alert. A Viewer cannot perform the review.
 
 ---
 
-## Stage 5 — Zero Trust and policy-based access decisions
+## Stage 5 — Policy-based access decisions
 
-Stage 5 uses local identity, role, device, application, location, network, MFA and risk evidence to make explainable access decisions.
-
-It applies Zero Trust, RBAC and Conditional Access concepts locally. It does not reproduce Microsoft Conditional Access.
-
-### Explicit verification
-
-A valid account or recognised device is not enough by itself.
-
-The engine evaluates:
-
-- User identity and active role
-- Requested permission
-- Device registration and compliance
-- Application sensitivity
-- Asset criticality
-- Location and network
-- Sign-in risk and user risk
-- MFA evidence
-- Temporary restrictions
-- Approved VPN evidence
-
-The complete request must satisfy the relevant policy.
-
-### Least privilege
-
-The requested permission must belong to the user’s assigned role.
-
-A recognised user without the required permission is denied.
-
-Higher sensitivity, criticality or risk can require stronger evidence even when the role normally permits the action.
-
-### Device requirements
-
-Higher-risk access can require a registered and compliant device.
-
-An unregistered or non-compliant device can produce a Challenge decision with separate reason codes:
-
-- `DEVICE_NOT_REGISTERED`
-- `DEVICE_NOT_COMPLIANT`
-
-This shows which device conditions were not satisfied.
-
-### Restricted locations and networks
-
-Configured restricted locations and networks produce Deny decisions.
-
-The reason codes are:
-
-- `RESTRICTED_LOCATION`
-- `RESTRICTED_NETWORK`
-
-An approved VPN address can bypass the matching network restriction. It does not bypass unrelated role, device, MFA or risk requirements.
-
-### Risk-based controls
-
-Critical identity risk can produce a Restrict decision.
-
-The risk affects the current request. It does not silently change the user’s assigned role.
-
-### MFA requirements
-
-When required MFA evidence is missing, the result is Challenge with `MFA_REQUIRED`.
-
-The project records the challenge and can simulate increased monitoring. It does not send a real MFA prompt.
-
-### Temporary restrictions
-
-An active temporary restriction denies access for the matching user.
-
-Temporary restrictions have the highest policy priority so a general allow policy cannot override them.
-
-### Access outcomes
+Each request is evaluated using identity, role, permission, device, application, network, location, MFA and risk evidence.
 
 | Outcome | Meaning |
 |---|---|
-| Allow | The required access conditions were satisfied. |
-| Deny | The request was not permitted. |
-| Challenge | Stronger verification or additional evidence was required. |
-| Restrict | Access should be limited because of serious risk. |
+| Allow | Required access conditions were satisfied. |
+| Deny | Access was not permitted. |
+| Challenge | Stronger verification or more evidence was required. |
+| Restrict | Serious risk justified a controlled restriction request. |
 
-Every outcome includes its winning policy, reason codes and evaluated evidence.
+A recognised account or device is not enough by itself. The complete request must satisfy the applicable policy.
 
-### Policy priority and conflicts
-
-A lower numeric priority represents a stronger policy.
-
-When policies share the same priority, the more restrictive result wins:
+When matching policies have equal priority, the more restrictive result wins:
 
 1. Deny
 2. Restrict
 3. Challenge
 4. Allow
 
-This makes the result deterministic and prevents configuration order from creating an accidental Allow decision.
+Unknown applications and unsupported conditions follow default deny.
 
-### Default-deny fallback
-
-Unknown applications and unsupported access conditions do not receive an Allow result.
-
-They follow default deny because their security requirements cannot be verified.
-
-### ACL-controlled responses
-
-The access decision and response permission are evaluated separately.
-
-A Challenge can use the approved automatic `increase_monitoring` action.
-
-A Restrict decision can propose `restrict_account`, but that action requires approval and is not executed automatically.
-
-### Decision audit trail
-
-Every stored decision retains the request, identity, device, application, outcome, winning policy, reason codes, evaluated evidence and ACL result.
-
-Deterministic decision keys prevent repeated policy runs from creating duplicates.
+The policy decision and response permission remain separate. Any proposed response must still pass the existing automation ACL.
 
 ---
 
-## Stage 6 — Network, Wi-Fi and access monitoring
+## Stage 6 — Network and Wi-Fi monitoring
 
-Stage 6 evaluates controlled network and Wi-Fi events using IP, connection, device, wireless and zone evidence.
+Network decisions use IP addresses, connections, ports, services, devices, wireless security and zone evidence.
 
-It stores alerts, one access decision for every event and a connection timeline.
-
-### Suspicious IP addresses
-
-Source addresses are compared with:
-
-- The IP allowlist
-- The IP blocklist
-- Approved networks
-- Restricted networks
-- The approved VPN list
-
-A blocklist match, restricted-network match or unapproved source can create a Suspicious IP Address alert.
-
-The reason codes show which control produced the finding:
-
-- `IP_BLOCKLIST_MATCH`
-- `RESTRICTED_NETWORK`
-- `IP_NOT_APPROVED`
-
-### Port scanning
-
-Several unique destination ports from one source inside the configured time window indicate possible scanning.
-
-The rule creates one Port Scanning alert for the related event window.
-
-A scan can also match restricted-port or suspicious-IP rules. All matching reasons are retained for the final decision.
-
-### Repeated connection attempts
-
-Repeated connections from one source inside the configured window can indicate retry activity, probing or an automated attempt.
-
-The rule requires five related connections within two minutes.
-
-The configured network decision is Challenge unless a stronger matching rule takes priority.
-
-### Abnormal connection pattern
-
-Connection volume is compared with the configured time and count thresholds.
-
-Eight related connections within ten minutes outside normal UTC hours create an Abnormal Connection Pattern alert.
-
-This is a review indicator because legitimate maintenance or controlled load testing can also create the pattern.
-
-### Restricted ports and services
-
-Connections involving configured restricted ports or named services are denied.
-
-The controlled rules include:
-
-- Port 23 and Telnet
-- Port 445 and SMB
-- Port 3389 and RDP
-
-Separate reason codes identify a restricted port and a restricted service.
-
-### Unknown CYOD device
-
-A wireless event containing a device or asset identifier that is not present in the approved inventory creates an Unknown CYOD Device alert.
-
-The decision is Challenge because the device requires further verification.
-
-### Unknown wired device
-
-An unknown device using a wired connection creates an Unknown Wired Device alert.
-
-The decision is Deny because the device identity cannot be verified for wired access.
-
-### MAC reuse or possible spoofing
-
-A MAC address is never treated as proof of device identity.
-
-The rule checks whether different primary device identities use the same MAC address within the configured overlap window.
-
-A match creates a Challenge decision for investigation. It does not automatically state that spoofing has been confirmed.
-
-### WPA3 policy violation
-
-Approved Wi-Fi access requires WPA3 with the configured AES cipher.
-
-A connection that does not satisfy both requirements is denied with `WIFI_SECURITY_POLICY_NOT_SATISFIED`.
-
-The project evaluates controlled log evidence and does not inspect or attack a real wireless network.
-
-### WPA2 downgrade attempt
-
-A controlled event showing a change from WPA3 to WPA2 creates a High-severity downgrade alert.
-
-The decision is Deny because WPA2 downgrade is not allowed by the configured policy.
-
-### Rogue access point
-
-A Wi-Fi event is compared with the approved access-point identifier, SSID and location.
-
-An access point outside that approved context creates a Critical Rogue Access Point alert.
-
-The network decision is Restrict. The proposed firewall action remains approval-required and is not executed.
-
-### Wi-Fi zone violation
-
-Wireless activity in a configured restricted zone is denied.
-
-The location remains in the alert and decision evidence so the result can be investigated.
-
-### Restricted wired access
-
-A wired connection in a restricted physical zone creates a Restricted Wired Access alert and a Deny decision.
-
-This keeps physical network location separate from device identity. An approved device can still be denied in a restricted wired zone.
-
-### Approved exceptions
-
-An approved VPN event can receive Allow when its required identity and connection evidence match.
-
-Controlled testing can also receive Allow when the configured testing user and event evidence both match.
-
-The exception reason is stored in the decision. Exceptions do not silently disable unrelated rules.
-
-### Network-access outcomes
-
-| Outcome | Stage 6 use |
+| Decision | Why it exists |
 |---|---|
-| Allow | Approved connections, verified VPN activity and approved test activity |
-| Deny | Prohibited IP, port, service, wireless or zone conditions |
-| Challenge | Activity requiring more verification or monitoring |
-| Restrict | Serious activity requiring an approval-controlled network response |
+| Check allowlists, blocklists and networks | Source context helps separate approved, unknown and prohibited traffic. |
+| Group scan and connection activity | Related connections provide stronger evidence than one isolated connection. |
+| Retain every matching rule | One event can match scanning, restricted-port and network rules at the same time. |
+| Apply fixed decision precedence | Deny, Restrict, Challenge and Allow produce a deterministic result. |
+| Treat MAC as supporting evidence | A MAC address alone cannot reliably identify a device. |
+| Separate decisions from responses | A Restrict result cannot change the real firewall without approval. |
+| Preserve connection timelines | Investigators need the original sequence and context. |
 
-### Decision precedence
+Controlled Wi-Fi evidence can identify policy violations, downgrade activity, rogue access points and restricted-zone use.
 
-One event can match several rules.
-
-Stage 6 resolves overlapping outcomes in this order:
-
-1. Deny
-2. Restrict
-3. Challenge
-4. Allow
-
-For example, a port scan from a restricted network matches both Port Scanning and Suspicious IP Address. Deny wins, while both matching rules and reason codes remain in the decision evidence.
-
-### ACL-controlled network responses
-
-A network decision does not automatically authorise a response.
-
-Challenge uses `increase_monitoring`, which is an approved automatic simulated action.
-
-Restrict proposes `apply_ubuntu_firewall_rule`. The existing automation ACL marks this action as approval-required, so no firewall rule is applied automatically.
-
-### Connection timeline
-
-Every accepted Stage 6 event is stored once in the connection timeline.
-
-The timeline keeps the event time, source, user, device, address, connection and location context required to reconstruct the activity sequence.
-
-### False-positive review
-
-An authorised Analyst can classify a Stage 6 alert as Confirmed or False Positive and add evidence-based investigation notes.
-
-The review records the actor and UTC review time. A Viewer cannot perform the review.
-
-The controlled Abnormal Connection Pattern alert was closed as a False Positive after the activity was confirmed as approved connection-volume testing.
+The project does not inspect, attack or change a real wireless network.
 
 ---
 
-## Stage 7 — Endpoint monitoring and investigation
+## Stage 7 — Endpoint monitoring
 
-Stage 7 evaluates controlled endpoint activity using device, process, user and inventory evidence.
+Endpoint decisions use device state, process activity, ownership, commands, resource use and file evidence.
 
-Its alerts, timeline and simulated-isolation records are stored separately from the original Phase 3 endpoint storage.
-
-### Endpoint detection decisions
-
-| Detection | Security decision and reason |
+| Decision | Why it exists |
 |---|---|
-| Endpoint Health State | Degraded, unhealthy or unknown health states require review because protection or telemetry may be incomplete. |
-| Device Compliance State | Non-compliant or unknown compliance states identify devices that may not satisfy the expected controls. |
-| Device Risk State | High, Critical or unknown device-risk states provide context for investigation; they do not prove compromise by themselves. |
-| Suspicious Process | A match against the configured suspicious-process list identifies activity requiring investigation. |
-| Unknown or Unapproved Process | A process outside the approved baseline or carrying an unapproved status requires verification. |
-| Unexpected Process Owner | A process owner outside the configured baseline may indicate execution under an unexpected account. |
-| Suspicious Parent-Child Process Relationship | A configured unexpected process relationship can reveal activity that process names alone would miss. |
-| High CPU Activity | Sustained high CPU activity can indicate abnormal execution, although legitimate workloads can produce the same symptom. |
-| Repeated Process Crash or Restart | Repeated failures or restarts can indicate instability or suspicious interference and require investigation. |
-| Suspicious Command Activity | Configured command indicators identify potentially unsafe behaviour in controlled event evidence. |
-| Possible Persistence Indicator | Startup, scheduled-task or service-autostart indicators may represent an attempt to maintain execution. |
-| Unexpected File-Hash Change | A hash outside the approved baseline indicates that the observed file content differs from the expected content. |
-| Post-Isolation Endpoint Activity | Controlled activity marked as occurring after simulated isolation remains visible for investigation. |
+| Evaluate health, compliance and risk separately | A device state adds context but does not prove compromise. |
+| Check process approval and behaviour | An approved process can still behave unexpectedly. |
+| Check owner and parent-child relationships | Process names alone may not explain how execution occurred. |
+| Use activity windows | Repeated CPU, crash or restart evidence is stronger than one event. |
+| Compare file hashes | An unexpected SHA-256 value shows that observed content differs from the approved baseline. |
+| Require exact exception evidence | A familiar process name must not become a general bypass. |
+| Continue post-isolation monitoring | Simulated isolation must not hide later controlled activity. |
 
-### Activity thresholds
+Repeated crash or restart detection uses three related events within eight minutes.
 
-The CPU warning threshold is 80%, and the Critical threshold is 95%. The repeated CPU rule uses three related events within two minutes.
+Critical alerts for one device create one consolidated simulated-isolation request while preserving every supporting alert.
 
-The crash or restart rule uses three related events within eight minutes.
-
-These are fixed local detection thresholds, not universal indicators of an attack. Alerts retain the related events so the pattern can be reviewed.
-
-### File-integrity evidence
-
-SHA-256 hashes are compared with configured approved values.
-
-An unexpected hash change creates an investigation finding. It does not automatically remove, replace or repair the file.
-
-### Administrative and testing exceptions
-
-Exceptions must match the configured administrative or testing evidence.
-
-A familiar process name alone does not permit all activity from that process. Narrow exceptions prevent controlled testing from becoming a general bypass.
-
-### Consolidated simulated isolation
-
-Critical endpoint alerts create one consolidated isolation request per device, retaining all supporting Critical alert keys.
-
-The request uses `quarantine_device` with the existing approval-required automation ACL. Several alerts on one device therefore remain separate findings without creating several identical device-isolation requests.
-
-### Authorised approval
-
-The initial status is `approval_required`.
-
-An active Responder or Administrator with `execute_approved_containment` may record approval. The stored status then becomes `simulated_isolated`.
-
-Approval preserves the supporting alert evidence and records the actor, UTC time and notes. Repeated approval is rejected.
-
-No real isolation occurs. The project does not disable Wi-Fi, block network traffic, terminate processes, enter safe mode or change firewall rules.
-
-### Post-isolation monitoring
-
-Endpoint processing continues after simulated approval.
-
-The post-isolation rule evaluates the simulated isolation context supplied by the controlled logs. It does not verify that a real device has been disconnected.
-
-Repeated processing preserves the existing approved isolation record instead of resetting it to a pending request.
-
-### Endpoint timeline
-
-Every accepted Stage 7 endpoint event is stored once in the activity timeline.
-
-Process, owner, parent, command, CPU, file and device-state evidence remain available to reconstruct the activity sequence.
-
-### Endpoint-alert review
-
-An authorised investigator can classify an alert as Confirmed or False Positive and record notes.
-
-False-positive classification requires the existing investigation, note-taking and false-positive permissions. A Viewer cannot review an alert.
-
-A False Positive is closed without deleting its original evidence. Closed alerts cannot be reviewed again through this command, and repeated detection preserves the recorded review.
-
-An approved process or compliant device is not automatically harmless. Crash, CPU and other behavioural findings still need investigation before classification.
+Approval changes only the stored record to `simulated_isolated`. It does not disable networking, stop processes or change firewall rules.
 
 ---
 
-## Stage 8 — Vulnerability and application-security findings
+## Stage 8 — Vulnerability findings
 
-Stage 8 evaluates controlled vulnerability and application-security evidence linked to the registered sandbox web-application asset.
+Stage 8 manages controlled vulnerability, configuration, dependency, package, exposed-service and SQL injection lab evidence.
 
-### Authoritative asset context
-
-Every managed finding must refer to an asset in the enterprise context.
-
-The SQL injection lab uses `AST-WEB-001`, which is registered as a Medium-criticality sandbox web application with no external target.
-
-Findings for unknown assets are rejected. This prevents vulnerability records from being stored without confirmed ownership and context.
-
-### Finding sources
-
-Stage 8 supports controlled findings from:
-
-- Safe local configuration checks
-- Dependency checks
-- Package checks
-- Exposed-service checks
-- The local SQL injection lab
-
-Approved penetration-testing events remain testing evidence. They do not become vulnerability findings by themselves.
-
-### Severity and confidence
-
-Finding severity represents the possible impact of the weakness.
-
-Confidence represents how strongly the supplied evidence supports the finding.
-
-These values remain separate because a high-confidence observation does not always have high business impact.
-
-### Exploitability context
-
-Exploitability records whether exploitation is unavailable, low, medium, high or demonstrated in the controlled evidence.
-
-Exploitation status records whether an attempt or successful exploitation was observed.
-
-A finding is not treated as exploited only because a vulnerable version, configuration or service was identified.
-
-### Exposed-service context
-
-A finding records whether the affected service is exposed inside the controlled environment.
-
-Exposure increases priority because a reachable service presents a different risk from an inactive or inaccessible component.
-
-Internal sandbox exposure does not mean the service is exposed to the public internet.
-
-### Asset criticality
-
-The authoritative asset’s criticality contributes to finding priority.
-
-The asset context is loaded from the enterprise configuration rather than accepted directly from an event. This prevents event data from silently changing the importance of an asset.
-
-### Priority scoring
-
-Stage 8 calculates a score from five configured factors:
-
-| Factor | Weight |
-|---|---:|
-| Severity | 30% |
-| Exploitability | 25% |
-| Asset criticality | 20% |
-| Exposed service | 15% |
-| Confidence | 10% |
-
-The weighted score is converted to Low, Medium, High or Critical priority.
-
-Priority supports investigation and remediation order. It does not change the original severity or prove exploitation.
-
-### Original-risk preservation
-
-Later remediation events do not overwrite the finding’s original severity, confidence, exploitability or exploitation status.
-
-A finding can become Verified while retaining the evidence that originally made it important.
-
-This preserves the difference between the original security risk and the current remediation state.
-
-### Remediation status and history
-
-Status changes are stored separately in duplicate-safe remediation history.
-
-The history records the previous status, new status, supporting event and verification result.
-
-Remediation verification confirms that later evidence was received. It does not delete the original finding or its earlier status changes.
-
-### Duplicate-finding protection
-
-Each source finding ID identifies one managed finding.
-
-Repeated processing preserves the existing finding, investigation state, remediation history and evidence links.
-
-Deterministic history and link keys prevent the same source evidence from creating duplicate records.
-
-### False-positive review
-
-A finding can be classified as a False Positive only when its source evidence identifies it as a supported review candidate.
-
-An authorised Analyst must have the existing investigation, note-taking and false-positive permissions. A Viewer cannot perform the review.
-
-The review records the classification, notes, reviewer and UTC time. It adds remediation history without deleting the finding or source evidence.
-
-A repeated engine run preserves the completed review.
-
-### Controlled testing evidence
-
-Approved security-testing events must remain inside the configured local sandbox boundary.
-
-The stored evidence confirms that:
-
-- No external target was used
-- No real external action was performed
-- The SQL injection activity used the controlled local lab
-- Approved testing evidence was not converted into a vulnerability automatically
-
-### Finding-to-alert linking
-
-A finding can link to an alert only when supporting activity or exploitation evidence explains the relationship.
-
-The link retains the finding, alert reference, exploitation context and source evidence.
-
-This keeps vulnerability information separate from observed security activity while allowing them to be investigated together.
-
-### Finding-to-incident linking
+| Decision | Why it exists |
+|---|---|
+| Require authoritative asset context | Findings need reliable ownership and asset-criticality information. |
+| Keep severity and confidence separate | Potential impact and strength of evidence are different questions. |
+| Include exploitability and exposure | A reachable and demonstrable weakness requires different priority from a version-only match. |
+| Preserve original risk | Remediation or verification must not rewrite the original finding. |
+| Store remediation history | Later status and verification changes must remain traceable. |
+| Protect against duplicates | Repeated processing must not create another copy of the same finding or history record. |
+| Control false-positive review | Only an authorised investigator can close a supported review candidate. |
 
 A vulnerability does not automatically become an incident.
 
-An incident link requires attempted or successful exploitation, or other supporting activity evidence accepted by the configured rule.
+Finding-to-alert or finding-to-incident links require supporting activity or exploitation evidence. Unexploited findings remain prevention and remediation context.
 
-A vulnerability without that evidence remains a finding for prevention and remediation. Automatic incident creation is disabled.
-
-### SQL injection evidence
-
-The SQL injection finding uses the controlled local lab evidence.
-
-Successful exploitation evidence supports its alert and incident links. Later remediation verification changes its status to Verified without replacing the original High severity, demonstrated exploitability or successful exploitation context.
-
-No external application or target is tested.
+Approved local testing remains evidence and does not become a vulnerability by itself. External targets are not permitted.
 
 ---
 
-## Security-logic checks and corrections
+## Stage 9 — Continuous monitoring and risk scoring
 
-The first Stage 6 policy did not define how conflicting outcomes should be resolved. A fixed precedence was added so the same evidence always produces the same final result.
+Stage 9 performs repeated assessment across existing security evidence.
 
-The first Restrict mapping proposed `restrict_account`, which was an identity action. It was replaced with the network-related `apply_ubuntu_firewall_rule` action already controlled by the automation ACL.
+Risk scores support decisions but do not replace the original events, alerts or findings.
 
-Testing also confirmed that one port-scan event could correctly match scanning, restricted-network and restricted-port rules at the same time. The final decision keeps every reason while applying one outcome.
+### Scheduled assessment
 
-Stage 7 isolation requests were consolidated by device without removing the supporting findings. The runner was also corrected to display the stored approval state rather than a newly calculated pending state.
+Monitoring uses deterministic 15-minute intervals.
 
-Stage 8 remediation handling initially replaced original finding risk with later verification values. It was corrected so remediation changes status and history without rewriting the original severity, confidence, exploitability or exploitation evidence.
+Each cycle records its status, processed evidence, scored entities, alerts, component health and last successful run.
 
-The Stage 8 runner initially displayed a rebuilt Open status after a False Positive had already been stored. It was corrected to load and display the saved investigation state.
+A completed interval is not processed again unless a controlled repeat is requested.
+
+### Risk entities
+
+Scores are calculated separately for:
+
+- Users
+- Devices
+- Assets
+- Incidents
+
+This prevents evidence about one entity type from silently becoming risk for another.
+
+### Risk calculation
+
+Risk uses:
+
+- Severity
+- Confidence
+- Asset criticality
+- Independent source agreement
+- Validated exception reductions
+- Time-based decay
+
+Independent sources can increase risk when they support the same entity. Repeated evidence from one source does not receive the independent-source bonus.
+
+Unknown asset criticality adds zero points. It is not treated as Low.
+
+### Exceptions and decay
+
+Only completed, supported exception or false-positive reviews can reduce risk.
+
+An unreviewed record does not receive an exception reduction.
+
+Older evidence receives configured decay. This changes the current score without deleting or changing the original evidence.
+
+### Alerts and health
+
+Configured thresholds create monitoring alerts.
+
+Repeated alerts during an active cooldown update the existing record instead of creating duplicates. An active alert can close when the current score falls below its threshold.
+
+Monitoring also checks ingestion, identity, access-policy, network, endpoint, vulnerability and risk-assessment health.
+
+Persistent degradation or pipeline failure can create a health alert.
+
+No automatic response action is performed.
 
 ---
 
-## Verification
+## Stage 10 — XDR-style correlation
 
-The security decisions were checked through focused tests, V2 stage validators, the complete regression and the original Phase 3 full-project validation.
+Stage 10 correlates identity, access-policy, network, endpoint, application and vulnerability evidence.
 
-Stored events, alerts, findings, timelines, reviews, approvals, remediation history and evidence links were checked against SQLite evidence.
+The purpose is to create explainable incidents without merging unrelated activity.
 
-Repeated processing preserved duplicate protection, remediation state and completed investigations.
+### Correlation anchors
 
-Detailed results and test observations are recorded in the README and testing notes.
+Primary anchors are evaluated in this order:
+
+1. Device ID
+2. Asset ID
+3. Username
+4. IP address
+5. Hostname
+6. File hash
+7. Process
+
+Strong identifiers keep separate device chains apart.
+
+Location, detection type and MAC address provide supporting context but cannot merge unrelated activity by themselves.
+
+### Correlation window
+
+Evidence is evaluated within the configured 2,160-minute window.
+
+Time alone is not enough to create an incident. Records must also share an accepted primary anchor or a supported explicit link.
+
+### Explicit finding links
+
+A supported finding-to-alert or finding-to-incident link can join its named evidence.
+
+This preserves the successful SQL injection relationship without treating every vulnerability as an attack.
+
+Unexploited vulnerabilities remain context and cannot create an incident by themselves.
+
+### Confidence
+
+Independent sources increase confidence when they support the same activity chain.
+
+Repeated detections created from one source event remain available, but that event contributes to scoring only once.
+
+Validated exceptions and verified activity reduce confidence without deleting evidence.
+
+### IoCs and behaviours
+
+Observable IoCs are stored separately from suspicious behaviours.
+
+Supported IP addresses, hostnames, process names and file hashes can be stored as IoCs when their evidence justifies the classification.
+
+Detection names and behaviours remain descriptive labels.
+
+MAC addresses remain supporting observables and are not treated as IoCs or primary identity anchors.
+
+Relevant ATT&CK techniques are preserved where they help explain the observed behaviour. A mapping does not prove that an attack succeeded.
+
+### Incident evidence
+
+Each incident retains:
+
+- Severity and confidence
+- Independent source count
+- Correlation anchors and reasons
+- Active, exception and verified evidence totals
+- Original evidence references
+- Vulnerability context
+- IoCs and supporting observables
+- Suspicious behaviours
+- Relevant ATT&CK mappings
+
+Repeated correlation preserves existing incidents, evidence links, indicators and investigation state.
+
+No automatic response action is created.
 
 ---
 
-## What I learned
+## Security checks and improvement
 
-Identity, device, network, endpoint and vulnerability evidence become more useful when the reason for each decision is stored clearly.
+Focused tests and stage validators checked the configured decisions, evidence links, duplicate protection, exception handling and safety boundaries.
 
-One event can match several valid rules. Preserving all matching reasons while applying deterministic precedence makes the final outcome easier to explain.
+Testing found that unrestricted shared values could merge evidence from separate devices. Correlation was corrected to use deterministic primary anchors and explicit exploitation links.
 
-A security decision remains separate from permission to perform a response.
+The current scoring weights, decay periods, thresholds, cooldowns, correlation window and anchor order are local engineering choices based on controlled data.
 
-Exceptions should be narrow, supported by matching evidence and recorded.
-
-Endpoint symptoms such as high CPU activity or repeated crashes require investigation; a threshold match alone does not establish malicious activity.
-
-A MAC address can support an investigation, but it should not identify a device by itself.
-
-A vulnerability finding does not prove exploitation. Alert and incident links need supporting activity evidence.
-
-Remediation should change the finding’s current state without removing the original risk and exploitation context.
-
-Approved penetration testing should remain controlled evidence rather than automatically becoming a vulnerability or incident.
-
----
-
-## Current limitations and next improvement
-
-The project uses controlled local data instead of live identity-provider, device-management, network-sensor, wireless-controller, endpoint, vulnerability-scanner or application-security telemetry.
-
-Locations, network zones, risk values, wireless security events, endpoint activity and vulnerability evidence are simulated.
-
-Access outcomes and responses are stored or simulated locally. They do not change real accounts, devices, applications, processes, firewall rules or networks.
-
-Vulnerability findings use controlled configuration, dependency, package, service and SQL injection evidence. The project does not scan external assets, retrieve live vulnerability intelligence or perform real penetration testing.
-
-Stage 8 is complete and validated. Any later project stage will be handled separately within its agreed scope.
+The next improvement is to test them with additional simulated datasets containing longer timelines and more overlapping identities, devices and assets.

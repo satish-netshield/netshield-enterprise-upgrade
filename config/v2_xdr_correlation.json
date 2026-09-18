@@ -1,0 +1,167 @@
+{
+  "stage": 10,
+  "version": "0.1.0",
+  "simulation_only": true,
+  "correlation": {
+    "time_window_minutes": 2160,
+    "minimum_independent_sources": 2,
+    "primary_fields": [
+      "username",
+      "device_id",
+      "asset_id",
+      "ip_address",
+      "hostname",
+      "process_name",
+      "file_hash"
+    ],
+    "supporting_fields": [
+      "mac_address",
+      "location",
+      "detection_type"
+    ],
+    "mac_address_is_supporting_only": true,
+    "require_primary_or_explicit_link": true,
+    "allow_transitive_grouping": true,
+    "explicit_finding_links_override_time_window": true
+  },
+  "evidence_sources": {
+    "identity": "v2_identity_alerts",
+    "access_policy": "access_policy_decisions",
+    "network": "v2_network_alerts",
+    "endpoint": "v2_endpoint_alerts",
+    "application_and_vulnerability": "v2_vulnerability_findings",
+    "finding_links": "v2_vulnerability_links"
+  },
+  "application_finding_sources": [
+    "application_security",
+    "sql_injection_lab",
+    "configuration_check",
+    "controlled_penetration_test"
+  ],
+  "confidence": {
+    "maximum": 100,
+    "independent_source_bonus": 5,
+    "maximum_source_bonus": 15,
+    "validated_exception_reduction": 10,
+    "verified_activity_reduction": 5,
+    "maximum_reduction": 25
+  },
+  "severity_values": {
+    "Low": 25,
+    "Medium": 50,
+    "High": 75,
+    "Critical": 100
+  },
+  "incident_thresholds": {
+    "minimum_confidence": 50,
+    "minimum_active_evidence": 1,
+    "minimum_independent_sources": 2
+  },
+  "activity_treatment": {
+    "false_positive_classification": "False Positive",
+    "completed_alert_statuses": [
+      "Closed",
+      "False Positive"
+    ],
+    "approved_access_decision": "allow",
+    "verified_remediation_status": "Verified",
+    "context_only_remediation_statuses": [
+      "Planned",
+      "In Progress",
+      "Remediated",
+      "Verified",
+      "False Positive"
+    ],
+    "attack_exploitation_states": [
+      "attempted",
+      "successful"
+    ]
+  },
+  "ioc_policy": {
+    "indicator_types": [
+      "ip_address",
+      "file_hash",
+      "hostname",
+      "process_name"
+    ],
+    "supporting_observables": [
+      "mac_address"
+    ],
+    "minimum_severity": "High",
+    "suspicious_detection_terms": [
+      "suspicious",
+      "credential",
+      "persistence",
+      "unexpected file-hash",
+      "port scanning",
+      "rogue access point",
+      "authentication bypass",
+      "sql injection"
+    ]
+  },
+  "attack_mapping": {
+    "Possible Brute Force": [
+      "T1110"
+    ],
+    "Password Spraying": [
+      "T1110.003"
+    ],
+    "Successful Login After Failures": [
+      "T1078"
+    ],
+    "Service Account Interactive Login": [
+      "T1078.002"
+    ],
+    "MFA Failure or Fatigue": [
+      "T1621"
+    ],
+    "Suspicious Privilege Change": [
+      "T1098"
+    ],
+    "Port Scanning": [
+      "T1046"
+    ],
+    "Suspicious Process": [
+      "T1059"
+    ],
+    "Suspicious Command Activity": [
+      "T1059"
+    ],
+    "Possible Persistence Indicator": [
+      "T1547"
+    ],
+    "Unexpected File-Hash Change": [
+      "T1036"
+    ],
+    "SQL injection authentication bypass": [
+      "T1190"
+    ]
+  },
+  "vulnerability_policy": {
+    "context_does_not_create_incident": true,
+    "exploitation_evidence_can_contribute": true,
+    "preserve_remediation_status": true,
+    "preserve_finding_links": true
+  },
+  "duplicate_protection": {
+    "incident_key_uses_evidence_keys": true,
+    "evidence_key_is_unique_per_incident": true,
+    "ioc_key_is_unique_per_incident": true,
+    "score_each_source_event_once": true
+  },
+  "evidence_policy": {
+    "preserve_original_evidence": true,
+    "record_correlation_reasons": true,
+    "record_shared_fields": true,
+    "record_source_event_ids": true,
+    "record_detection_types": true
+  },
+  "sandbox_policy": {
+    "local_simulated_data_only": true,
+    "real_external_targets_allowed": false,
+    "automatic_response_actions_allowed": false,
+    "real_account_changes_allowed": false,
+    "real_device_changes_allowed": false,
+    "real_network_changes_allowed": false
+  }
+}

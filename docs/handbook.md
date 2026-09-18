@@ -1,425 +1,320 @@
 # NetShield Enterprise Upgrade Handbook
 
-## Welcome
+## 1. Welcome
 
 This handbook explains the engineering journey behind Phase 3A V2 — NetShield Enterprise Upgrade.
 
-It is for someone who wants to understand the project without reading every script, configuration file or database table.
+It is written for someone who wants to understand the project without reading every script, configuration file or database table.
 
-The README presents the completed components, outputs and test results. This handbook focuses on the goals, important decisions, improvements and lessons from the project.
+The README presents the completed components and main results. The workflow explains how the components were built. The security logic explains the important security decisions. The notes preserve detailed findings and fixes.
 
-NetShield Enterprise Upgrade extends the completed Phase 3 Automation project. It remains a local Python and SQLite project inside an Ubuntu VirtualBox sandbox.
+This handbook focuses on what I was trying to achieve, the important choices I made and what I learned while building the upgrade.
 
-Enterprise users, devices, applications and security events are simulated. Microsoft Entra, Defender, Sentinel, Conditional Access and XDR are design references only. No Microsoft services or real enterprise response actions are used.
+NetShield Enterprise Upgrade extends the completed Phase 3 Automation project. It runs locally with Python and SQLite inside an Ubuntu VirtualBox sandbox.
 
-The completed upgrade currently covers Stages 1–8.
+Users, devices, applications and security events are simulated. Microsoft Entra, Defender, Sentinel, Conditional Access and XDR are design references only. No Microsoft services or real enterprise response actions are used.
 
----
-
-## Engineering Goals
-
-The goal is to understand how identity, device, network, endpoint and vulnerability evidence can support security investigation, access decisions and remediation.
-
-I build each component gradually, check its behaviour and confirm that earlier components still work.
-
-The work aims to:
-
-- Reuse the completed Phase 3 foundation.
-- Add simulated enterprise context.
-- Process several types of security data reliably.
-- Improve device identity and inventory consistency.
-- Detect identity, network and endpoint risks.
-- Make access decisions that retain their reasons.
-- Prioritise vulnerability and application-security findings.
-- Preserve remediation and investigation history.
-- Apply default deny and least privilege.
-- Keep disruptive responses behind approval controls.
-- Preserve original evidence.
-- Handle repeated runs without duplicating accepted records.
-
-The project does not copy a commercial security platform. It applies security concepts locally so I can understand how the evidence and decisions fit together.
+The completed upgrade currently covers Stages 1–10.
 
 ---
 
-## Engineering Principles
+## 2. Engineering Goals
+
+My main goal was to understand how several types of security evidence can work together instead of being checked separately.
+
+The project was designed to:
+
+- Extend the existing NetShield foundation without replacing it.
+- Process identity, access, network, endpoint, application and vulnerability evidence.
+- Preserve original evidence and investigation history.
+- Apply default deny, least privilege and approval controls.
+- Produce explainable alerts, decisions, findings, scores and incidents.
+- Handle malformed and duplicate data safely.
+- Support repeated monitoring instead of one-time checks.
+- Keep unrelated activity separate during correlation.
+- Use risk scores to support decisions without replacing evidence.
+- Keep all testing controlled and local.
+
+I built each stage separately, tested it and then checked that the earlier stages still worked.
+
+---
+
+## 3. Engineering Principles
 
 ### Build incrementally
 
-I verify the existing project, add the next component, test it independently and then run the wider regression.
+I added one component at a time and tested it before continuing.
 
-This helps identify which change caused a failure.
+This made failures easier to understand and reduced the chance of damaging completed work.
 
 ### Preserve compatibility
 
-The upgrade extends NetShield rather than replacing its roles, database or response controls.
+The upgrade reused the existing database, RBAC roles, automation ACL, logging and evidence controls.
 
-Existing components remain operational while new capabilities are added.
+New capabilities were added without creating a second security model.
 
-### Use genuine evidence
+### Use genuine project evidence
 
-Controlled events exercise normal, suspicious, malformed, duplicate, remediation and exception cases.
+The documentation uses results produced by the actual scripts, tests and database.
 
-Recorded results come from actual project runs. Simulated evidence is identified as simulated rather than presented as live activity.
+Simulated evidence is described as simulated and is not presented as live security activity.
 
 ### Fix the responsible problem
 
-When testing finds a failure, I check whether it belongs to the implementation, configuration, test data or validator.
+A failure can come from code, configuration, test data, a database constraint or a validator.
 
-A security rule should not be weakened simply to make a test pass.
+I checked which part was responsible before changing the security rule.
 
 ### Keep decisions explainable
 
-Alerts, access decisions and vulnerability findings retain their supporting events, reasons and relevant context.
+Alerts, findings, scores and incidents retain their source evidence and reasons.
 
-The result should explain why it was produced.
+A reviewer should be able to understand why a result was created.
 
 ### Separate detection from response
 
-A serious alert or vulnerability does not give the project permission to perform a disruptive action.
+A serious alert, risk score or incident does not provide permission to perform a disruptive action.
 
-RBAC controls who may act, and the automation ACL controls the permitted response.
-
-### Preserve original risk
-
-Remediation changes the current state of a finding.
-
-It should not erase the original severity, exploitability or evidence that caused the finding to be prioritised.
+RBAC controls who may act, and the automation ACL controls what kind of response is permitted.
 
 ### Test repeated behaviour
 
-Initialisation, imports, detections and storage are repeated.
+Migrations, imports, detections, monitoring and correlation were run more than once.
 
-These checks confirm that accepted events, alerts, findings, timelines, reviews and response records are not duplicated or reset unexpectedly.
+Repeated runs confirmed that records were not duplicated and completed reviews were not reset.
 
-### Keep documentation and Git history aligned
+### Keep documentation and Git aligned
 
-Implementation, tests and documentation are reviewed before committing completed work.
+Implementation, testing and documentation are checked before completed work is committed.
 
-Runtime databases and logs remain outside Git. Controlled test inputs and fixtures are tracked where needed.
+Runtime databases, logs and generated outputs remain outside Git.
 
 ---
 
-## What Was Built
+## 4. What Was Built
 
-### Enterprise foundation
+### Stage 1 — Enterprise foundation
 
-Stage 1 added simulated enterprise users, devices, applications and services.
+The project gained simulated enterprise users, devices, applications and services.
 
-It reused the existing RBAC, automation ACL, SQLite database, logging, evidence controls and sandbox boundaries. Retention settings and sensitive-field masking were also added.
+Retention settings and sensitive-field masking were added while the original Phase 3 controls remained available.
 
-### Extended security data pipeline
+### Stage 2 — Security data pipeline
 
-Stage 2 added enterprise-style event sources.
+The pipeline accepts several event formats, validates them, converts timestamps to UTC and preserves the original records.
 
-The pipeline validates records, normalises timestamps to UTC, preserves original events and prevents duplicate accepted events. Malformed records retain their evidence and rejection reason.
+Malformed records are quarantined, and repeated events are not stored again.
 
-### Enterprise asset and device identity
+### Stage 3 — Asset and device identity
 
-Stage 3 strengthened the device inventory and distinguished unknown, unregistered, stale and mismatched device findings.
+The device inventory distinguishes unknown, unregistered, stale and mismatched devices.
 
 Device ID and asset ID are the main references. MAC addresses remain supporting evidence.
 
-### Identity monitoring and investigation
+### Stage 4 — Identity monitoring
 
-Stage 4 added wider sign-in and identity-risk detection, including failure patterns, unusual activity, MFA problems and privilege changes.
+The project detects controlled sign-in failures, unusual access, MFA problems, privilege changes and account-risk activity.
 
-It also supports authorised alert review, investigation notes and false-positive classification.
+Authorised investigators can add notes and classify supported false positives.
 
-### Zero Trust access policy
+### Stage 5 — Access-policy decisions
 
-Stage 5 evaluates identity, role, device, application, location, network, MFA and risk evidence.
+Access requests are evaluated using identity, role, device, application, network, location, MFA and risk evidence.
 
-It produces Allow, Deny, Challenge or Restrict decisions with supporting reasons and the winning policy.
+The result can be Allow, Deny, Challenge or Restrict, with the winning policy and reasons retained.
 
-### Network, Wi-Fi and access monitoring
+### Stage 6 — Network and Wi-Fi monitoring
 
-Stage 6 detects controlled network and wireless problems, including suspicious addresses, connection patterns, restricted services, unknown devices and wireless-policy violations.
+The project evaluates addresses, ports, services, connection patterns, device context, wireless security and network zones.
 
-It stores network-access decisions, a connection timeline and false-positive reviews.
+It stores alerts, access decisions and a connection timeline without changing a real firewall or wireless network.
 
-### Endpoint monitoring and investigation
+### Stage 7 — Endpoint monitoring
 
-Stage 7 added endpoint health, compliance and risk checks alongside process, command, CPU, persistence and file-hash monitoring.
+Endpoint health, compliance, process activity, ownership, commands, CPU use, crashes, persistence and file hashes are assessed.
 
-It stores an endpoint activity timeline, considers approved administrative and testing exceptions, and supports false-positive investigation.
+Critical alerts can support one simulated device-isolation request. Approval changes only the project record.
 
-Critical alerts for the same device are consolidated into a simulated isolation request. Authorised approval changes only the project record; it does not disconnect the device or change its network state.
+### Stage 8 — Vulnerability findings
 
-### Vulnerability and application-security findings
+Controlled configuration, dependency, package, exposed-service and SQL injection findings are linked to registered assets.
 
-Stage 8 added controlled vulnerability and application-security findings linked to the registered sandbox web application.
+Priority considers severity, confidence, exploitability, exposure and asset criticality.
 
-It covers configuration, dependency, package, exposed-service and SQL injection evidence.
+Remediation, verification and false-positive reviews retain the original finding evidence.
 
-Findings retain severity, confidence, exploitability, asset criticality, priority and remediation status.
+### Stage 9 — Continuous monitoring
 
-The stage also supports duplicate protection, remediation verification, false-positive review and evidence-based alert and incident links.
+Security evidence is reassessed through scheduled 15-minute cycles.
 
-A vulnerability does not automatically become an incident.
+The project calculates user, device, asset and incident risk while considering independent sources, validated exceptions and time-based decay.
+
+Threshold alerts, cooldown periods, component health and last-successful-run information are also recorded.
+
+### Stage 10 — XDR-style correlation
+
+Identity, access, network, endpoint, application and vulnerability evidence is correlated into explainable incidents.
+
+Strong identifiers keep unrelated device chains separate. Vulnerabilities add context but do not become attacks without supporting activity.
+
+IoCs, supporting observables, suspicious behaviours and ATT&CK mappings remain separate parts of the investigation.
 
 ### Validation
 
-The Stage 8 tests, V2 Stage 1–8 validators and complete unit-test suite passed.
+Each V2 stage passed its focused tests and validator.
 
-The original Phase 3 full-project validator also passed. Database integrity checks found no integrity or foreign-key violations.
+The complete regression, original Phase 3 full-project validator and SQLite integrity checks also passed.
 
-Detailed outputs and totals belong in the README and engineering notes.
+Detailed totals and outputs are kept in the README and engineering notes.
 
 ---
 
-## Major Engineering Decisions
+## 5. Major Engineering Decisions
 
-### Extend one foundation
+### Extend one project foundation
 
-I reused the original database, roles and response controls.
+I reused the original roles, database and response controls.
 
-Creating separate versions could leave different parts of the project making conflicting decisions.
+This kept later decisions consistent with the completed Phase 3 project.
 
 ### Keep default deny
 
-Missing permissions or insufficient access evidence should not silently produce an Allow decision.
+Missing permissions or unverifiable conditions must not silently produce an Allow decision.
 
-Access must satisfy the configured requirements.
+### Preserve original evidence
+
+Normalisation, review, remediation, risk scoring and correlation add context without replacing the original event or finding.
 
 ### Separate severity from confidence
 
-Severity describes possible impact. Confidence describes how strongly the evidence supports a finding.
+Severity describes possible impact. Confidence describes how strongly the evidence supports the result.
 
-A high-impact possibility and a well-supported finding are not the same thing.
+### Use strong identity anchors
 
-### Combine device evidence
+Device and asset identifiers are stronger than shared usernames, locations or MAC addresses.
 
-A MAC address can be changed or reused.
+Supporting context can strengthen an investigation but should not merge unrelated activity.
 
-Device and asset identifiers provide the main references, supported by user, hostname, registration, compliance and network context.
+### Keep vulnerabilities separate from attacks
 
-### Preserve rejected evidence
+A vulnerability is a prevention and remediation concern.
 
-Malformed events remain outside accepted-event storage, but their original content is retained.
+It supports an incident only when activity or explicit exploitation evidence connects it to the investigation.
 
-This allows the reason for rejection to be investigated.
+### Increase risk through independent agreement
 
-### Support existing databases
+Evidence from independent sources can strengthen a risk score or incident.
 
-Changing the tracked schema prepares a new database but does not upgrade a working database.
+Repeated detections from one source event must not inflate the result.
 
-Repeatable migrations add the required structures while preserving earlier records.
+### Reduce risk only with validated evidence
 
-### Make policy conflicts predictable
+Approved activity and completed false-positive reviews can reduce risk or confidence.
 
-Identity access policies use explicit priority and restrictive tie-breaking. Network decisions use a configured decision order.
+Unreviewed evidence does not receive an exception reduction.
 
-The same evidence should not produce a different outcome because rules were listed in a different order.
+### Keep responses controlled
 
-### Keep simulations separate from real actions
+Isolation, account restriction and firewall actions remain simulated or approval-required.
 
-Wireless scenarios use controlled logs. Endpoint isolation records and vulnerability-testing evidence are also simulated.
+No risk score or correlated incident performs an automatic disruptive response.
 
-Approval does not stop traffic, disable Wi-Fi, terminate processes or change the operating system.
+### Preserve investigation state
 
-### Consolidate isolation requests
-
-Several Critical alerts can concern the same device.
-
-One consolidated request avoids repeated requests while retaining the supporting Critical alert keys.
-
-### Use authoritative asset context
-
-A vulnerability finding must belong to a registered asset.
-
-This prevents findings from being stored against unknown or invented systems.
-
-### Keep vulnerabilities separate from incidents
-
-A vulnerability shows that a weakness may exist.
-
-An incident link requires supporting activity or exploitation evidence. Automatic incident creation remains disabled.
-
-### Preserve original risk during remediation
-
-A Verified finding still needs its original risk evidence.
-
-Remediation status and verification history are stored without replacing the severity or exploitability that caused the finding to be investigated.
-
-### Preserve review history
-
-Closing an alert or classifying a finding changes its investigation state, not its original evidence.
-
-Classifications, notes, reviewer details and audit records remain available.
+Repeated processing keeps classifications, notes, approvals and remediation history instead of resetting them.
 
 ---
 
-## Improvements Made
+## 6. Improvements Made
 
-### Aligned enterprise context and inventory
+### Improved source and migration handling
 
-A registered device appeared in enterprise context but was missing from the authoritative CYOD inventory.
+Compound source names are recognised correctly, and repeatable migrations update existing databases without deleting records.
 
-The inventory was corrected and a consistency check was added.
+### Corrected validation boundaries
 
-### Recognised complete source names
+Validators now check the evidence belonging to their stage instead of depending on the database containing no later-stage records.
 
-The first filename logic shortened compound source names.
+### Improved test-data quality
 
-It was corrected to preserve supported names such as `identity_risk`.
+Normal activity was aligned with configured time and location baselines while deliberate suspicious evidence remained available.
 
-### Improved migration and validation boundaries
+### Made policy outcomes deterministic
 
-Repeatable migrations were added for existing databases.
+Identity and network decisions gained explicit priority and tie-breaking rules.
 
-Validators were also corrected to allow approved new sources and check their intended evidence rather than unrelated later-stage records.
+The same evidence now produces the same result regardless of rule order.
 
-### Counted distinct malformed evidence
+### Consolidated endpoint isolation
 
-Repeated imports could record the same malformed input more than once.
+Several Critical alerts for one device originally created several isolation requests.
 
-Validation was changed to distinguish repeated rejection records from distinct malformed inputs.
+They were consolidated into one device request while retaining all supporting alerts.
 
-### Corrected device classification
+### Preserved remediation and review state
 
-Non-device assets initially entered device evaluation. The detector was restricted to relevant device context.
+Later processing no longer replaces completed finding reviews, remediation verification or endpoint approval state.
 
-A known but unregistered device was also separated from a completely unknown device.
+### Handled unknown criticality safely
 
-### Aligned controlled timestamps
+Unknown asset criticality contributes zero additional risk instead of being silently treated as Low.
 
-Some normal identity events fell outside the configured normal access hours.
+### Added monitoring cooldowns
 
-Their timestamps were corrected, while deliberate abnormal-time evidence was retained.
+Repeated threshold detections update the existing alert during cooldown instead of creating alert noise.
 
-### Clarified network decisions and responses
+### Corrected XDR over-correlation
 
-Stage 6 gained a fixed decision order for conflicting conditions.
+The first broad correlation grouped activity from separate devices into one incident.
 
-Its Restrict outcome was mapped to the existing network-related firewall action, which remained approval-required.
+Deterministic primary anchors and explicit exploitation links were added. The final result preserved three separate device chains.
 
-### Completed damaged source files
+### Separated IoCs from supporting context
 
-The Stage 7 generator contained a duplicated function name, and an endpoint-engine paste ended inside a function signature.
+Suspicious values can become IoCs when supported by evidence.
 
-The files were corrected and syntax-checked before execution continued.
-
-### Reduced repeated isolation requests
-
-The first endpoint run created a request for each Critical alert.
-
-The requests were consolidated by device while preserving their supporting alert keys. Repeated runs then retained one stored request.
-
-### Used the established isolation status
-
-An approval attempt used a status that the database did not permit.
-
-The implementation was corrected to use the existing `simulated_isolated` status rather than changing the schema unnecessarily.
-
-### Reported stored response state
-
-The endpoint runner initially printed a newly calculated pending status even after approval was stored.
-
-It was changed to display the actual stored isolation record. Repeated runs preserved both approval and closed alert reviews.
-
-### Preserved vulnerability risk after verification
-
-Stage 8 initially allowed later verification events to replace the original finding risk.
-
-The logic was corrected so remediation updates the current status while the original severity, exploitability and exploitation evidence remain available.
-
-### Reported the stored finding state
-
-After a false-positive review, the vulnerability runner initially displayed a newly calculated Open status.
-
-It was corrected to reload the stored finding so repeated output preserved the completed False Positive review.
+MAC addresses remain supporting observables, and behaviours remain investigation descriptions.
 
 ---
 
-## Lessons Learned
+## 7. Lessons Learned
 
-### Context must agree
-
-User, device, inventory, application, network and vulnerability records are connected.
-
-Inconsistent context can produce a valid-looking but incorrect result.
-
-### Test data needs careful design
-
-Timestamps, locations, process names and risk values must match the scenario being tested.
-
-Otherwise, the detector may correctly identify a problem that the test did not intend to create.
-
-### One event can support several findings
-
-A process event can match suspicious-process, approval and parent-child rules at the same time.
-
-These findings are not automatically duplicates. Their separate reasons should remain available.
-
-### Several alerts do not always need several actions
-
-Related Critical alerts can support one device-level isolation request.
-
-Consolidation should retain evidence rather than hide it.
-
-### Check the full schema
-
-A list of column names does not show every database restriction.
-
-The isolation-status failure showed why the complete table definition must be checked before introducing a new value.
-
-### Printed output must match stored state
-
-A calculated result is not necessarily the current database record.
-
-Operational output should reflect stored approval, investigation and remediation states.
-
-### Exceptions need specific evidence
-
-Approved administrative or testing activity should match its intended exception.
-
-An approved process, compliant device or authorised test alone does not prove that every activity is harmless.
-
-### False-positive review needs reasoning
-
-A detection or version match can be technically correct without proving malicious activity or a genuine vulnerability.
-
-Review should use the available evidence, record the conclusion and preserve the original finding.
-
-### Remediation does not rewrite history
-
-Verification describes the current remediation result.
-
-It should not remove the earlier evidence that explains why the finding mattered.
-
-### Vulnerabilities and incidents are different
-
-A weakness can support prevention and remediation work without becoming an incident.
-
-Activity or exploitation evidence is needed before creating an incident relationship.
-
-### Repeated runs test more than duplicates
-
-They also check whether approval, classifications, remediation states and investigation notes survive later processing.
-
-### Simulation limits must stay clear
-
-Controlled isolation, penetration testing and exploitation evidence are project records, not real external actions.
-
-The project must describe what it recorded and avoid claiming actions it did not perform.
+- An upgrade should extend existing controls instead of creating competing security models.
+- Test data must match the baseline it is intended to represent.
+- One event can support several valid findings without being several separate attacks.
+- Several alerts can support one response request when they concern the same device.
+- A vulnerability is not proof of exploitation.
+- A risk score is useful only when its original evidence remains available.
+- Independent sources strengthen a conclusion, but repeated evidence should not inflate it.
+- Shared context can connect unrelated activity if correlation anchors are too broad.
+- Exceptions should reduce risk only when they are reviewed and supported.
+- Printed output should reflect stored investigation state.
+- Database constraints must be checked before introducing new status values.
+- Repeated runs test preservation of reviews and approvals as well as duplicate protection.
+- Simulated actions must never be described as real containment.
+- Documentation is more useful when it records genuine problems and corrections instead of only successful results.
 
 ---
 
-## Future Expansion
+## 8. Future Expansion
 
-Stages 1–8 are complete and validated.
+The completed Stages 1–10 provide a local enterprise-security workflow from event ingestion to cross-source investigation.
 
-The completed identity, access, network, endpoint and vulnerability components provide evidence that later project work can reuse.
+The next improvement is to test the risk and correlation settings with additional controlled datasets containing:
 
-Any future expansion should continue to preserve:
+- Longer activity timelines
+- More overlapping users and devices
+- Additional asset relationships
+- Repeated but unrelated activity
+- Changes in risk over time
+- More remediation and verification states
 
-- Original evidence
-- Authoritative asset and device context
-- Least privilege
-- Default deny
-- Approval boundaries
-- Investigation and remediation history
-- Duplicate protection
-- Compatibility with completed components
+This will help assess whether the scoring weights, decay periods, thresholds, cooldowns, time windows and correlation anchors remain reliable as the dataset grows.
 
-Later stages will be handled separately and only within their agreed scope.
+Future cloud and security work can build on the same principles:
+
+- Preserve original evidence.
+- Apply least privilege and default deny.
+- Keep decisions explainable.
+- Require approval for disruptive actions.
+- Test changes without damaging completed components.

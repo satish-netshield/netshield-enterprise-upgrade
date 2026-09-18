@@ -1374,3 +1374,175 @@ ON v2_detection_health(checked_at);
 
 CREATE INDEX IF NOT EXISTS idx_v2_detection_health_last_success
 ON v2_detection_health(last_successful_run);
+
+-- Phase 3A V2 Stage 10 XDR-style correlation
+
+CREATE TABLE IF NOT EXISTS v2_xdr_incidents (
+    incident_id INTEGER PRIMARY KEY AUTOINCREMENT,
+    incident_key TEXT NOT NULL UNIQUE,
+    created_at TEXT NOT NULL,
+    first_evidence_time TEXT NOT NULL,
+    last_evidence_time TEXT NOT NULL,
+    title TEXT NOT NULL,
+    severity TEXT NOT NULL
+        CHECK (
+            severity IN (
+                'Low',
+                'Medium',
+                'High',
+                'Critical'
+            )
+        ),
+    confidence INTEGER NOT NULL
+        CHECK (confidence BETWEEN 0 AND 100),
+    status TEXT NOT NULL DEFAULT 'New'
+        CHECK (
+            status IN (
+                'New',
+                'Investigating',
+                'Confirmed',
+                'Closed'
+            )
+        ),
+    independent_source_count INTEGER NOT NULL
+        CHECK (independent_source_count >= 2),
+    evidence_count INTEGER NOT NULL
+        CHECK (evidence_count >= 2),
+    active_evidence_count INTEGER NOT NULL
+        CHECK (active_evidence_count >= 1),
+    exception_count INTEGER NOT NULL DEFAULT 0
+        CHECK (exception_count >= 0),
+    verified_activity_count INTEGER NOT NULL DEFAULT 0
+        CHECK (verified_activity_count >= 0),
+    usernames TEXT NOT NULL,
+    service_accounts TEXT NOT NULL,
+    device_ids TEXT NOT NULL,
+    asset_ids TEXT NOT NULL,
+    ip_addresses TEXT NOT NULL,
+    mac_addresses TEXT NOT NULL,
+    hostnames TEXT NOT NULL,
+    process_names TEXT NOT NULL,
+    file_hashes TEXT NOT NULL,
+    locations TEXT NOT NULL,
+    detection_types TEXT NOT NULL,
+    attack_techniques TEXT NOT NULL,
+    behaviours TEXT NOT NULL,
+    correlation_reasons TEXT NOT NULL,
+    vulnerability_context TEXT NOT NULL,
+    evidence_keys TEXT NOT NULL,
+    evidence TEXT NOT NULL,
+    original_evidence_preserved INTEGER NOT NULL DEFAULT 1
+        CHECK (original_evidence_preserved = 1)
+);
+
+CREATE TABLE IF NOT EXISTS v2_xdr_incident_evidence (
+    evidence_link_id INTEGER PRIMARY KEY AUTOINCREMENT,
+    evidence_link_key TEXT NOT NULL UNIQUE,
+    incident_key TEXT NOT NULL,
+    evidence_key TEXT NOT NULL,
+    source_type TEXT NOT NULL,
+    source_record_id TEXT NOT NULL,
+    event_time TEXT NOT NULL,
+    relationship TEXT NOT NULL
+        CHECK (
+            relationship IN (
+                'shared_context',
+                'explicit_finding_link',
+                'vulnerability_context'
+            )
+        ),
+    contribution_status TEXT NOT NULL
+        CHECK (
+            contribution_status IN (
+                'active',
+                'exception',
+                'verified',
+                'context_only'
+            )
+        ),
+    shared_fields TEXT NOT NULL,
+    source_event_ids TEXT NOT NULL,
+    detection_type TEXT,
+    severity TEXT NOT NULL,
+    confidence INTEGER NOT NULL
+        CHECK (confidence BETWEEN 0 AND 100),
+    correlation_reasons TEXT NOT NULL,
+    evidence TEXT NOT NULL,
+    UNIQUE (incident_key, evidence_key)
+);
+
+CREATE TABLE IF NOT EXISTS v2_xdr_indicators (
+    indicator_id INTEGER PRIMARY KEY AUTOINCREMENT,
+    indicator_key TEXT NOT NULL UNIQUE,
+    incident_key TEXT NOT NULL,
+    indicator_type TEXT NOT NULL
+        CHECK (
+            indicator_type IN (
+                'ip_address',
+                'file_hash',
+                'hostname',
+                'process_name',
+                'mac_address'
+            )
+        ),
+    indicator_value TEXT NOT NULL,
+    classification TEXT NOT NULL
+        CHECK (
+            classification IN (
+                'ioc',
+                'supporting_observable'
+            )
+        ),
+    confidence INTEGER NOT NULL
+        CHECK (confidence BETWEEN 0 AND 100),
+    source_evidence_keys TEXT NOT NULL,
+    detection_types TEXT NOT NULL,
+    evidence TEXT NOT NULL,
+    UNIQUE (
+        incident_key,
+        indicator_type,
+        indicator_value
+    )
+);
+
+CREATE INDEX IF NOT EXISTS idx_v2_xdr_incidents_first_time
+ON v2_xdr_incidents(first_evidence_time);
+
+CREATE INDEX IF NOT EXISTS idx_v2_xdr_incidents_last_time
+ON v2_xdr_incidents(last_evidence_time);
+
+CREATE INDEX IF NOT EXISTS idx_v2_xdr_incidents_severity
+ON v2_xdr_incidents(severity);
+
+CREATE INDEX IF NOT EXISTS idx_v2_xdr_incidents_confidence
+ON v2_xdr_incidents(confidence);
+
+CREATE INDEX IF NOT EXISTS idx_v2_xdr_incidents_status
+ON v2_xdr_incidents(status);
+
+CREATE INDEX IF NOT EXISTS idx_v2_xdr_evidence_incident
+ON v2_xdr_incident_evidence(incident_key);
+
+CREATE INDEX IF NOT EXISTS idx_v2_xdr_evidence_source
+ON v2_xdr_incident_evidence(source_type);
+
+CREATE INDEX IF NOT EXISTS idx_v2_xdr_evidence_record
+ON v2_xdr_incident_evidence(source_record_id);
+
+CREATE INDEX IF NOT EXISTS idx_v2_xdr_evidence_contribution
+ON v2_xdr_incident_evidence(contribution_status);
+
+CREATE INDEX IF NOT EXISTS idx_v2_xdr_evidence_time
+ON v2_xdr_incident_evidence(event_time);
+
+CREATE INDEX IF NOT EXISTS idx_v2_xdr_indicators_incident
+ON v2_xdr_indicators(incident_key);
+
+CREATE INDEX IF NOT EXISTS idx_v2_xdr_indicators_type
+ON v2_xdr_indicators(indicator_type);
+
+CREATE INDEX IF NOT EXISTS idx_v2_xdr_indicators_value
+ON v2_xdr_indicators(indicator_value);
+
+CREATE INDEX IF NOT EXISTS idx_v2_xdr_indicators_classification
+ON v2_xdr_indicators(classification);

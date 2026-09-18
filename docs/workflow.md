@@ -525,19 +525,181 @@ Approved security testing is evidence of a controlled test, not evidence that ev
 
 ---
 
+## Stage 9 — Continuous monitoring and dynamic risk scoring
+
+Stage 9 changed the project from one-time checks to scheduled assessment across the existing security sources.
+
+### Workflow
+
+1. Define a deterministic 15-minute monitoring interval.
+2. Create the monitoring-cycle, current-risk, risk-history, monitoring-alert and detection-health tables through a repeatable migration.
+3. Load identity, access-policy, network, endpoint, vulnerability and incident-link evidence.
+4. Map evidence to user, device, asset and incident entities.
+5. Weight severity, confidence and asset criticality without replacing the source evidence.
+6. Increase risk when independent sources agree.
+7. Reduce risk for completed false-positive reviews and verified activity.
+8. Apply time-based decay to older evidence.
+9. Store current scores and duplicate-safe history for each cycle.
+10. Create threshold alerts for High and Critical risk.
+11. Suppress repeated alerts during the configured cooldown while retaining occurrence and evidence details.
+12. Monitor ingestion, detection, risk-assessment and vulnerability-management health.
+13. Track failures, processed records and the last successful run.
+14. Store cycle summaries and audit records.
+15. Run focused tests, Stage 9 validation and the complete regression.
+
+### Risk workflow
+
+The risk engine produces scores from 0 to 100.
+
+The score supports investigation decisions but does not replace the original alerts, findings or policy decisions.
+
+Independent sources add agreement points. Validated exceptions reduce risk, and older evidence receives configured decay. Unknown asset criticality adds no points because it should not be silently treated as Low.
+
+### Engineering reasoning
+
+A current score and its history serve different purposes. The current record supports the latest decision, while history shows how the assessment changed between cycles.
+
+A scheduled interval receives one normal run. A repeated run within the interval is suppressed unless a controlled repeat is requested.
+
+Alert cooldown prevents the same condition from creating a new alert on every cycle. The existing alert retains its occurrence count and supporting evidence.
+
+Detection health is part of continuous monitoring. A successful risk calculation is not enough if ingestion or another required component has stopped producing data.
+
+### Problems and solutions
+
+The first evidence check found three access-policy mappings with unknown asset criticality. Unknown was deliberately assigned zero criticality points rather than being treated as Low.
+
+Repeated threshold detections initially needed a clear stored state. The alert records were designed to retain `Suppressed`, the occurrence count, the cooldown reason and the cooldown expiry.
+
+### Testing
+
+The engine assessed 171 evidence mappings and produced 20 current scores across users, devices, assets and incidents.
+
+Four entities crossed the High-risk threshold and created four alerts. Seven monitored components reported healthy status.
+
+A controlled repeated cycle created no new alerts and suppressed the same four alerts during cooldown. The last successful run and cycle metrics remained recorded.
+
+All 15 focused Stage 9 tests passed. Stage 9 validation passed 20 out of 20 checks.
+
+The complete project passed 220 unit tests. SQLite integrity returned `ok`.
+
+### What I learned
+
+A risk score is useful only when its evidence can still be inspected.
+
+Independent agreement should increase risk, but repeated records from one source should not receive the same benefit.
+
+Unknown context should remain unknown. Assigning a convenient value would make the calculation easier but less honest.
+
+Cooldown should reduce repeated alert noise without hiding that the condition happened again.
+
+---
+
+## Stage 10 — XDR-style cross-source correlation
+
+Stage 10 added explainable correlation across identity, access-policy, network, endpoint, application and vulnerability evidence.
+
+### Workflow
+
+1. Define the correlation window, primary identifiers, supporting context, confidence adjustments and safety boundaries.
+2. Create the incident, incident-evidence and indicator tables through a repeatable migration.
+3. Load 76 unique records from the six correlation sources.
+4. Normalise source identifiers, timestamps, detections, severity, confidence and original evidence.
+5. Use device, asset, user, IP address, hostname, file hash and process as ordered primary anchors.
+6. Keep MAC address, location and detection type as supporting context.
+7. Separate evidence by its primary anchor and time window.
+8. Allow an explicit attempted or successful exploitation link to join the named evidence across anchors or time.
+9. Require at least two independent sources and one active item before creating an incident.
+10. Count repeated source events once when calculating confidence.
+11. Increase confidence for independent source agreement.
+12. Reduce confidence for validated false positives and verified activity.
+13. Keep unexploited vulnerabilities as context rather than treating them as attacks.
+14. Preserve the successful SQL injection finding’s explicit endpoint link.
+15. Extract observable IoCs separately from suspicious behaviours.
+16. Keep MAC addresses classified as supporting observables.
+17. Preserve useful ATT&CK mappings and links to every original evidence record.
+18. Store incidents, evidence links and indicators with deterministic duplicate protection.
+19. Re-run correlation to confirm that no duplicate records are created.
+20. Run focused tests, Stage 10 validation and the complete project regression.
+
+### Correlation workflow
+
+Evidence is first assigned to one deterministic primary anchor. This prevents a shared username or address from joining otherwise separate device chains through unrestricted transitive grouping.
+
+Records within an anchor are compared inside the configured time window. Explicit exploitation links are handled separately because they name the evidence that supports the relationship.
+
+The incident confidence starts from active source confidence, adds a limited independent-source bonus and applies configured reductions. Repeated detections from the same source event are preserved but scored once.
+
+Vulnerability findings remain context unless attempted or successful exploitation evidence is present. A vulnerability by itself does not create an incident.
+
+### Engineering reasoning
+
+Correlation must explain both why evidence was joined and why other evidence remained separate.
+
+Device and asset identifiers are stronger anchors than a MAC address. A reused MAC address can support an investigation, but it cannot identify a device by itself.
+
+IoCs and behaviours answer different questions. An IP address, file hash, hostname or process value can be an observable IoC when supported by suspicious evidence. A detection such as Suspicious Process remains a behaviour label.
+
+The engine preserves the source records because an incident summary is not a replacement for its evidence.
+
+### Problems and solutions
+
+The first run used unrestricted transitive grouping. Shared fields created one incident containing 65 of the 76 records and incorrectly mixed the `CYOD-001` and `CYOD-002` chains.
+
+Grouping was corrected to use one ordered primary anchor per record. Explicit exploitation links can still join the directly related groups. The corrected result produced three separate device-centred incidents.
+
+A focused regression test now confirms that a shared username cannot merge two different device identities.
+
+### Testing
+
+The corrected engine created:
+
+- 10 candidate evidence groups
+- 3 incidents
+- 65 duplicate-safe incident-evidence links
+- 10 IoCs
+- 3 MAC-address supporting observables
+
+The three incidents kept `CYOD-001`, `CYOD-002` and `CYOD-003` separate.
+
+The `CYOD-002` incident retained the successful SQL injection link, endpoint evidence and six source types. Unexploited findings remained vulnerability context.
+
+A repeated run created:
+
+- 0 new incidents and 3 existing incidents
+- 0 new evidence links and 65 existing links
+- 0 new indicators and 13 existing indicators
+
+All 17 focused Stage 10 tests passed. Stage 10 validation passed 20 out of 20 checks.
+
+The complete project passed 237 tests. All V2 Stage 1–10 validators and the original Stage 11 validation passed. SQLite integrity returned `ok`.
+
+### What I learned
+
+Correlation can become misleading when every shared field is allowed to create a transitive bridge.
+
+A deterministic anchor makes the grouping easier to explain and prevents unrelated entities from being absorbed into one large incident.
+
+Independent-source agreement should increase confidence, but repeated detections from the same source event must not inflate it.
+
+Vulnerability context strengthens an investigation only when it is connected to activity or explicit exploitation evidence.
+
+---
+
 ## Next improvement
 
-Stage 8 is complete and validated.
+Stages 9 and 10 are complete and validated.
 
-Later work should continue one stage at a time and only within its agreed scope:
+Future improvement should use additional controlled datasets to test the current scoring weights, time decay, correlation window and primary-anchor order. Any tuning should preserve the original evidence and remain inside the simulation boundary.
 
-1. Confirm the stage boundary.
+The same engineering process should continue:
+
+1. Confirm the scope.
 2. Build only the required capability.
 3. Test the implemented component.
-4. Run it with the existing project.
-5. Review the actual output and stored evidence.
-6. Record meaningful failures and decisions.
-7. Correct genuine problems.
-8. Run the affected tests and complete regression.
-9. Update only the relevant documentation.
-10. Sign off after final validation.
+4. Review the real output and stored evidence.
+5. Record meaningful failures and decisions.
+6. Correct genuine problems.
+7. Run the affected tests and complete regression.
+8. Update only the relevant documentation.
+9. Sign off after final validation.
