@@ -1,628 +1,499 @@
 # NetShield Enterprise Upgrade
 
-NetShield Enterprise Upgrade extends the completed NetShield Phase 3 Automation project.
+Phase 3A V2 extends the original NetShield Phase 3 Automation project into a controlled enterprise-security simulation.
 
-It is a Python and SQLite security-automation project running inside a controlled Ubuntu VirtualBox sandbox. Enterprise users, devices, applications and security events are simulated.
+The project runs inside an Ubuntu VirtualBox sandbox using Python, SQLite and simulated security data. Microsoft Entra, Defender, Sentinel, Conditional Access and XDR are design references only. No production service, external target or real response action is used.
 
-Microsoft Entra, Defender, Sentinel, Conditional Access and XDR are design references only. No Microsoft tenants, cloud resources, production accounts, external targets or real response actions are used.
-
-## Current Project Status
-
-Completed Phase 3A V2 stages:
-
-- Stage 1 — Enterprise foundation
-- Stage 2 — Extended security data pipeline
-- Stage 3 — Enterprise asset and device identity
-- Stage 4 — Identity monitoring and risk detection
-- Stage 5 — Policy-based access decisions
-- Stage 6 — Network, Wi-Fi and access monitoring
-- Stage 7 — Endpoint monitoring and investigation
-- Stage 8 — Vulnerability and application-security findings
-- Stage 9 — Continuous monitoring and dynamic risk scoring
-- Stage 10 — XDR-style cross-source correlation
-
-The original Phase 3 components remain operational. This README concentrates on the enterprise upgrade.
-
-## Technologies
-
-- Ubuntu VirtualBox sandbox
-- Python 3 and `unittest`
-- SQLite
-- JSON and JSONL
-- Git and GitHub
-- Application and audit logging
-- SHA-256 evidence hashing
+NetShield is my project and part of my engineering journey. Its scope, security logic, configuration, testing, validation, improvements and documentation are recorded here without claiming personal source-code authorship.
 
 ---
 
-## Stage 1 — Enterprise Foundation
+## Project boundary and controls
 
-### What the component does
+The project keeps the following boundaries:
 
-Stage 1 adds simulated enterprise users, devices, applications and services, along with retention settings, sensitive-field masking and V2 metadata.
+- local Ubuntu sandbox only
+- simulated users, devices, assets and security events
+- default-deny response controls
+- RBAC and automation ACL enforcement
+- approval required for disruptive actions
+- original evidence preserved
+- duplicate-safe storage
+- UTC timestamps
+- SQLite integrity checks
+- no automatic real-world response
 
-### Why it exists or how it behaves
+The project grows one controlled component at a time and keeps earlier controls available.
 
-The upgrade reuses the established RBAC roles, automation ACL, database, logging, evidence controls and sandbox boundaries instead of creating a second security model.
+---
 
-### Information, rules and capabilities
+## Enterprise foundation
 
-- Viewer, Analyst, Responder and Administrator roles
-- CYOD inventory consistency
-- Default-deny automation controls
-- Retention settings and sensitive-field masking
-- Evidence preservation and Phase 3 compatibility
+### What it does
 
-Automatic retention enforcement is not implemented. Masking suitable output does not change original evidence.
+The foundation adds simulated enterprise users, devices, applications and services to the original project.
+
+### Why it exists
+
+Security decisions need authoritative identity, asset and service context. Retention and sensitive-field policies also protect stored data.
+
+### Main capabilities
+
+- enterprise context and CYOD inventory
+- simulated RBAC users and roles
+- retention settings
+- sensitive-field masking
+- SQLite metadata and audit records
+- compatibility with the original Phase 3 controls
+
+### Testing notes
+
+Stage 1 validation passed 12/12 checks. The foundation remained compatible with the original project.
+
+### What I learned
+
+An extension is safer when it reuses the existing controls instead of creating a second security model.
+
+---
+
+## Extended security data pipeline
+
+### What it does
+
+The pipeline imports controlled JSONL security events from multiple enterprise-style sources.
+
+### Why it exists
+
+Different security sources need one consistent storage and validation process.
 
 ### Workflow
 
-1. Load settings and enterprise context.
-2. Reuse the database and security controls.
-3. Register simulated users with existing roles.
-4. Verify registered devices against the CYOD inventory.
-5. Store metadata and audit records.
-6. Revalidate the foundation.
+1. Validate the source and required fields.
+2. Check data types and schema version.
+3. Convert timestamps to UTC.
+4. Preserve the raw event.
+5. Store accepted data in normalised form.
+6. Quarantine malformed records.
+7. Ignore duplicates.
+8. Record batch totals, failures and audit events.
 
-### Observed example output
+### Testing notes
 
-```text
-PASS: Phase 3A V2 Stage 1 foundation initialised
-Simulated users registered: 4
-Simulated devices available: 3
-Applications and services available: 5
+Stage 2 validation passed 13/13 checks. Twelve valid events were stored and two malformed events were quarantined.
 
-V2 STAGE 1 VALIDATION: PASS (12/12)
-```
+### Engineering observation
 
-### Testing Notes
+Compound source names were initially shortened incorrectly. Source handling was corrected to retain the complete name. Repeated malformed input was also made duplicate-safe.
 
-Repeated initialisation did not duplicate role assignments. Inventory consistency, masking, permissions and Phase 3 compatibility were checked.
+### What I learned
 
-### Engineering observations
-
-`CYOD-002` was registered in enterprise context but missing from the authoritative inventory. The inventory and consistency test were corrected.
-
-### What I Learned
-
-Enterprise context must agree with existing authoritative records.
+Raw preservation and normalised storage serve different purposes and both are needed for investigation.
 
 ---
 
-## Stage 2 — Extended Security Data Pipeline
+## Asset and device identity
 
-### What the component does
+### What it does
 
-Stage 2 adds enterprise-style security sources while preserving the original event pipeline.
+The component compares device events with the authoritative CYOD inventory.
 
-### Why it exists or how it behaves
+### Why it exists
 
-Later decisions need consistent and traceable data. Records are validated before acceptance and stored with UTC timestamps and original evidence.
+A device decision should use registration, ownership, compliance, asset and last-seen evidence rather than one identifier alone.
 
-### Information, rules and capabilities
+### Main rules
 
-- Common schema and source identification
-- Required-field and data-type validation
-- Malformed-event quarantine
-- Duplicate protection
-- Raw-event preservation
-- Import statistics and failed-batch records
+- device and asset IDs are primary identity evidence
+- MAC addresses are supporting evidence only
+- unknown and unregistered devices remain separate
+- stale and mismatched states are preserved
+- device history is not deleted
+
+### Observed output
+
+Three relevant events produced one High-severity Unregistered Device alert for `CYOD-003`. Approved `CYOD-002` activity produced no false alert.
+
+### Testing notes
+
+Stage 3 validation passed 19/19 checks. Device and web assets were not incorrectly treated as devices.
+
+### What I learned
+
+A MAC address can support an investigation, but it cannot identify a device by itself.
+
+---
+
+## Identity monitoring
+
+### What it does
+
+Identity monitoring detects suspicious authentication and account activity.
+
+### Why it exists
+
+A single sign-in may look normal, while a pattern across time, user, source address, device and location may require investigation.
+
+### Detection areas
+
+- repeated failed logins
+- password spraying
+- successful login after failures
+- impossible travel
+- new-device sign-in
+- unusual location
+- abnormal access time
+- MFA failure or fatigue
+- privilege changes
+- dormant-account activity
+- service-account interactive login
+- multiple accounts from one source
+- risky sign-in and user-risk activity
 
 ### Workflow
 
-1. Apply the repeatable migration.
-2. Read the controlled JSONL files.
-3. Validate and normalise records.
-4. Store accepted events.
-5. Quarantine malformed records.
-6. Record import and audit results.
+Events are grouped by user, source address and time window. Device, location, MFA, privilege and account evidence are then evaluated. Approved VPN and controlled-testing exceptions remain narrow and auditable.
 
-### Observed example output
+### Observed output
 
-```text
-V2 STAGE 2 IMPORT: files=6 total=14 accepted=12 rejected=2 failed=0
-```
+Twenty-four events produced 16 identity alerts. One abnormal-access-time alert was reviewed as a False Positive with investigation notes.
 
-A repeated import produced:
+### Testing notes
 
-```text
-V2 STAGE 2 IMPORT: files=6 total=14 accepted=0 rejected=14 failed=0
-```
+Stage 4 validation passed 12/12 checks. A repeated detector run created no duplicate alerts.
 
-### Testing Notes
+### Engineering observation
 
-Twelve valid events were accepted and two malformed inputs were quarantined. Repeated import stored no duplicate accepted events.
+Normal sign-in times initially fell outside the configured normal period. The event times were corrected before final validation.
 
-### Engineering observations
+### What I learned
 
-Compound source names were initially shortened incorrectly. Complete-name recognition was added.
-
-A repeatable migration was also required because updating `schema.sql` alone did not upgrade the working database.
-
-### What I Learned
-
-Malformed records, duplicates and file failures need separate outcomes. Database changes must support both new and existing databases.
+Detection data must agree with the configured baseline before alert results can be interpreted.
 
 ---
 
-## Stage 3 — Enterprise Asset and Device Identity
+## Access-policy decisions
 
-### What the component does
+### What it does
 
-Stage 3 strengthens device inventory and identity context for later decisions.
+The policy engine evaluates whether a controlled access request should be allowed, denied, challenged or restricted.
 
-### Why it exists or how it behaves
+### Why it exists
 
-Device ID and asset ID are the main references. User, hostname, location and MAC address provide supporting context.
+Access decisions need identity, role, device, application, location, network, MFA and risk evidence together.
 
-### Information, rules and capabilities
+### Outcomes
 
-- Registered CYOD inventory
-- Unknown, unregistered, stale and mismatched devices
-- Duplicate-safe alerts
-- Registration and review history
+- `allow`
+- `deny`
+- `challenge`
+- `restrict`
 
-A MAC address is not treated as proof of device identity.
+The default outcome is `deny`.
 
-### Observed example output
+### Decision model
 
-```text
-PASS: One meaningful Stage 3 device alert is stored
-PASS: CYOD-003 is correctly classified as an unregistered device
-PASS: Approved CYOD-002 activity creates no false alert
-```
+Policies use priority values. When outcomes have equal priority, the more restrictive result wins:
 
-### Testing Notes
+`deny → restrict → challenge → allow`
 
-Three relevant events produced one High Unregistered Device alert. Repeated detection created no duplicate alert.
+The policy decision is stored separately from any response action. Approval-required actions are not executed automatically.
 
-### Engineering observations
+### Observed output
 
-Non-device assets were excluded from device evaluation. `CYOD-003` was classified as known but unregistered rather than unknown.
+Nine requests produced:
 
-### What I Learned
+- 2 allow
+- 4 deny
+- 2 challenge
+- 1 restrict
 
-Reliable device identity requires combined inventory and event context.
+### Testing notes
 
----
+Stage 5 validation passed 14/14 checks. Repeated evaluation created no duplicate decisions.
 
-## Stage 4 — Identity Monitoring and Risk Detection
+### What I learned
 
-### What the component does
-
-Stage 4 detects identity and authentication risks and supports authorised investigation.
-
-### Why it exists or how it behaves
-
-Related events and identity baselines provide more context than a single sign-in.
-
-### Information, rules and capabilities
-
-- Failed-login and password-spraying patterns
-- Success after repeated failures
-- New devices, unusual locations and impossible travel
-- Abnormal access time and MFA failures
-- Privilege changes, dormant accounts and service accounts
-- Severity, confidence, reasons and supporting evidence
-- VPN and controlled-testing exceptions
-
-### Workflow
-
-1. Load identity events.
-2. Group related activity.
-3. Compare it with configured baselines.
-4. Apply evidence-matched exceptions.
-5. Store duplicate-safe alerts.
-6. Record authorised reviews.
-
-### Observed example output
-
-```text
-V2 STAGE 4 IDENTITY MONITORING: events=24 detections=16 new=16 existing=0 vpn_exceptions=2 testing_exceptions=1
-```
-
-A repeated run produced:
-
-```text
-V2 STAGE 4 IDENTITY MONITORING: events=24 detections=16 new=0 existing=16 vpn_exceptions=2 testing_exceptions=1
-```
-
-### Testing Notes
-
-The monitoring and review groups passed 19 tests. An Analyst classified the controlled abnormal-time alert as a False Positive without deleting its evidence.
-
-### Engineering observations
-
-Normal test events initially occurred outside the configured access period. Their timestamps were corrected while deliberate abnormal-time evidence remained.
-
-### What I Learned
-
-Test data must agree with its configured baseline.
+A decision is easier to investigate when the winning policy, matching reasons and supporting evidence are stored together.
 
 ---
 
-## Stage 5 — Policy-Based Access Decisions
+## Network and Wi-Fi monitoring
 
-### What the component does
+### What it does
 
-Stage 5 evaluates identity, role, device, application, location, network, MFA and risk evidence.
+The component evaluates network connections, wireless events and simulated access decisions.
 
-### Why it exists or how it behaves
+### Why it exists
 
-A recognised account or role is not enough to confirm that a complete access request is safe. Unknown applications and unverifiable conditions follow default deny.
+Network activity needs context from addresses, ports, services, devices, access zones and Wi-Fi security.
 
-### Access outcomes
+### Main rules
 
-| Outcome | Meaning |
-|---|---|
-| Allow | Required conditions were satisfied. |
-| Deny | Access was not permitted. |
-| Challenge | Stronger verification was required. |
-| Restrict | Serious risk supported a controlled restriction request. |
+- check allowlists, blocklists and approved networks
+- inspect ports, services and connection volume
+- match device and asset context
+- use MAC addresses only as supporting evidence
+- preserve approved VPN and testing exceptions
+- store one explainable decision per event
 
-Equal-priority policies use the order Deny, Restrict, Challenge and Allow.
+Decision precedence is:
 
-### Workflow
+`deny → restrict → challenge → allow`
 
-1. Load the request and context.
-2. Check restrictions and role permissions.
-3. Evaluate device, network, MFA and risk.
-4. Select the winning policy.
-5. Check the proposed response against the ACL.
-6. Store the decision and reasons.
+### Observed output
 
-### Observed example output
+Thirty-four events produced 18 alerts and 34 access decisions.
 
-```text
-V2 STAGE 5 ACCESS POLICY: requests=9 decisions=9 new=9 existing=0 allow=2 deny=4 challenge=2 restrict=1
-```
+### Testing notes
 
-A repeated run produced:
-
-```text
-V2 STAGE 5 ACCESS POLICY: requests=9 decisions=9 new=0 existing=9 allow=2 deny=4 challenge=2 restrict=1
-```
-
-### Testing Notes
-
-Thirteen focused tests passed. Every request retained one unique decision.
+Stage 6 validation passed 15/15 checks. Repeated monitoring created no duplicate alerts, decisions or timeline records.
 
 ### Engineering observations
 
-Policy priority and restrictive tie-breaking were made explicit. Proposed account restriction remained approval-required.
+A MAC-reuse rule name, overlap rule and response mapping were corrected before validation. No real firewall or wireless state was changed.
 
-### What I Learned
+### What I learned
 
-An access decision must explain its evidence without gaining permission to perform a response.
-
----
-
-## Stage 6 — Network, Wi-Fi and Access Monitoring
-
-### What the component does
-
-Stage 6 detects suspicious network and wireless activity, produces access decisions and stores a connection timeline.
-
-### Why it exists or how it behaves
-
-One event can match several conditions. Every matching reason is retained while one deterministic decision is produced.
-
-Wireless scenarios use controlled logs. No real wireless attack or firewall change is performed.
-
-### Information, rules and capabilities
-
-- Suspicious addresses and list matching
-- Port scans and repeated connections
-- Restricted ports and services
-- Unknown devices and possible MAC reuse
-- WPA3 violations and simulated WPA2 downgrade
-- Rogue access points and zone violations
-- Allow, Deny, Challenge and Restrict decisions
-- Connection timeline and alert review
-
-Decision precedence is Deny, Restrict, Challenge and Allow. MAC addresses remain supporting evidence.
-
-### Observed example output
-
-```text
-V2 STAGE 6 NETWORK MONITORING: events=34 alerts=18 new_alerts=18 existing_alerts=0 decisions=34 new_decisions=34 existing_decisions=0 timeline_new=34 timeline_existing=0 allow=4 deny=18 challenge=11 restrict=1 vpn_exceptions=1 testing_exceptions=1
-```
-
-### Testing Notes
-
-Thirty-four events produced 18 alerts, 34 decisions and 34 timeline records. Repeated monitoring created no duplicates.
-
-Twenty-three focused tests passed. An Analyst closed the controlled Abnormal Connection Pattern alert as a False Positive.
-
-### Engineering observations
-
-A fixed decision order resolved conflicting conditions. The Restrict outcome was mapped to the existing approval-required firewall action.
-
-### What I Learned
-
-Several valid findings can support one decision. A network decision does not automatically authorise a network change.
+One event can match several rules. Every matching reason should be preserved while one final decision is selected.
 
 ---
 
-## Stage 7 — Endpoint Monitoring and Investigation
+## Endpoint monitoring
 
-### What the component does
+### What it does
 
-Stage 7 evaluates device state, process activity, commands, CPU use, crashes, persistence and file hashes.
+Endpoint monitoring evaluates health, compliance, processes, command activity, persistence indicators, hashes and crash patterns.
 
-### Why it exists or how it behaves
+### Why it exists
 
-Endpoint health or a process name alone cannot explain suspicious activity. The engine retains the evidence behind each finding.
+Endpoint evidence helps distinguish normal administration, operational problems and suspicious activity.
 
-Critical alerts for the same device support one consolidated simulated-isolation request.
+### Main rules
 
-### Information, rules and capabilities
+- three crashes or restarts within eight minutes form the configured pattern
+- approved administration and testing exceptions remain recorded
+- Critical alerts are consolidated by device
+- simulated isolation requires authorised approval
+- approval changes the project record only
 
-- Endpoint health, compliance and risk
-- Suspicious or unapproved processes
-- Unexpected process owners and parent-child relationships
-- High CPU and repeated crash activity
-- Suspicious commands and persistence indicators
-- Unexpected file-hash changes
-- Approved exceptions
-- Endpoint timeline
-- Simulated isolation and false-positive review
+### Observed output
 
-No real isolation, network change or process termination occurs.
+Twenty-six events produced 26 alerts across 13 detection types. One simulated isolation preserved all 10 supporting Critical alert keys.
 
-### Observed example output
+### Testing notes
 
-```text
-[ISOLATION RECORD] device=CYOD-002 | action=quarantine_device | status=simulated_isolated | approved_by=responder01 | real_action=False | network_change=False
-```
+Stage 7 validation passed 14/14 checks. Approved activity created no false alerts.
 
-Repeated monitoring produced:
+### Engineering observation
 
-```text
-V2 STAGE 7 ENDPOINT MONITORING: events=26 alerts=26 new_alerts=0 existing_alerts=26 detection_types=13 critical=10 high=13 medium=3 low=0 timeline_new=0 timeline_existing=26 isolation_requests=1 isolation_new=0 isolation_existing=1 approved_exceptions=2 real_actions=0 network_changes=0
-```
+Separate isolation requests were initially created for one device. They were consolidated into one device-level request while preserving all supporting alerts.
 
-### Testing Notes
+### What I learned
 
-Seventeen focused tests passed. Stage 7 validation passed 14 out of 14 checks.
-
-One isolation record preserved all 10 Critical alert keys. Repeated monitoring preserved the approval and completed false-positive review.
-
-### Engineering observations
-
-The first run created 10 requests for one device. They were consolidated without losing the supporting alert keys.
-
-The runner was also corrected to report the stored approval state.
-
-### What I Learned
-
-Several alerts can support one response request without losing their separate evidence.
+Detection, approval and isolation are separate controls and should not be combined.
 
 ---
 
-## Stage 8 — Vulnerability and Application-Security Findings
+## Vulnerability and application-security findings
 
-### What the component does
+### What it does
 
-Stage 8 manages controlled vulnerability, configuration, dependency, package, service-exposure and SQL injection findings.
+The vulnerability component stores findings linked to the authoritative sandbox asset and tracks remediation and review.
 
-### Why it exists or how it behaves
+### Why it exists
 
-Findings support prevention and remediation. They do not become incidents unless activity or other evidence supports attempted or successful exploitation.
-
-### Information, rules and capabilities
-
-- Authoritative asset links
-- Severity and confidence
-- Exploitability and exposed-service context
-- Asset criticality
-- Weighted priority scores
-- Remediation status and verification
-- Duplicate-safe findings and history
-- False-positive review
-- Finding-to-alert and finding-to-incident links
-- Approved local testing boundaries
+A vulnerability finding is risk evidence, not automatic proof that an attack occurred.
 
 ### Priority model
 
-Priority combines:
+The score uses:
 
-1. Finding severity
-2. Confidence
-3. Exploitability
-4. Exposed-service context
-5. Asset criticality
+- severity
+- exploitability
+- asset criticality
+- exposed-service context
+- confidence
 
-The score supports prioritisation without replacing original evidence.
+### Main rules
 
-### Observed example output
+- findings require authoritative asset context
+- original risk evidence is preserved
+- remediation adds status and verification history
+- approved testing remains evidence
+- alert or incident links require supporting activity
+- a vulnerability alone does not create an incident
+- false-positive review requires authorised investigation permission
 
-```text
-[High] SQL injection authentication bypass | finding=S78-FND-SQL-001 | asset=AST-WEB-001 | score=71.05 | status=Verified
-[Medium] Restricted service exposed inside the sandbox | finding=S78-FND-SVC-001 | asset=AST-WEB-001 | score=64.65 | status=Open
-[Low] Version-only finding requiring analyst review | finding=S78-FND-FP-001 | asset=AST-WEB-001 | score=39.50 | status=False Positive
-```
+### Observed output
 
-The final summary reported:
+Sixteen events produced seven findings. Final remediation states were one Open, two Planned, three Verified and one False Positive.
 
-```text
-V2 STAGE 8 VULNERABILITY MANAGEMENT: events=16 findings=7 critical=0 high=1 medium=4 low=2 open=1 planned=2 verified=3 false_positive=1 alert_links=1 incident_links=1 approved_tests=2 automatic_incidents=0 external_targets=0
-```
+### Testing notes
 
-### Testing Notes
-
-Fourteen focused tests passed. Stage 8 validation passed 16 out of 16 checks.
-
-Seven findings, 13 history records and two evidence-backed links remained duplicate-safe. Repeated processing preserved the false-positive review.
+Stage 8 validation passed 16/16 checks. Repeated runs preserved remediation and review state.
 
 ### Engineering observations
 
-The first validator run found that Stage 8 metadata still contained the foundation status. A completed management run updated it to `vulnerability_management_complete`.
+Verification data initially replaced original risk values. The logic was corrected to preserve the original evidence. Display output was also corrected to show the stored False Positive state.
 
-### What I Learned
+### What I learned
 
-Remediation should add history without rewriting original risk. A vulnerability also needs activity evidence before it can support an incident.
+Remediation and verification add history; they must not rewrite the original finding.
 
 ---
 
-## Stage 9 — Continuous Monitoring and Dynamic Risk Scoring
+## Continuous monitoring and risk scoring
 
-### What the component does
+### What it does
 
-Stage 9 reassesses existing security evidence through scheduled monitoring cycles.
+The monitoring engine assesses current risk across users, devices, assets and incidents on a scheduled interval.
 
-### Why it exists or how it behaves
+### Why it exists
 
-Security risk changes as evidence ages, exceptions are validated and independent sources agree.
+One-time detection does not show how risk changes over time.
 
-Risk scores support decisions but do not replace the original alerts, findings or events.
+### Scoring model
 
-### Information, rules and capabilities
+The score combines:
 
-- Deterministic 15-minute cycles
-- User, device, asset and incident risk
-- Severity, confidence and criticality weighting
-- Independent-source agreement
-- Validated exception reduction
-- Time-based decay
-- Threshold and escalation alerts
-- Alert cooldown and suppression
-- Detection and pipeline health
-- Last-successful-run tracking
-- Monitoring summaries and metrics
+- severity
+- confidence
+- asset criticality
+- independent-source agreement
+- validated exceptions
+- time-based decay
 
-Unknown asset criticality adds zero points rather than being treated as Low.
+Risk scores support decisions but do not replace source evidence.
 
-### Risk workflow
+### Main rules
 
-1. Load evidence from completed components.
-2. Map evidence to the relevant entity.
-3. Apply configured weights.
-4. Add independent-source agreement.
-5. Apply validated exception and time reductions.
-6. Store current and historical scores.
-7. Create threshold alerts.
-8. Record component health and cycle results.
+- unknown criticality contributes zero points
+- repeated source records do not receive agreement credit twice
+- validated exceptions reduce risk
+- older evidence receives configured decay
+- threshold alerts use cooldown
+- health records track processed data, failures and last success
 
-### Observed example output
+### Observed output
 
-```text
-PASS: Stage 9 risk scoring completed
-Evidence mappings: 171
-Entities scored: 20
-Threshold alerts proposed: 4
-```
+The engine assessed 171 evidence mappings and scored 20 entities. Four High-risk alerts were created. Seven monitored components reported healthy status.
 
-The four High scores were:
+### Testing notes
 
-```text
-asset AST-001: score=71.00
-user viewer01: score=71.00
-device CYOD-001: score=66.00
-user responder01: score=66.00
-```
+Stage 9 validation passed 20/20 checks. A repeated cycle suppressed the same four alerts during cooldown without deleting evidence.
 
-A controlled repeated cycle reported:
+### Engineering observation
 
-```text
-status=completed evidence=171 entities=20 risk_alerts=4 health_alerts=0 alerts_new=0 alerts_suppressed=4
-```
+Three mappings contained unknown asset criticality. They were intentionally assigned zero criticality points rather than being treated as Low.
 
-### Testing Notes
+### What I learned
 
-Fifteen focused tests passed. Stage 9 validation passed 20 out of 20 checks.
-
-Twenty entities covered all four entity types. Seven monitored components were Healthy. A repeated cycle suppressed four alerts during cooldown without losing evidence.
-
-### Engineering observations
-
-Some evidence used unknown asset criticality. It was assigned zero additional points instead of an assumed Low value.
-
-An inspection query also requested a non-existent suppression column. The query was corrected to use the actual stored fields without changing the schema.
-
-### What I Learned
-
-A useful score must remain connected to its evidence. Independent agreement can raise risk, while validated exceptions and time can reduce it.
+Risk scoring is useful only when its evidence and history remain inspectable.
 
 ---
 
-## Stage 10 — XDR-Style Cross-Source Correlation
+## XDR-style cross-source correlation
 
-### What the component does
+### What it does
 
-Stage 10 correlates identity, access-policy, network, endpoint, application and vulnerability evidence into explainable incidents.
+The correlation engine combines related identity, access, network, endpoint, application and vulnerability evidence.
 
-### Why it exists or how it behaves
+### Why it exists
 
-Related activity should be combined, but shared context must not merge unrelated device chains.
+Cross-source context can improve confidence, but unrestricted grouping can create misleading incidents.
 
-Vulnerability context supports an incident only when related activity also exists.
+### Correlation model
 
-### Information, rules and capabilities
+Primary anchors are evaluated in a controlled order, including:
 
-- Device, asset, user, address, hostname, process and file-hash context
-- Primary correlation anchors
-- Configured time window
-- Independent-source confidence
-- Validated exception and verified-activity reduction
-- Explicit exploitation links
-- Duplicate-event score protection
-- Original evidence links
-- IoC extraction
-- Supporting observables
-- Suspicious behaviours
-- Relevant ATT&CK mappings
-- Duplicate-safe incidents, evidence links and indicators
+- device ID
+- asset ID
+- username
+- IP address
+- hostname
+- process name
+- file hash
 
-MAC addresses remain supporting observables and cannot become primary correlation anchors.
+MAC address, location and detection type remain supporting context.
 
-### Correlation workflow
+Explicit exploitation links can join directly related evidence. Repeated source events are scored once.
 
-1. Load unique evidence from six source types.
-2. Select the strongest available primary anchor.
-3. Apply the configured time window.
-4. Preserve explicit exploitation links.
-5. Keep unrelated activity separate.
-6. Calculate severity and confidence.
-7. Attach context-only vulnerabilities.
-8. Extract supported IoCs and observables.
-9. Store incidents and evidence links.
-10. Repeat correlation and verify duplicate protection.
+### Observed output
 
-### Observed example output
+The corrected engine produced:
 
-```text
-[Critical] XDR Incident | title=Cross-source activity involving device CYOD-001 | confidence=95 | sources=3 | evidence=13
-[Critical] XDR Incident | title=Cross-source activity involving device CYOD-002 | confidence=88 | sources=6 | evidence=49
-[Medium] XDR Incident | title=Cross-source activity involving device CYOD-003 | confidence=70 | sources=2 | evidence=3
-```
+- 10 candidate groups
+- 3 incidents
+- 65 evidence links
+- 10 IoCs
+- 3 MAC supporting observables
 
-The final summary reported:
+The `CYOD-001`, `CYOD-002` and `CYOD-003` chains remained separate.
 
-```text
-V2 STAGE 10 XDR CORRELATION: evidence=76 source_types=6 candidate_groups=10 incidents=3 evidence_links=65 indicators=13 critical=2 high=0 medium=1 low=0 iocs=10 supporting_observables=3 vulnerability_context=6 exceptions=3 verified_activity=4 automatic_actions=0
-```
+### Testing notes
 
-### Testing Notes
+Stage 10 validation passed 20/20 checks. Repeated correlation created no duplicate incidents, links or indicators.
 
-Seventeen focused tests passed. Stage 10 validation passed 20 out of 20 checks.
+### Engineering observation
 
-Repeated correlation created:
+The first run used unrestricted transitive grouping and mixed separate device chains. Ordered primary anchors corrected the problem.
 
-- 0 new incidents and 3 existing incidents
-- 0 new links and 65 existing links
-- 0 new indicators and 13 existing indicators
-- 0 automatic response actions
+### What I learned
+
+Correlation must explain both why evidence was joined and why unrelated evidence remained separate.
+
+---
+
+## Incident management
+
+### What it does
+
+Incident management converts correlated activity into traceable managed incidents.
+
+### Why it exists
+
+An incident needs ownership, decisions, lifecycle history, evidence integrity and readable output.
+
+### Main capabilities
+
+- unique incident IDs
+- source incident keys
+- severity and confidence
+- risk provenance
+- identity, device, asset and network context
+- owner and status
+- investigation notes
+- analyst decisions
+- IoCs and behaviours
+- ATT&CK references
+- vulnerability links
+- evidence references and SHA-256 hashes
+- approval and timeline records
+- JSON and readable reports
+
+### Lifecycle
+
+`New → Triaged → Investigating → Contained → Eradicated → Recovered → Closed`
+
+False-positive closure is allowed only from New, Triaged or Investigating with authorised permission.
+
+Containment, eradication and recovery are recorded only when those actions genuinely occur.
+
+### Observed output
+
+Three XDR incidents were imported. One incident was assigned to `analyst01` and progressed from New to Triaged to Investigating.
+
+### Testing notes
+
+Stage 11 validation passed. Evidence hashes, SQLite integrity, foreign keys, lifecycle records, permissions, reports and audit records were valid.
 
 ### Engineering observations
 
-The first broad grouping joined 65 of 76 records into one incident and mixed separate device chains.
+A vulnerability foreign-key mismatch, overly strict lifecycle check and report-generation mismatch were corrected through validation and repeat testing.
 
-Correlation was corrected to use deterministic primary anchors and supported explicit links. A regression test confirmed that a shared username could not merge unrelated devices.
+### What I learned
 
-### What I Learned
-
-Correlation needs strong boundaries. Shared context can support an investigation, but it should not connect unrelated activity by itself.
+An incident status must describe what genuinely happened. It must not imply that an action occurred without supporting evidence and verification.
 
 ---
 
@@ -630,80 +501,40 @@ Correlation needs strong boundaries. Shared context can support an investigation
 
 ### Clean-state validation workflow
 
-The final validation sequence:
+The completed project is checked through:
 
-1. Compiled project Python files.
-2. Ran V2 Stage 1–10 validators.
-3. Ran the original Phase 3 full-project validator.
-4. Ran the complete unit-test suite.
-5. Checked the warning-enabled test run.
-6. Checked SQLite integrity and foreign keys.
-7. Checked repository whitespace and status.
+1. Python syntax compilation.
+2. Stage-specific validators.
+3. Focused component tests.
+4. Full regression tests.
+5. SQLite integrity and foreign-key checks.
+6. Duplicate-run checks.
+7. RBAC and ACL checks.
+8. Evidence and audit checks.
+9. Final working-tree review.
 
-### Genuine end-to-end results
+Operational warning checks are documented in `docs/commands.md`.
 
-```text
-V2 STAGE 1 VALIDATION: PASS (12/12)
-V2 STAGE 2 VALIDATION: PASS (13/13)
-Stage 3 validation: 19/19 checks passed
-V2 STAGE 4 VALIDATION: PASS (12/12)
-V2 STAGE 5 VALIDATION: PASS (14/14)
-V2 STAGE 6 VALIDATION: PASS (15/15)
-V2 STAGE 7 VALIDATION: PASS (14/14)
-V2 STAGE 8 VALIDATION: PASS (16/16)
-V2 STAGE 9 VALIDATION: PASS (20/20)
-V2 STAGE 10 VALIDATION: PASS (20/20)
+### Result
 
-Ran 237 tests in 2.235s
+**151 tests passed with zero unclosed-database warnings.**
 
-OK
+The completed validation confirmed that the security stages remained operational, original evidence was preserved, duplicate handling worked, permissions were enforced and real-world response actions remained disabled.
 
-STAGE 11 VALIDATION: PASS
-```
+### Problems and fixes
 
-SQLite integrity returned `ok`. Foreign-key checking returned no violations. Python compilation and repository whitespace checks completed successfully.
+The project exposed problems in inventory consistency, source naming, event timing, decision precedence, response mapping, duplicate handling, remediation preservation, correlation grouping, foreign-key design, lifecycle validation and report stability.
 
-Earlier Stage 4–5 validation result: 151 tests passed with zero unclosed-database warnings.
-
-The Stage 11 result belongs to the original Phase 3 project and confirms that the upgrade did not break the inherited project.
-
-### Problems discovered
-
-The main problems involved:
-
-- Inconsistent enterprise and inventory context
-- Source-name recognition
-- Existing-database migration
-- Validator evidence boundaries
-- Policy conflicts
-- Repeated isolation requests
-- Incomplete or damaged source transfers
-- Stage completion metadata
-- Unknown asset criticality
-- XDR over-correlation
-
-### How the problems were fixed
-
-Authoritative records were aligned, complete source names were recognised and repeatable migrations were added.
-
-Validators were limited to their intended evidence. Policy precedence was made explicit. Isolation requests were consolidated. Stored state was used for reporting.
-
-Unknown criticality was prevented from adding risk. XDR correlation was restricted to deterministic primary anchors and supported explicit links.
+Each problem was corrected and revalidated against the affected component.
 
 ### Engineering observations
 
-Repeated execution checked more than duplicate protection. It also confirmed that reviews, approvals, remediation history, cooldown state and evidence links survived later processing.
+The project became more reliable when decisions were deterministic, evidence remained inspectable and output was compared with stored state.
 
-Later-stage data was not removed to satisfy earlier validators. Validator boundaries were corrected instead.
+### What I learned
 
-### What I Learned
+Security automation is not only about detecting conditions. It must also preserve evidence, explain decisions, enforce permissions, maintain history and prevent unsupported conclusions.
 
-Security automation is easier to trust when every result retains its evidence, reason and investigation history.
+### Next expansion
 
-Risk scoring and correlation improve prioritisation, but they must not replace original evidence or authorise disruptive responses.
-
-### Next expansion scope
-
-The next improvement is to test the completed risk and correlation settings with additional controlled datasets containing longer timelines and more overlapping users, devices and assets.
-
-This will help assess scoring weights, decay periods, thresholds, cooldowns, correlation windows and anchor order while preserving the existing safety boundaries.
+The next stage is approval-controlled containment and response. It will extend the existing ACL while preserving evidence before disruptive actions, requiring approval, preventing self-approval, recording every outcome and supporting safe rollback where applicable.
