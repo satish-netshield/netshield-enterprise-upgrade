@@ -1,0 +1,32 @@
+Incident ID: INC-V2-11-0003
+Title: Cross-source activity involving device CYOD-003
+Status: New
+Severity: Medium
+Confidence: 70
+Risk score: Not yet assessed
+Owner: Unassigned
+Detection sources: access_policy, identity
+
+Identity context:
+{"service_accounts": [], "usernames": ["analyst01", "viewer01"]}
+Device context:
+{"device_ids": ["CYOD-003"], "hostnames": []}
+Asset context:
+{"asset_ids": ["AST-002"]}
+Network context:
+{"ip_addresses": ["203.0.113.80"], "locations": ["Auckland, NZ", "Sydney, Australia"], "mac_addresses": []}
+
+Evidence records: 3
+IoCs: 0
+Behaviours: 2
+ATT&CK references: 1
+Linked vulnerabilities: 0
+Investigation decisions: 0
+Timeline records: 3
+
+Evidence SHA-256 values:
+- access_policy:65ba64a529ce96d9625d9c71d95ff6e11179809e48b32a0a06d75e9e4c5ffd54: caef947cd079d8cb2061826a43c081ecec4172353e90ebc11b0728ddb6ad7f90
+- identity:8df68d0ae9a17b8ebfbbf692c0b8ccc3c0208d1aed6064182c39ddfa90b60f41: ea15f5484719ecf033a166151f79083bd8042c9765407964a55ef836da140595
+- identity:a020d01df64393be95255f53022adbd8b1582e58d1a00a156f95cff13bbd4f21: d7090221b442770d26becb751564a5127a819463b8f5147b80a130c9096850ad
+
+Investigation notes:

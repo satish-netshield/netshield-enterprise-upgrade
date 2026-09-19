@@ -1546,3 +1546,342 @@ ON v2_xdr_indicators(indicator_value);
 
 CREATE INDEX IF NOT EXISTS idx_v2_xdr_indicators_classification
 ON v2_xdr_indicators(classification);
+
+-- Phase 3A V2 Stage 11 incident management and evidence
+CREATE TABLE IF NOT EXISTS v2_incidents (
+    managed_incident_id INTEGER PRIMARY KEY AUTOINCREMENT,
+    incident_id TEXT NOT NULL UNIQUE,
+    source_incident_key TEXT NOT NULL UNIQUE,
+    title TEXT NOT NULL,
+    detection_sources TEXT NOT NULL,
+    severity TEXT NOT NULL
+        CHECK (severity IN ('Low', 'Medium', 'High', 'Critical')),
+    confidence INTEGER NOT NULL
+        CHECK (confidence BETWEEN 0 AND 100),
+    risk_score REAL
+        CHECK (risk_score BETWEEN 0 AND 100),
+    risk_record_key TEXT,
+    risk_assessed_at TEXT,
+    identity_context TEXT NOT NULL,
+    device_context TEXT NOT NULL,
+    asset_context TEXT NOT NULL,
+    network_context TEXT NOT NULL,
+    incident_owner TEXT,
+    status TEXT NOT NULL DEFAULT 'New'
+        CHECK (
+            status IN (
+                'New',
+                'Triaged',
+                'Investigating',
+                'Contained',
+                'Eradicated',
+                'Recovered',
+                'Closed',
+                'Closed - False Positive'
+            )
+        ),
+    investigation_notes TEXT NOT NULL DEFAULT '[]',
+    analyst_decisions TEXT NOT NULL DEFAULT '[]',
+    closure_reason TEXT,
+    false_positive_classification TEXT,
+    source_first_evidence_time TEXT NOT NULL,
+    source_last_evidence_time TEXT NOT NULL,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL,
+    closed_at TEXT,
+    original_evidence_preserved INTEGER NOT NULL DEFAULT 1
+        CHECK (original_evidence_preserved = 1),
+    CHECK (
+        status != 'Closed - False Positive'
+        OR false_positive_classification = 'False Positive'
+    ),
+    CHECK (
+        status NOT IN ('Closed', 'Closed - False Positive')
+        OR closure_reason IS NOT NULL
+    ),
+    CHECK (
+        (risk_score IS NULL AND risk_record_key IS NULL
+            AND risk_assessed_at IS NULL)
+        OR
+        (risk_score IS NOT NULL AND risk_record_key IS NOT NULL
+            AND length(trim(risk_record_key)) > 0
+            AND risk_assessed_at IS NOT NULL
+            AND length(trim(risk_assessed_at)) > 0)
+    )
+);
+
+CREATE TABLE IF NOT EXISTS v2_incident_evidence (
+    incident_evidence_id INTEGER PRIMARY KEY AUTOINCREMENT,
+    evidence_link_key TEXT NOT NULL UNIQUE,
+    incident_id TEXT NOT NULL,
+    source_type TEXT NOT NULL,
+    source_record_id TEXT NOT NULL,
+    source_evidence_key TEXT NOT NULL,
+    evidence_time TEXT NOT NULL,
+    relationship TEXT NOT NULL,
+    contribution_status TEXT NOT NULL,
+    evidence_reference TEXT NOT NULL,
+    evidence_json TEXT NOT NULL,
+    evidence_sha256 TEXT NOT NULL
+        CHECK (
+            length(evidence_sha256) = 64
+            AND evidence_sha256 NOT GLOB '*[^0-9a-f]*'
+        ),
+    created_at TEXT NOT NULL,
+    FOREIGN KEY (incident_id)
+        REFERENCES v2_incidents(incident_id),
+    UNIQUE (incident_id, source_evidence_key)
+);
+
+CREATE TABLE IF NOT EXISTS v2_incident_iocs (
+    incident_ioc_id INTEGER PRIMARY KEY AUTOINCREMENT,
+    ioc_key TEXT NOT NULL UNIQUE,
+    incident_id TEXT NOT NULL,
+    ioc_type TEXT NOT NULL
+        CHECK (
+            ioc_type IN (
+                'ip_address',
+                'file_hash',
+                'hostname',
+                'process_name'
+            )
+        ),
+    ioc_value TEXT NOT NULL,
+    confidence INTEGER NOT NULL
+        CHECK (confidence BETWEEN 0 AND 100),
+    source_evidence_keys TEXT NOT NULL,
+    created_at TEXT NOT NULL,
+    FOREIGN KEY (incident_id)
+        REFERENCES v2_incidents(incident_id),
+    UNIQUE (incident_id, ioc_type, ioc_value)
+);
+
+CREATE TABLE IF NOT EXISTS v2_incident_behaviours (
+    incident_behaviour_id INTEGER PRIMARY KEY AUTOINCREMENT,
+    behaviour_key TEXT NOT NULL UNIQUE,
+    incident_id TEXT NOT NULL,
+    behaviour_name TEXT NOT NULL,
+    detection_types TEXT NOT NULL,
+    source_evidence_keys TEXT NOT NULL,
+    created_at TEXT NOT NULL,
+    FOREIGN KEY (incident_id)
+        REFERENCES v2_incidents(incident_id),
+    UNIQUE (incident_id, behaviour_name)
+);
+
+CREATE TABLE IF NOT EXISTS v2_incident_attack_references (
+    incident_attack_id INTEGER PRIMARY KEY AUTOINCREMENT,
+    attack_reference_key TEXT NOT NULL UNIQUE,
+    incident_id TEXT NOT NULL,
+    technique_id TEXT NOT NULL,
+    technique_name TEXT,
+    source_detection_types TEXT NOT NULL,
+    created_at TEXT NOT NULL,
+    FOREIGN KEY (incident_id)
+        REFERENCES v2_incidents(incident_id),
+    UNIQUE (incident_id, technique_id)
+);
+
+CREATE TABLE IF NOT EXISTS v2_incident_decisions (
+    incident_decision_id INTEGER PRIMARY KEY AUTOINCREMENT,
+    decision_key TEXT NOT NULL UNIQUE,
+    incident_id TEXT NOT NULL,
+    decision_time TEXT NOT NULL,
+    actor TEXT NOT NULL,
+    actor_role TEXT NOT NULL,
+    decision TEXT NOT NULL,
+    notes TEXT NOT NULL,
+    previous_status TEXT,
+    new_status TEXT,
+    evidence_references TEXT NOT NULL,
+    FOREIGN KEY (incident_id)
+        REFERENCES v2_incidents(incident_id)
+);
+
+CREATE TABLE IF NOT EXISTS v2_incident_timeline (
+    incident_timeline_id INTEGER PRIMARY KEY AUTOINCREMENT,
+    timeline_key TEXT NOT NULL UNIQUE,
+    incident_id TEXT NOT NULL,
+    event_time TEXT NOT NULL,
+    event_type TEXT NOT NULL
+        CHECK (
+            event_type IN (
+                'incident_created',
+                'owner_assigned',
+                'investigation_note',
+                'analyst_decision',
+                'status_changed',
+                'approval_recorded',
+                'evidence_linked',
+                'report_generated'
+            )
+        ),
+    actor TEXT NOT NULL,
+    action TEXT NOT NULL,
+    previous_status TEXT,
+    new_status TEXT,
+    details TEXT NOT NULL,
+    evidence_references TEXT NOT NULL,
+    FOREIGN KEY (incident_id)
+        REFERENCES v2_incidents(incident_id)
+);
+
+CREATE TABLE IF NOT EXISTS v2_incident_approvals (
+    incident_approval_id INTEGER PRIMARY KEY AUTOINCREMENT,
+    approval_key TEXT NOT NULL UNIQUE,
+    incident_id TEXT NOT NULL,
+    action_type TEXT NOT NULL,
+    approval_status TEXT NOT NULL
+        CHECK (
+            approval_status IN (
+                'requested',
+                'approved',
+                'rejected',
+                'not_required'
+            )
+        ),
+    requested_by TEXT,
+    requested_at TEXT,
+    decided_by TEXT,
+    decided_at TEXT,
+    related_action_reference TEXT,
+    action_occurred INTEGER NOT NULL DEFAULT 0
+        CHECK (action_occurred IN (0, 1)),
+    evidence_references TEXT NOT NULL,
+    FOREIGN KEY (incident_id)
+        REFERENCES v2_incidents(incident_id),
+    UNIQUE (incident_id, action_type, approval_key)
+);
+
+CREATE TABLE IF NOT EXISTS v2_incident_vulnerability_links (
+    incident_vulnerability_id INTEGER PRIMARY KEY AUTOINCREMENT,
+    vulnerability_link_key TEXT NOT NULL UNIQUE,
+    incident_id TEXT NOT NULL,
+    finding_key TEXT NOT NULL,
+    source_finding_id TEXT NOT NULL,
+    relationship TEXT NOT NULL
+        CHECK (
+            relationship IN (
+                'context_only',
+                'attempted_exploitation',
+                'successful_exploitation'
+            )
+        ),
+    exploitation_status TEXT NOT NULL,
+    evidence_references TEXT NOT NULL,
+    created_at TEXT NOT NULL,
+    FOREIGN KEY (incident_id)
+        REFERENCES v2_incidents(incident_id),
+    FOREIGN KEY (finding_key)
+        REFERENCES v2_vulnerability_findings(finding_key),
+    UNIQUE (incident_id, finding_key)
+);
+
+CREATE TABLE IF NOT EXISTS v2_incident_reports (
+    incident_report_id INTEGER PRIMARY KEY AUTOINCREMENT,
+    report_key TEXT NOT NULL UNIQUE,
+    incident_id TEXT NOT NULL,
+    report_type TEXT NOT NULL
+        CHECK (report_type IN ('json', 'text')),
+    report_path TEXT NOT NULL,
+    report_sha256 TEXT NOT NULL
+        CHECK (
+            length(report_sha256) = 64
+            AND report_sha256 NOT GLOB '*[^0-9a-f]*'
+        ),
+    generated_at TEXT NOT NULL,
+    generated_by TEXT NOT NULL,
+    FOREIGN KEY (incident_id)
+        REFERENCES v2_incidents(incident_id),
+    UNIQUE (incident_id, report_type)
+);
+
+CREATE INDEX IF NOT EXISTS idx_v2_incidents_source_key
+ON v2_incidents(source_incident_key);
+
+CREATE INDEX IF NOT EXISTS idx_v2_incidents_status
+ON v2_incidents(status);
+
+CREATE INDEX IF NOT EXISTS idx_v2_incidents_severity
+ON v2_incidents(severity);
+
+CREATE INDEX IF NOT EXISTS idx_v2_incidents_owner
+ON v2_incidents(incident_owner);
+
+CREATE INDEX IF NOT EXISTS idx_v2_incidents_updated
+ON v2_incidents(updated_at);
+
+CREATE INDEX IF NOT EXISTS idx_v2_incident_evidence_incident
+ON v2_incident_evidence(incident_id);
+
+CREATE INDEX IF NOT EXISTS idx_v2_incident_evidence_source
+ON v2_incident_evidence(source_type);
+
+CREATE INDEX IF NOT EXISTS idx_v2_incident_evidence_reference
+ON v2_incident_evidence(evidence_reference);
+
+CREATE INDEX IF NOT EXISTS idx_v2_incident_evidence_hash
+ON v2_incident_evidence(evidence_sha256);
+
+CREATE INDEX IF NOT EXISTS idx_v2_incident_iocs_incident
+ON v2_incident_iocs(incident_id);
+
+CREATE INDEX IF NOT EXISTS idx_v2_incident_iocs_type
+ON v2_incident_iocs(ioc_type);
+
+CREATE INDEX IF NOT EXISTS idx_v2_incident_iocs_value
+ON v2_incident_iocs(ioc_value);
+
+CREATE INDEX IF NOT EXISTS idx_v2_incident_behaviours_incident
+ON v2_incident_behaviours(incident_id);
+
+CREATE INDEX IF NOT EXISTS idx_v2_incident_behaviours_name
+ON v2_incident_behaviours(behaviour_name);
+
+CREATE INDEX IF NOT EXISTS idx_v2_incident_attack_incident
+ON v2_incident_attack_references(incident_id);
+
+CREATE INDEX IF NOT EXISTS idx_v2_incident_attack_technique
+ON v2_incident_attack_references(technique_id);
+
+CREATE INDEX IF NOT EXISTS idx_v2_incident_decisions_incident
+ON v2_incident_decisions(incident_id);
+
+CREATE INDEX IF NOT EXISTS idx_v2_incident_decisions_actor
+ON v2_incident_decisions(actor);
+
+CREATE INDEX IF NOT EXISTS idx_v2_incident_decisions_time
+ON v2_incident_decisions(decision_time);
+
+CREATE INDEX IF NOT EXISTS idx_v2_incident_timeline_incident
+ON v2_incident_timeline(incident_id);
+
+CREATE INDEX IF NOT EXISTS idx_v2_incident_timeline_time
+ON v2_incident_timeline(event_time);
+
+CREATE INDEX IF NOT EXISTS idx_v2_incident_timeline_type
+ON v2_incident_timeline(event_type);
+
+CREATE INDEX IF NOT EXISTS idx_v2_incident_approvals_incident
+ON v2_incident_approvals(incident_id);
+
+CREATE INDEX IF NOT EXISTS idx_v2_incident_approvals_action
+ON v2_incident_approvals(action_type);
+
+CREATE INDEX IF NOT EXISTS idx_v2_incident_approvals_status
+ON v2_incident_approvals(approval_status);
+
+CREATE INDEX IF NOT EXISTS idx_v2_incident_vulnerabilities_incident
+ON v2_incident_vulnerability_links(incident_id);
+
+CREATE INDEX IF NOT EXISTS idx_v2_incident_vulnerabilities_finding
+ON v2_incident_vulnerability_links(source_finding_id);
+
+CREATE INDEX IF NOT EXISTS idx_v2_incident_reports_incident
+ON v2_incident_reports(incident_id);
+
+CREATE INDEX IF NOT EXISTS idx_v2_incident_reports_type
+ON v2_incident_reports(report_type);
+
+CREATE INDEX IF NOT EXISTS idx_v2_incident_reports_hash
+ON v2_incident_reports(report_sha256);

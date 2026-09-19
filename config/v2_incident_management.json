@@ -1,0 +1,164 @@
+{
+  "stage": 11,
+  "version": "0.1.0",
+  "simulation_only": true,
+  "incident_source": {
+    "table": "v2_xdr_incidents",
+    "evidence_table": "v2_xdr_incident_evidence",
+    "indicator_table": "v2_xdr_indicators",
+    "require_existing_xdr_incident": true,
+    "preserve_source_incident_key": true
+  },
+  "incident_identity": {
+    "prefix": "INC-V2-11-",
+    "number_width": 4,
+    "unique_incident_id_required": true
+  },
+  "required_context": [
+    "identity",
+    "device",
+    "asset",
+    "network"
+  ],
+  "required_incident_fields": [
+    "incident_id",
+    "title",
+    "detection_sources",
+    "severity",
+    "confidence",
+    "risk_score",
+    "incident_owner",
+    "status",
+    "investigation_notes",
+    "analyst_decisions",
+    "evidence_references"
+  ],
+  "lifecycle": {
+    "initial_status": "New",
+    "primary_path": [
+      "New",
+      "Triaged",
+      "Investigating",
+      "Contained",
+      "Eradicated",
+      "Recovered",
+      "Closed"
+    ],
+    "false_positive_sources": [
+      "New",
+      "Triaged",
+      "Investigating"
+    ],
+    "false_positive_target": "Closed - False Positive",
+    "allowed_transitions": {
+      "New": [
+        "Triaged",
+        "Closed - False Positive"
+      ],
+      "Triaged": [
+        "Investigating",
+        "Closed - False Positive"
+      ],
+      "Investigating": [
+        "Contained",
+        "Closed - False Positive"
+      ],
+      "Contained": [
+        "Eradicated"
+      ],
+      "Eradicated": [
+        "Recovered"
+      ],
+      "Recovered": [
+        "Closed"
+      ],
+      "Closed": [],
+      "Closed - False Positive": []
+    },
+    "action_evidence_required_for": [
+      "Contained",
+      "Eradicated",
+      "Recovered"
+    ],
+    "skip_transitions_allowed": false,
+    "closed_incidents_are_immutable": true
+  },
+  "ownership": {
+    "reuse_existing_rbac": true,
+    "permitted_roles": [
+      "analyst",
+      "responder",
+      "administrator"
+    ],
+    "required_permission": "investigate_incidents",
+    "owner_must_be_active": true
+  },
+  "investigation": {
+    "notes_required_for_status_change": true,
+    "analyst_decision_required_for_closure": true,
+    "closure_reason_required": true,
+    "false_positive_classification": "False Positive",
+    "false_positive_requires_permission": "classify_false_positives",
+    "preserve_previous_notes": true,
+    "preserve_previous_decisions": true
+  },
+  "evidence": {
+    "hash_algorithm": "sha256",
+    "sha256_hex_length": 64,
+    "preserve_original_evidence": true,
+    "evidence_references_required": true,
+    "duplicate_evidence_links_allowed": false,
+    "hash_canonical_json": true,
+    "hash_mismatch_rejected": true
+  },
+  "context_tables": {
+    "iocs": "v2_xdr_indicators",
+    "behaviours": "v2_xdr_incidents",
+    "attack_references": "v2_xdr_incidents",
+    "vulnerability_findings": "v2_vulnerability_findings",
+    "vulnerability_links": "v2_vulnerability_links"
+  },
+  "approval_records": {
+    "preserve_existing_approvals": true,
+    "approval_required_actions_must_be_linked": true,
+    "approval_does_not_prove_action_occurred": true
+  },
+  "timeline": {
+    "record_incident_creation": true,
+    "record_status_changes": true,
+    "record_owner_changes": true,
+    "record_notes": true,
+    "record_decisions": true,
+    "record_approvals": true,
+    "record_report_generation": true,
+    "timestamps_in_utc": true,
+    "duplicate_timeline_events_allowed": false
+  },
+  "reporting": {
+    "json_output_directory": "reports/v2/incidents/json",
+    "text_output_directory": "reports/v2/incidents/text",
+    "json_output_required": true,
+    "human_readable_report_required": true,
+    "reports_include_evidence_hashes": true,
+    "reports_include_audit_references": true,
+    "overwrite_existing_reports": false
+  },
+  "audit": {
+    "reuse_existing_audit_trail": true,
+    "record_initialisation": true,
+    "record_incident_creation": true,
+    "record_investigation_actions": true,
+    "record_lifecycle_changes": true,
+    "record_false_positive_closure": true,
+    "record_report_generation": true
+  },
+  "safety": {
+    "local_simulated_data_only": true,
+    "automatic_containment_allowed": false,
+    "automatic_eradication_allowed": false,
+    "automatic_recovery_allowed": false,
+    "real_account_changes_allowed": false,
+    "real_device_changes_allowed": false,
+    "real_network_changes_allowed": false
+  }
+}

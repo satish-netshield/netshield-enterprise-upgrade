@@ -1,0 +1,236 @@
+{
+  "analyst_decisions": [],
+  "approvals": [],
+  "asset_context": {
+    "asset_ids": [
+      "AST-002"
+    ]
+  },
+  "attack_references": [
+    {
+      "attack_reference_key": "v2-managed-context-f1b7e36a98cf94f3b2b2d18991e5f5f3c3583182705f11ecf677ca5e4281b2c9",
+      "created_at": "2026-09-19T05:54:58.803609+00:00",
+      "incident_attack_id": 12,
+      "incident_id": "INC-V2-11-0003",
+      "source_detection_types": "[]",
+      "technique_id": "T1078",
+      "technique_name": null
+    }
+  ],
+  "behaviours": [
+    {
+      "behaviour_key": "v2-managed-context-a27ed4f51937b2abd686806577269af09c428b66b666b8e0acec048752ec9d7f",
+      "behaviour_name": "Access Policy Challenge",
+      "created_at": "2026-09-19T05:54:58.803609+00:00",
+      "detection_types": "[\"Access Policy Challenge\"]",
+      "incident_behaviour_id": 30,
+      "incident_id": "INC-V2-11-0003",
+      "source_evidence_keys": "[\"access_policy:65ba64a529ce96d9625d9c71d95ff6e11179809e48b32a0a06d75e9e4c5ffd54\"]"
+    },
+    {
+      "behaviour_key": "v2-managed-context-aea771e767779fe96a431190d8df1e6deadf91677069259696301f9e87be4302",
+      "behaviour_name": "Unusual Sign-In Location",
+      "created_at": "2026-09-19T05:54:58.803609+00:00",
+      "detection_types": "[\"Unusual Sign-In Location\"]",
+      "incident_behaviour_id": 31,
+      "incident_id": "INC-V2-11-0003",
+      "source_evidence_keys": "[\"identity:8df68d0ae9a17b8ebfbbf692c0b8ccc3c0208d1aed6064182c39ddfa90b60f41\"]"
+    }
+  ],
+  "closed_at": null,
+  "closure_reason": null,
+  "confidence": 70,
+  "created_at": "2026-09-19T05:49:57.567381+00:00",
+  "decisions": [],
+  "detection_sources": [
+    "access_policy",
+    "identity"
+  ],
+  "device_context": {
+    "device_ids": [
+      "CYOD-003"
+    ],
+    "hostnames": []
+  },
+  "evidence": [
+    {
+      "contribution_status": "active",
+      "created_at": "2026-09-19T05:49:57.567381+00:00",
+      "evidence": {
+        "confidence": 35,
+        "contribution_status": "active",
+        "correlation_reasons": "[\"shared_device_id=CYOD-003\",\"shared_ip_address=203.0.113.80\"]",
+        "detection_type": "Access Policy Challenge",
+        "event_time": "2026-09-09T07:26:17.647588+00:00",
+        "evidence": "{\"decision\":\"challenge\",\"evidence\":{\"application_name\":\"NetShield Console\",\"application_sensitivity\":\"high\",\"conditions\":{\"all_access_requirements_satisfied\":false,\"critical_identity_risk\":false,\"device_not_compliant\":true,\"device_not_registered\":true,\"high_identity_risk\":false,\"identity_not_active\":false,\"mfa_required_not_satisfied\":false,\"required_permission_missing\":false,\"restricted_location\":false,\"restricted_network\":false,\"temporary_restriction_active\":false},\"conflict_handling\":{\"priority_order\":\"lowest_number_first\",\"same_priority_resolution\":\"most_restrictive_decision\"},\"source_system\":\"simulated_v2_access_policy\"},\"matched_policy_ids\":[\"POL-007\",\"POL-008\"],\"role\":\"analyst\"}",
+        "evidence_key": "access_policy:65ba64a529ce96d9625d9c71d95ff6e11179809e48b32a0a06d75e9e4c5ffd54",
+        "evidence_link_id": 128,
+        "evidence_link_key": "v2-xdr-evidence-link-fc91ad7248a30cf6438987f0e1d98e2b2d7df2434fb004725a6b92a8ca8d6714",
+        "incident_key": "v2-xdr-incident-c469c474d03d926dc8f3019697e3144bf2dabf2ffa4ffa5189e1f647e9aa59ab",
+        "relationship": "shared_context",
+        "severity": "Medium",
+        "shared_fields": "{\"device_id\":[\"CYOD-003\"],\"ip_address\":[\"203.0.113.80\"]}",
+        "source_event_ids": "[\"S45-POLICY-003\"]",
+        "source_record_id": "65ba64a529ce96d9625d9c71d95ff6e11179809e48b32a0a06d75e9e4c5ffd54",
+        "source_type": "access_policy"
+      },
+      "evidence_link_key": "v2-managed-evidence-622550a7add2954bb1d6d48f7b7f69d2c8299e52e616b1f416e345173c630a80",
+      "evidence_reference": "v2_xdr_incident_evidence:v2-xdr-evidence-link-fc91ad7248a30cf6438987f0e1d98e2b2d7df2434fb004725a6b92a8ca8d6714",
+      "evidence_sha256": "caef947cd079d8cb2061826a43c081ecec4172353e90ebc11b0728ddb6ad7f90",
+      "evidence_time": "2026-09-09T07:26:17.647588+00:00",
+      "incident_evidence_id": 63,
+      "incident_id": "INC-V2-11-0003",
+      "relationship": "shared_context",
+      "source_evidence_key": "access_policy:65ba64a529ce96d9625d9c71d95ff6e11179809e48b32a0a06d75e9e4c5ffd54",
+      "source_record_id": "65ba64a529ce96d9625d9c71d95ff6e11179809e48b32a0a06d75e9e4c5ffd54",
+      "source_type": "access_policy"
+    },
+    {
+      "contribution_status": "active",
+      "created_at": "2026-09-19T05:49:57.567381+00:00",
+      "evidence": {
+        "confidence": 65,
+        "contribution_status": "active",
+        "correlation_reasons": "[\"shared_device_id=CYOD-003\",\"shared_ip_address=203.0.113.80\"]",
+        "detection_type": "Unusual Sign-In Location",
+        "event_time": "2026-09-09T09:00:00+00:00",
+        "evidence": "{\"observed_location\":\"Sydney, Australia\",\"usual_locations\":[\"Auckland, NZ\"]}",
+        "evidence_key": "identity:8df68d0ae9a17b8ebfbbf692c0b8ccc3c0208d1aed6064182c39ddfa90b60f41",
+        "evidence_link_id": 129,
+        "evidence_link_key": "v2-xdr-evidence-link-ed5a00eba2a00adfad2e974aee551cab64b49eec9a96801f15ca9e1e65df6d80",
+        "incident_key": "v2-xdr-incident-c469c474d03d926dc8f3019697e3144bf2dabf2ffa4ffa5189e1f647e9aa59ab",
+        "relationship": "shared_context",
+        "severity": "Medium",
+        "shared_fields": "{\"device_id\":[\"CYOD-003\"],\"ip_address\":[\"203.0.113.80\"]}",
+        "source_event_ids": "[\"S45-AUTH-022\"]",
+        "source_record_id": "8df68d0ae9a17b8ebfbbf692c0b8ccc3c0208d1aed6064182c39ddfa90b60f41",
+        "source_type": "identity"
+      },
+      "evidence_link_key": "v2-managed-evidence-7ab0553128d53787ad799171e2c51c561763dccb499bb21dc3c005bc93e5bcc0",
+      "evidence_reference": "v2_xdr_incident_evidence:v2-xdr-evidence-link-ed5a00eba2a00adfad2e974aee551cab64b49eec9a96801f15ca9e1e65df6d80",
+      "evidence_sha256": "ea15f5484719ecf033a166151f79083bd8042c9765407964a55ef836da140595",
+      "evidence_time": "2026-09-09T09:00:00+00:00",
+      "incident_evidence_id": 64,
+      "incident_id": "INC-V2-11-0003",
+      "relationship": "shared_context",
+      "source_evidence_key": "identity:8df68d0ae9a17b8ebfbbf692c0b8ccc3c0208d1aed6064182c39ddfa90b60f41",
+      "source_record_id": "8df68d0ae9a17b8ebfbbf692c0b8ccc3c0208d1aed6064182c39ddfa90b60f41",
+      "source_type": "identity"
+    },
+    {
+      "contribution_status": "active",
+      "created_at": "2026-09-19T05:49:57.567381+00:00",
+      "evidence": {
+        "confidence": 65,
+        "contribution_status": "active",
+        "correlation_reasons": "[\"shared_device_id=CYOD-003\",\"shared_ip_address=203.0.113.80\"]",
+        "detection_type": "New-Device Sign-In",
+        "event_time": "2026-09-09T09:00:00+00:00",
+        "evidence": "{\"approved_devices\":[\"CYOD-001\"],\"observed_device\":\"CYOD-003\"}",
+        "evidence_key": "identity:a020d01df64393be95255f53022adbd8b1582e58d1a00a156f95cff13bbd4f21",
+        "evidence_link_id": 130,
+        "evidence_link_key": "v2-xdr-evidence-link-2dc9b4221ef94f7db55a1b7f5e5e66889603b51aade5f80afde902310c8da84d",
+        "incident_key": "v2-xdr-incident-c469c474d03d926dc8f3019697e3144bf2dabf2ffa4ffa5189e1f647e9aa59ab",
+        "relationship": "shared_context",
+        "severity": "Medium",
+        "shared_fields": "{\"device_id\":[\"CYOD-003\"],\"ip_address\":[\"203.0.113.80\"]}",
+        "source_event_ids": "[\"S45-AUTH-022\"]",
+        "source_record_id": "a020d01df64393be95255f53022adbd8b1582e58d1a00a156f95cff13bbd4f21",
+        "source_type": "identity"
+      },
+      "evidence_link_key": "v2-managed-evidence-810c3395efecbaf45c677d40f2a8fb4d589bd7e107da317ada4c5eb8ed02f019",
+      "evidence_reference": "v2_xdr_incident_evidence:v2-xdr-evidence-link-2dc9b4221ef94f7db55a1b7f5e5e66889603b51aade5f80afde902310c8da84d",
+      "evidence_sha256": "d7090221b442770d26becb751564a5127a819463b8f5147b80a130c9096850ad",
+      "evidence_time": "2026-09-09T09:00:00+00:00",
+      "incident_evidence_id": 65,
+      "incident_id": "INC-V2-11-0003",
+      "relationship": "shared_context",
+      "source_evidence_key": "identity:a020d01df64393be95255f53022adbd8b1582e58d1a00a156f95cff13bbd4f21",
+      "source_record_id": "a020d01df64393be95255f53022adbd8b1582e58d1a00a156f95cff13bbd4f21",
+      "source_type": "identity"
+    }
+  ],
+  "false_positive_classification": null,
+  "identity_context": {
+    "service_accounts": [],
+    "usernames": [
+      "analyst01",
+      "viewer01"
+    ]
+  },
+  "incident_id": "INC-V2-11-0003",
+  "incident_owner": null,
+  "investigation_notes": [],
+  "iocs": [],
+  "managed_incident_id": 3,
+  "network_context": {
+    "ip_addresses": [
+      "203.0.113.80"
+    ],
+    "locations": [
+      "Auckland, NZ",
+      "Sydney, Australia"
+    ],
+    "mac_addresses": []
+  },
+  "original_evidence_preserved": 1,
+  "risk_assessed_at": null,
+  "risk_display": "Not yet assessed",
+  "risk_record_key": null,
+  "risk_score": null,
+  "severity": "Medium",
+  "source_first_evidence_time": "2026-09-09T07:26:17.647588+00:00",
+  "source_incident_key": "v2-xdr-incident-c469c474d03d926dc8f3019697e3144bf2dabf2ffa4ffa5189e1f647e9aa59ab",
+  "source_last_evidence_time": "2026-09-09T09:00:00+00:00",
+  "status": "New",
+  "timeline": [
+    {
+      "action": "import_v2_stage11_incidents",
+      "actor": "netshield01",
+      "details": "{\"evidence_count\":3,\"risk_snapshot\":null,\"source_incident_key\":\"v2-xdr-incident-c469c474d03d926dc8f3019697e3144bf2dabf2ffa4ffa5189e1f647e9aa59ab\",\"source_snapshot\":{\"active_evidence_count\":2,\"asset_ids\":\"[\\\"AST-002\\\"]\",\"attack_techniques\":\"[\\\"T1078\\\"]\",\"behaviours\":\"[\\\"Access Policy Challenge\\\",\\\"Unusual Sign-In Location\\\"]\",\"confidence\":70,\"correlation_reasons\":\"[\\\"independent_sources=access_policy,identity\\\",\\\"shared_device_id=CYOD-003\\\",\\\"shared_ip_address=203.0.113.80\\\"]\",\"created_at\":\"2026-09-18T06:53:53.676691+00:00\",\"detection_types\":\"[\\\"Access Policy Challenge\\\",\\\"New-Device Sign-In\\\",\\\"Unusual Sign-In Location\\\"]\",\"device_ids\":\"[\\\"CYOD-003\\\"]\",\"evidence\":\"{\\\"mac_address_is_supporting_only\\\":true,\\\"original_evidence_preserved\\\":true,\\\"score_each_source_event_once\\\":true,\\\"shared_primary_context\\\":{\\\"device_id\\\":[\\\"CYOD-003\\\"],\\\"ip_address\\\":[\\\"203.0.113.80\\\"]},\\\"source_types\\\":[\\\"access_policy\\\",\\\"identity\\\"]}\",\"evidence_count\":3,\"evidence_keys\":\"[\\\"access_policy:65ba64a529ce96d9625d9c71d95ff6e11179809e48b32a0a06d75e9e4c5ffd54\\\",\\\"identity:8df68d0ae9a17b8ebfbbf692c0b8ccc3c0208d1aed6064182c39ddfa90b60f41\\\",\\\"identity:a020d01df64393be95255f53022adbd8b1582e58d1a00a156f95cff13bbd4f21\\\"]\",\"exception_count\":0,\"file_hashes\":\"[]\",\"first_evidence_time\":\"2026-09-09T07:26:17.647588+00:00\",\"hostnames\":\"[]\",\"incident_id\":4,\"incident_key\":\"v2-xdr-incident-c469c474d03d926dc8f3019697e3144bf2dabf2ffa4ffa5189e1f647e9aa59ab\",\"independent_source_count\":2,\"ip_addresses\":\"[\\\"203.0.113.80\\\"]\",\"last_evidence_time\":\"2026-09-09T09:00:00+00:00\",\"locations\":\"[\\\"Auckland, NZ\\\",\\\"Sydney, Australia\\\"]\",\"mac_addresses\":\"[]\",\"original_evidence_preserved\":1,\"process_names\":\"[]\",\"service_accounts\":\"[]\",\"severity\":\"Medium\",\"status\":\"New\",\"title\":\"Cross-source activity involving device CYOD-003\",\"usernames\":\"[\\\"analyst01\\\",\\\"viewer01\\\"]\",\"verified_activity_count\":0,\"vulnerability_context\":\"[]\"},\"source_snapshot_sha256\":\"f4d1bec2e8e40db70ab5af28492ba06ca041471d75b6c6a8205a464f72fc188d\"}",
+      "event_time": "2026-09-19T05:49:57.567381+00:00",
+      "event_type": "incident_created",
+      "evidence_references": [
+        "v2_xdr_incident_evidence:v2-xdr-evidence-link-fc91ad7248a30cf6438987f0e1d98e2b2d7df2434fb004725a6b92a8ca8d6714",
+        "v2_xdr_incident_evidence:v2-xdr-evidence-link-ed5a00eba2a00adfad2e974aee551cab64b49eec9a96801f15ca9e1e65df6d80",
+        "v2_xdr_incident_evidence:v2-xdr-evidence-link-2dc9b4221ef94f7db55a1b7f5e5e66889603b51aade5f80afde902310c8da84d"
+      ],
+      "incident_id": "INC-V2-11-0003",
+      "incident_timeline_id": 3,
+      "new_status": "New",
+      "previous_status": null,
+      "timeline_key": "v2-incident-created-531d6e6f8209413be1505ed1b9ebf19f6e1d241c92353e35bd1aca0d69253483"
+    },
+    {
+      "action": "import_v2_stage11_context",
+      "actor": "netshield01",
+      "details": "{\"indicator_snapshots\":[],\"indicator_snapshots_sha256\":\"4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945\",\"source_creation_timeline_key\":\"v2-incident-created-531d6e6f8209413be1505ed1b9ebf19f6e1d241c92353e35bd1aca0d69253483\"}",
+      "event_time": "2026-09-19T05:54:58.803609+00:00",
+      "event_type": "evidence_linked",
+      "evidence_references": [
+        "v2_incident_timeline:v2-incident-created-531d6e6f8209413be1505ed1b9ebf19f6e1d241c92353e35bd1aca0d69253483"
+      ],
+      "incident_id": "INC-V2-11-0003",
+      "incident_timeline_id": 6,
+      "new_status": null,
+      "previous_status": null,
+      "timeline_key": "v2-incident-context-531d6e6f8209413be1505ed1b9ebf19f6e1d241c92353e35bd1aca0d69253483"
+    },
+    {
+      "action": "generate_v2_stage11_reports",
+      "actor": "netshield01",
+      "details": "{\"json_sha256\":\"8d0b99ddb7f5fa020f99356ef14c086118a0c1cd5d4bb2e167bc4c6f4d2fba2c\",\"text_sha256\":\"4281dc9ebd6f6d679285e901e1b1128f91428d03292d1b691ff0a000ff6d0e81\"}",
+      "event_time": "2026-09-19T10:39:26.318755+00:00",
+      "event_type": "report_generated",
+      "evidence_references": [],
+      "incident_id": "INC-V2-11-0003",
+      "incident_timeline_id": 12,
+      "new_status": "New",
+      "previous_status": "New",
+      "timeline_key": "v2-report-generated-531d6e6f8209413be1505ed1b9ebf19f6e1d241c92353e35bd1aca0d69253483"
+    }
+  ],
+  "title": "Cross-source activity involving device CYOD-003",
+  "updated_at": "2026-09-19T05:49:57.567381+00:00",
+  "vulnerability_links": []
+}

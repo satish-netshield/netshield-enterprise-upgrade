@@ -1,0 +1,44 @@
+Incident ID: INC-V2-11-0001
+Title: Cross-source activity involving device CYOD-001
+Status: Investigating
+Severity: Critical
+Confidence: 95
+Risk score: Not yet assessed
+Owner: analyst01
+Detection sources: access_policy, identity, network
+
+Identity context:
+{"service_accounts": [], "usernames": ["admin01", "dormant01", "multiple_accounts", "netshield01", "responder01", "svc_ingestion01", "viewer01"]}
+Device context:
+{"device_ids": ["CYOD-001"], "hostnames": ["Ubuntu-NetShield"]}
+Asset context:
+{"asset_ids": ["AST-001"]}
+Network context:
+{"ip_addresses": ["192.0.2.10", "198.51.100.25", "198.51.100.90"], "locations": ["Auckland, NZ", "Lab Zone A", "Restricted Test Location"], "mac_addresses": ["08:00:27:cf:49:71"]}
+
+Evidence records: 13
+IoCs: 1
+Behaviours: 8
+ATT&CK references: 4
+Linked vulnerabilities: 0
+Investigation decisions: 2
+Timeline records: 6
+
+Evidence SHA-256 values:
+- access_policy:16334b8cc97e84b8123301e6b36c3a426ddaf9b133464ae94b8d587f0d5c1c01: 3eb2ccd925013b3d7556582ede3f1b7a7cfaba229145a449b79290e36e66bd68
+- access_policy:9a1356fa5f89d435a2c3b3de484762144e59ee475d10c6b8c7f78d787795f8c6: ff0da0b5d40e78e0bb71dc5c96c051fa0455105f569ed5ecc1eaebffd0ef3621
+- access_policy:aa63c5cef0b857dbcb109d6c2512b219b90951e4f0dccadc4131c8e2c8198d8d: 901fdfb56d617d63086e3b7d1746c9f795b41e0a3a70ed5de65ee8e7a1496832
+- access_policy:ae523cc688410bd99c86da7d6496773b55a0a7baf98f7b11b88e4b2017f9664c: 25204878480e095194981af5695f396a053775e9b5c7aabb6ee9ccc7b9ffc705
+- access_policy:b5e81b9d096784ee76180ff251c0a9b24af227d83d66506d31e7785eddbe4d27: ac42db11dd79f18d8eb9ef256c75e4cca02bb7e1d33906a2a3f2f02f95fabf5a
+- identity:7b176fd24fa276dfc493e4dcce8ed422cc14748b0680bb29d320dbcab9a0f235: f43282aa0b3aaa05ab47cb24d42f2d7cd7aa50c168c24321fa82163d8cf5593f
+- identity:efced097aaaa39e02ca5d9d8c635a7b9395d5a81203b03efeb714d34fd3489c5: 8abe576997420752c1e77d53afb27e05943e9a3b7b8c16319563bfe0636e92f5
+- identity:9d970c63b0c9f91ae60fa0ae9719102d7da582c8832294b6e94851917eb94ffe: ebab29bfac2c1a01df543c5bea62005ce6384c8185ed0c2687ced0a8aacd48f6
+- identity:d5209b19e9f97278241547cdccce86c6afabcf948abef7e8190d23f273088c78: b7942186c24d080f3d25f522747270dcdd47a5142d962ddf0c45929c69f38525
+- identity:975039ee0461946cc2027194ff549d3a555641a353549153923805c99817e822: 0cf604edeec31423b00182d173b96657d9c90a79b05d6c6b7a4517821ddd86ef
+- identity:cf1bbeaeed866f97e0c5eae880beb7c5b81ae5598d3645dfc610988a3c05ad0e: d99475e1f76e1455bf28df926f9166ddbc42cb9de5d42988ec4191a0fc0abb87
+- identity:b8403628335e3de822e2bc395dffc2487bef855baa843bd983dd08c426187770: 6b46bbcb3c6a377de64ca91f045fce1e249a64cd765d8b390d19e87023c3ecfb
+- network:8ff8ca09d4339ba02069b4cba98c8d104f6bf86be33a88666217346c74ac1efc: 029104f1c3a64cb5772413c3326989b118bdbd187dc14877beb018fe660fd14f
+
+Investigation notes:
+- 2026-09-19T06:01:15.830951+00:00: Initial evidence-summary review identified password spraying, suspicious privilege change, service-account interactive login, access-policy decisions and a simulated WPA2 downgrade detection. Preserve the reviewed abnormal-access-time exception. This triage does not establish compromise or record any response action.
+- 2026-09-19T06:02:42.599291+00:00: Investigate the identity, access-policy and network evidence linked to CYOD-001. Check the correlation reasons and distinguish suspicious activity from enforced access controls and the reviewed exception. No containment, eradication or recovery is being claimed.
