@@ -11,7 +11,11 @@
     "restrict_account",
     "revoke_session",
     "terminate_process",
+    "suspend_process",
     "quarantine_device",
+    "isolate_endpoint",
+    "quarantine_file",
+    "reject_non_compliant_connection",
     "apply_ubuntu_firewall_rule"
   ],
   "manual_only": [

@@ -1885,3 +1885,211 @@ ON v2_incident_reports(report_type);
 
 CREATE INDEX IF NOT EXISTS idx_v2_incident_reports_hash
 ON v2_incident_reports(report_sha256);
+
+-- Phase 3A V2 Stage 12: approval-controlled containment
+
+CREATE TABLE IF NOT EXISTS v2_containment_actions (
+    containment_action_id INTEGER PRIMARY KEY AUTOINCREMENT,
+    action_key TEXT NOT NULL UNIQUE,
+    incident_id TEXT NOT NULL,
+    action_type TEXT NOT NULL,
+    target_type TEXT NOT NULL,
+    target_value TEXT NOT NULL,
+    control_level TEXT NOT NULL
+        CHECK (
+            control_level IN (
+                'automatic',
+                'approval_required',
+                'manual_only'
+            )
+        ),
+    requested_by TEXT NOT NULL,
+    requested_at TEXT NOT NULL,
+    request_reason TEXT NOT NULL,
+    status TEXT NOT NULL
+        CHECK (
+            status IN (
+                'requested',
+                'approval_required',
+                'approved',
+                'denied',
+                'successful',
+                'failed',
+                'rolled_back',
+                'rollback_failed'
+            )
+        ),
+    evidence_preserved INTEGER NOT NULL DEFAULT 0
+        CHECK (evidence_preserved IN (0, 1)),
+    evidence_snapshot_sha256 TEXT,
+    evidence_references TEXT NOT NULL,
+    approved_by TEXT,
+    approved_at TEXT,
+    denied_by TEXT,
+    denied_at TEXT,
+    executed_by TEXT,
+    executed_at TEXT,
+    result_details TEXT,
+    rollback_supported INTEGER NOT NULL
+        CHECK (rollback_supported IN (0, 1)),
+    rollback_action TEXT,
+    simulation_only INTEGER NOT NULL DEFAULT 1
+        CHECK (simulation_only = 1),
+    real_action_executed INTEGER NOT NULL DEFAULT 0
+        CHECK (real_action_executed = 0),
+    external_target_used INTEGER NOT NULL DEFAULT 0
+        CHECK (external_target_used = 0),
+    original_evidence_preserved INTEGER NOT NULL DEFAULT 1
+        CHECK (original_evidence_preserved = 1),
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL,
+    FOREIGN KEY (incident_id)
+        REFERENCES v2_incidents(incident_id)
+);
+
+CREATE TABLE IF NOT EXISTS v2_containment_evidence (
+    containment_evidence_id INTEGER PRIMARY KEY AUTOINCREMENT,
+    evidence_snapshot_key TEXT NOT NULL UNIQUE,
+    containment_action_id INTEGER NOT NULL,
+    incident_id TEXT NOT NULL,
+    captured_at TEXT NOT NULL,
+    captured_by TEXT NOT NULL,
+    evidence_references TEXT NOT NULL,
+    evidence_payload TEXT NOT NULL,
+    evidence_sha256 TEXT NOT NULL,
+    hash_algorithm TEXT NOT NULL
+        CHECK (hash_algorithm = 'sha256'),
+    preserved_before_action INTEGER NOT NULL DEFAULT 1
+        CHECK (preserved_before_action = 1),
+    original_evidence_preserved INTEGER NOT NULL DEFAULT 1
+        CHECK (original_evidence_preserved = 1),
+    FOREIGN KEY (containment_action_id)
+        REFERENCES v2_containment_actions(containment_action_id),
+    FOREIGN KEY (incident_id)
+        REFERENCES v2_incidents(incident_id),
+    UNIQUE (containment_action_id, evidence_sha256)
+);
+
+CREATE TABLE IF NOT EXISTS v2_containment_approvals (
+    containment_approval_id INTEGER PRIMARY KEY AUTOINCREMENT,
+    approval_key TEXT NOT NULL UNIQUE,
+    containment_action_id INTEGER NOT NULL,
+    incident_id TEXT NOT NULL,
+    requested_by TEXT NOT NULL,
+    requested_at TEXT NOT NULL,
+    decided_by TEXT,
+    decided_at TEXT,
+    decision_status TEXT NOT NULL
+        CHECK (
+            decision_status IN (
+                'approval_required',
+                'approved',
+                'denied'
+            )
+        ),
+    decision_notes TEXT,
+    self_approval_blocked INTEGER NOT NULL DEFAULT 0
+        CHECK (self_approval_blocked IN (0, 1)),
+    actor_role TEXT,
+    action_occurred INTEGER NOT NULL DEFAULT 0
+        CHECK (action_occurred IN (0, 1)),
+    evidence_references TEXT NOT NULL,
+    FOREIGN KEY (containment_action_id)
+        REFERENCES v2_containment_actions(containment_action_id),
+    FOREIGN KEY (incident_id)
+        REFERENCES v2_incidents(incident_id)
+);
+
+CREATE TABLE IF NOT EXISTS v2_containment_rollbacks (
+    containment_rollback_id INTEGER PRIMARY KEY AUTOINCREMENT,
+    rollback_key TEXT NOT NULL UNIQUE,
+    containment_action_id INTEGER NOT NULL,
+    incident_id TEXT NOT NULL,
+    rollback_action TEXT NOT NULL,
+    requested_by TEXT NOT NULL,
+    requested_at TEXT NOT NULL,
+    executed_by TEXT,
+    executed_at TEXT,
+    rollback_status TEXT NOT NULL
+        CHECK (
+            rollback_status IN (
+                'requested',
+                'approval_required',
+                'approved',
+                'denied',
+                'successful',
+                'failed'
+            )
+        ),
+    rollback_reason TEXT NOT NULL,
+    result_details TEXT,
+    evidence_references TEXT NOT NULL,
+    simulation_only INTEGER NOT NULL DEFAULT 1
+        CHECK (simulation_only = 1),
+    real_action_executed INTEGER NOT NULL DEFAULT 0
+        CHECK (real_action_executed = 0),
+    FOREIGN KEY (containment_action_id)
+        REFERENCES v2_containment_actions(containment_action_id),
+    FOREIGN KEY (incident_id)
+        REFERENCES v2_incidents(incident_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_v2_containment_actions_incident
+ON v2_containment_actions(incident_id);
+
+CREATE INDEX IF NOT EXISTS idx_v2_containment_actions_type
+ON v2_containment_actions(action_type);
+
+CREATE INDEX IF NOT EXISTS idx_v2_containment_actions_target
+ON v2_containment_actions(target_type, target_value);
+
+CREATE INDEX IF NOT EXISTS idx_v2_containment_actions_status
+ON v2_containment_actions(status);
+
+CREATE INDEX IF NOT EXISTS idx_v2_containment_actions_requested
+ON v2_containment_actions(requested_at);
+
+CREATE INDEX IF NOT EXISTS idx_v2_containment_actions_requester
+ON v2_containment_actions(requested_by);
+
+CREATE INDEX IF NOT EXISTS idx_v2_containment_actions_approver
+ON v2_containment_actions(approved_by);
+
+CREATE INDEX IF NOT EXISTS idx_v2_containment_actions_executor
+ON v2_containment_actions(executed_by);
+
+CREATE INDEX IF NOT EXISTS idx_v2_containment_evidence_action
+ON v2_containment_evidence(containment_action_id);
+
+CREATE INDEX IF NOT EXISTS idx_v2_containment_evidence_incident
+ON v2_containment_evidence(incident_id);
+
+CREATE INDEX IF NOT EXISTS idx_v2_containment_evidence_hash
+ON v2_containment_evidence(evidence_sha256);
+
+CREATE INDEX IF NOT EXISTS idx_v2_containment_evidence_created
+ON v2_containment_evidence(captured_at);
+
+CREATE INDEX IF NOT EXISTS idx_v2_containment_approvals_action
+ON v2_containment_approvals(containment_action_id);
+
+CREATE INDEX IF NOT EXISTS idx_v2_containment_approvals_status
+ON v2_containment_approvals(decision_status);
+
+CREATE INDEX IF NOT EXISTS idx_v2_containment_approvals_requester
+ON v2_containment_approvals(requested_by);
+
+CREATE INDEX IF NOT EXISTS idx_v2_containment_approvals_decider
+ON v2_containment_approvals(decided_by);
+
+CREATE INDEX IF NOT EXISTS idx_v2_containment_rollbacks_action
+ON v2_containment_rollbacks(containment_action_id);
+
+CREATE INDEX IF NOT EXISTS idx_v2_containment_rollbacks_status
+ON v2_containment_rollbacks(rollback_status);
+
+CREATE INDEX IF NOT EXISTS idx_v2_containment_rollbacks_requested
+ON v2_containment_rollbacks(requested_at);
+
+CREATE INDEX IF NOT EXISTS idx_v2_containment_rollbacks_actor
+ON v2_containment_rollbacks(executed_by);

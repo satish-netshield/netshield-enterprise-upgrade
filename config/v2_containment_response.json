@@ -1,0 +1,114 @@
+{
+  "stage": 12,
+  "name": "Approval-controlled containment and response",
+  "environment": "sandbox",
+  "simulation_only": true,
+  "allow_real_actions": false,
+  "allow_external_targets": false,
+  "default_action": "deny",
+  "permissions": {
+    "request": "request_containment",
+    "approve_and_execute": "execute_approved_containment",
+    "rollback": "execute_approved_containment"
+  },
+  "approval_policy": {
+    "disruptive_actions_require_approval": true,
+    "requester_cannot_approve_own_request": true,
+    "requester_cannot_execute_own_request": true,
+    "approver_must_have_active_role": true,
+    "approval_notes_required": true,
+    "denial_notes_required": true,
+    "approval_does_not_prove_action_occurred": true
+  },
+  "evidence_policy": {
+    "incident_required": true,
+    "preserve_before_action": true,
+    "hash_algorithm": "sha256",
+    "minimum_evidence_references": 1,
+    "original_evidence_preserved": true
+  },
+  "actions": {
+    "add_to_simulated_blocklist": {
+      "control_level": "automatic",
+      "target_type": "ip_address",
+      "rollback_supported": true,
+      "rollback_action": "remove_from_simulated_blocklist"
+    },
+    "restrict_account": {
+      "control_level": "approval_required",
+      "target_type": "username",
+      "rollback_supported": true,
+      "rollback_action": "restore_account_access"
+    },
+    "revoke_session": {
+      "control_level": "approval_required",
+      "target_type": "session_id",
+      "rollback_supported": false,
+      "rollback_action": null
+    },
+    "quarantine_device": {
+      "control_level": "approval_required",
+      "target_type": "device_id",
+      "rollback_supported": true,
+      "rollback_action": "release_device_quarantine"
+    },
+    "isolate_endpoint": {
+      "control_level": "approval_required",
+      "target_type": "endpoint_id",
+      "rollback_supported": true,
+      "rollback_action": "release_endpoint_isolation"
+    },
+    "terminate_process": {
+      "control_level": "approval_required",
+      "target_type": "process_name",
+      "rollback_supported": false,
+      "rollback_action": null
+    },
+    "suspend_process": {
+      "control_level": "approval_required",
+      "target_type": "process_name",
+      "rollback_supported": true,
+      "rollback_action": "resume_process"
+    },
+    "quarantine_file": {
+      "control_level": "approval_required",
+      "target_type": "file_hash",
+      "rollback_supported": true,
+      "rollback_action": "restore_quarantined_file"
+    },
+    "reject_non_compliant_connection": {
+      "control_level": "approval_required",
+      "target_type": "connection_id",
+      "rollback_supported": true,
+      "rollback_action": "restore_connection_access"
+    },
+    "increase_monitoring": {
+      "control_level": "automatic",
+      "target_type": "incident_id",
+      "rollback_supported": true,
+      "rollback_action": "restore_monitoring_level"
+    }
+  },
+  "action_statuses": [
+    "requested",
+    "approval_required",
+    "approved",
+    "denied",
+    "successful",
+    "failed",
+    "rolled_back",
+    "rollback_failed"
+  ],
+  "audit_policy": {
+    "record_responsible_actor": true,
+    "record_requester": true,
+    "record_approver": true,
+    "record_executor": true,
+    "record_requested_actions": true,
+    "record_approved_actions": true,
+    "record_denied_actions": true,
+    "record_successful_actions": true,
+    "record_failed_actions": true,
+    "record_rollbacks": true
+  }
+}
