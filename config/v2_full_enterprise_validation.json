@@ -1,0 +1,112 @@
+{
+  "stage": 14,
+  "name": "Full enterprise-concept validation",
+  "environment": "sandbox",
+  "validation_only": true,
+  "allow_real_actions": false,
+  "allow_external_targets": false,
+  "microsoft_services_required": false,
+  "documentation_validation": true,
+  "documentation_files": [
+    "README.md",
+    "docs/workflow.md",
+    "docs/security_logic.md",
+    "docs/notes.md",
+    "docs/commands.md",
+    "docs/handbook.md"
+  ],
+  "documentation_requirements": {
+    "alignment_status": "completed",
+    "microsoft_references_are_design_concepts": true,
+    "prohibit_personal_code_authorship_claims": true,
+    "require_readme_architecture": true,
+    "require_readme_concept_mapping": true,
+    "require_readme_known_limitations": true,
+    "require_readme_system_validation": true,
+    "require_handbook_nine_section_structure": true
+  },
+  "clean_state": {
+    "enabled": true,
+    "use_temporary_workspace": true,
+    "preserve_live_database": true,
+    "copy_live_database": false,
+    "rebuild_from_tracked_schema": true,
+    "delete_live_evidence": false
+  },
+  "python_validation": {
+    "compile_directories": [
+      "src",
+      "scripts",
+      "tests",
+      "lab"
+    ],
+    "import_package": "src",
+    "resource_warnings_are_errors": true
+  },
+  "test_validation": {
+    "run_unit_tests": true,
+    "run_integration_tests": true,
+    "run_end_to_end_tests": true,
+    "test_directory": "tests",
+    "test_pattern": "test*.py"
+  },
+  "stage_validators": [
+    "scripts.validate_v2_stage1",
+    "scripts.validate_v2_stage2",
+    "scripts.validate_v2_stage3",
+    "scripts.validate_v2_stage4",
+    "scripts.validate_v2_stage5",
+    "scripts.validate_v2_stage6",
+    "scripts.validate_v2_stage7",
+    "scripts.validate_v2_stage8",
+    "scripts.validate_v2_stage9",
+    "scripts.validate_v2_stage10",
+    "scripts.validate_v2_stage11",
+    "scripts.validate_v2_stage12",
+    "scripts.validate_v2_stage13"
+  ],
+  "validation_areas": [
+    "event_ingestion",
+    "schema_handling",
+    "identity_detections",
+    "asset_and_device_checks",
+    "zero_trust_policy_decisions",
+    "rbac_enforcement",
+    "acl_enforcement",
+    "access_restrictions",
+    "network_and_wifi_detections",
+    "endpoint_monitoring",
+    "vulnerability_findings",
+    "continuous_monitoring",
+    "risk_score_calculations",
+    "xdr_correlation",
+    "incident_lifecycle",
+    "normal_activity",
+    "confirmed_threats",
+    "approved_exceptions",
+    "false_positives",
+    "malformed_inputs",
+    "duplicate_events",
+    "replayed_events",
+    "evidence_integrity",
+    "unauthorised_approval_attempts",
+    "failed_response_actions",
+    "containment",
+    "rollback",
+    "eradication",
+    "recovery",
+    "ioc_extraction",
+    "behaviour_extraction",
+    "audit_completeness",
+    "earlier_feature_compatibility"
+  ],
+  "safety_requirements": {
+    "default_deny": true,
+    "simulation_only": true,
+    "preserve_original_evidence": true,
+    "preserve_live_database": true,
+    "no_real_response_actions": true,
+    "no_external_targets": true,
+    "no_microsoft_dependency": true
+  }
+}

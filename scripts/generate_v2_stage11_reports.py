@@ -17,7 +17,7 @@ ROOT = Path(__file__).resolve().parents[1]
 
 
 def fetch_report(connection, incident_id):
-    """Build a report from database records, not recalculated evidence."""
+    """Build a report from stored database records."""
     incident = connection.execute(
         "SELECT * FROM v2_incidents WHERE incident_id=?",
         (incident_id,),
@@ -90,10 +90,16 @@ def fetch_report(connection, incident_id):
         "v2_incident_decisions",
         "decision_time",
     )
-    data["timeline"] = rows(
-        "v2_incident_timeline",
-        "event_time, incident_timeline_id",
-    )
+    data["timeline"] = [
+        dict(row)
+        for row in connection.execute(
+            "SELECT * FROM v2_incident_timeline "
+            "WHERE incident_id=? "
+            "AND event_type <> 'report_generated' "
+            "ORDER BY event_time, incident_timeline_id",
+            (incident_id,),
+        )
+    ]
     data["approvals"] = rows(
         "v2_incident_approvals",
         "incident_approval_id",
@@ -192,8 +198,15 @@ def readable(data):
     return "\n".join(lines) + "\n"
 
 
+def write_report(path, content):
+    """Replace one report atomically."""
+    temporary_path = path.with_suffix(path.suffix + ".tmp")
+    temporary_path.write_text(content, encoding="utf-8")
+    temporary_path.replace(path)
+
+
 def generate(database, configuration, incident_id=None):
-    """Write both formats once and preserve hashes on repeat runs."""
+    """Write current reports and refresh them after incident changes."""
     json_dir = ROOT / configuration["reporting"][
         "json_output_directory"
     ]
@@ -245,6 +258,8 @@ def generate(database, configuration, incident_id=None):
                 ("text", text_path, text),
             ]
 
+            report_changed = False
+
             for report_type, path, content in values:
                 content_hash = digest(content)
                 report_key = (
@@ -253,24 +268,50 @@ def generate(database, configuration, incident_id=None):
                 )
 
                 existing = connection.execute(
-                    "SELECT report_path, report_sha256 "
+                    "SELECT incident_report_id, report_path, "
+                    "report_sha256 "
                     "FROM v2_incident_reports "
                     "WHERE report_key=?",
                     (report_key,),
                 ).fetchone()
 
                 if existing:
-                    if (
-                        existing["report_sha256"] != content_hash
-                        or not path.is_file()
-                    ):
-                        raise RuntimeError(
-                            f"Report mismatch: "
-                            f"{current_id} {report_type}"
+                    file_matches = (
+                        path.is_file()
+                        and digest(
+                            path.read_text(encoding="utf-8")
                         )
+                        == content_hash
+                    )
+                    database_matches = (
+                        existing["report_sha256"] == content_hash
+                        and existing["report_path"]
+                        == str(path.relative_to(ROOT))
+                    )
+
+                    if file_matches and database_matches:
+                        continue
+
+                    write_report(path, content)
+                    connection.execute(
+                        """
+                        UPDATE v2_incident_reports
+                        SET report_path=?, report_sha256=?,
+                            generated_at=?, generated_by=?
+                        WHERE incident_report_id=?
+                        """,
+                        (
+                            str(path.relative_to(ROOT)),
+                            content_hash,
+                            utc_now(),
+                            "netshield01",
+                            existing["incident_report_id"],
+                        ),
+                    )
+                    report_changed = True
                     continue
 
-                path.write_text(content, encoding="utf-8")
+                write_report(path, content)
 
                 insert(
                     connection,
@@ -287,16 +328,24 @@ def generate(database, configuration, incident_id=None):
                         "generated_by": "netshield01",
                     },
                 )
+                report_changed = True
 
             timeline_key = (
                 "v2-report-generated-" + digest(current_id)
             )
-
-            if not connection.execute(
+            timeline = connection.execute(
                 "SELECT 1 FROM v2_incident_timeline "
                 "WHERE timeline_key=?",
                 (timeline_key,),
-            ).fetchone():
+            ).fetchone()
+            timeline_details = canonical(
+                {
+                    "json_sha256": digest(json_text),
+                    "text_sha256": digest(text),
+                }
+            )
+
+            if timeline is None:
                 insert(
                     connection,
                     "v2_incident_timeline",
@@ -311,14 +360,25 @@ def generate(database, configuration, incident_id=None):
                         ),
                         "previous_status": data["status"],
                         "new_status": data["status"],
-                        "details": canonical(
-                            {
-                                "json_sha256": digest(json_text),
-                                "text_sha256": digest(text),
-                            }
-                        ),
+                        "details": timeline_details,
                         "evidence_references": "[]",
                     },
+                )
+            elif report_changed:
+                connection.execute(
+                    """
+                    UPDATE v2_incident_timeline
+                    SET event_time=?, previous_status=?,
+                        new_status=?, details=?
+                    WHERE timeline_key=?
+                    """,
+                    (
+                        utc_now(),
+                        data["status"],
+                        data["status"],
+                        timeline_details,
+                        timeline_key,
+                    ),
                 )
 
             results.append(

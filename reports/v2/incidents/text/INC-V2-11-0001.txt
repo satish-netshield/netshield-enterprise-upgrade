@@ -1,6 +1,6 @@
 Incident ID: INC-V2-11-0001
 Title: Cross-source activity involving device CYOD-001
-Status: Investigating
+Status: Closed
 Severity: Critical
 Confidence: 95
 Risk score: Not yet assessed
@@ -21,8 +21,8 @@ IoCs: 1
 Behaviours: 8
 ATT&CK references: 4
 Linked vulnerabilities: 0
-Investigation decisions: 2
-Timeline records: 6
+Investigation decisions: 6
+Timeline records: 9
 
 Evidence SHA-256 values:
 - access_policy:16334b8cc97e84b8123301e6b36c3a426ddaf9b133464ae94b8d587f0d5c1c01: 3eb2ccd925013b3d7556582ede3f1b7a7cfaba229145a449b79290e36e66bd68
@@ -42,3 +42,7 @@ Evidence SHA-256 values:
 Investigation notes:
 - 2026-09-19T06:01:15.830951+00:00: Initial evidence-summary review identified password spraying, suspicious privilege change, service-account interactive login, access-policy decisions and a simulated WPA2 downgrade detection. Preserve the reviewed abnormal-access-time exception. This triage does not establish compromise or record any response action.
 - 2026-09-19T06:02:42.599291+00:00: Investigate the identity, access-policy and network evidence linked to CYOD-001. Check the correlation reasons and distinguish suspicious activity from enforced access controls and the reviewed exception. No containment, eradication or recovery is being claimed.
+- 2026-09-20T03:50:11.024229+00:00: Stage 12 recorded successful simulated containment with preserved evidence.
+- 2026-09-20T04:14:15.297325+00:00: Four evidence-backed simulated eradication actions completed; the denied account action did not execute.
+- 2026-09-20T04:16:02.605918+00:00: Recovery actions completed, both original conditions were blocked during retest, and increased monitoring is active.
+- 2026-09-20T04:16:55.694713+00:00: Post-incident review completed after successful verification.

@@ -19,6 +19,46 @@
       "new_status": "Investigating",
       "notes": "Investigate the identity, access-policy and network evidence linked to CYOD-001. Check the correlation reasons and distinguish suspicious activity from enforced access controls and the reviewed exception. No containment, eradication or recovery is being claimed.",
       "previous_status": "Triaged"
+    },
+    {
+      "actor": "responder01",
+      "actor_role": "responder",
+      "decision": "Confirm successful evidence-backed containment",
+      "decision_key": "v2-stage13-transition-5f1146e18a79269294e81a966e705a5fabb092901bdbb5e531686b5c5085866d",
+      "event_time": "2026-09-20T03:50:11.024229+00:00",
+      "new_status": "Contained",
+      "notes": "Stage 12 recorded successful simulated containment with preserved evidence.",
+      "previous_status": "Investigating"
+    },
+    {
+      "actor": "responder01",
+      "actor_role": "responder",
+      "decision": "Confirm successful simulated eradication",
+      "decision_key": "v2-stage13-transition-3afc79370e93def8bee1492277b44b271c3354af0282b1ef27282c9039b114a6",
+      "event_time": "2026-09-20T04:14:15.297325+00:00",
+      "new_status": "Eradicated",
+      "notes": "Four evidence-backed simulated eradication actions completed; the denied account action did not execute.",
+      "previous_status": "Contained"
+    },
+    {
+      "actor": "responder01",
+      "actor_role": "responder",
+      "decision": "Confirm successful simulated recovery",
+      "decision_key": "v2-stage13-transition-0b941b5ae7b1dd9b98b95940053816e0fc9e3429da1443a095042307342037cd",
+      "event_time": "2026-09-20T04:16:02.605918+00:00",
+      "new_status": "Recovered",
+      "notes": "Recovery actions completed, both original conditions were blocked during retest, and increased monitoring is active.",
+      "previous_status": "Eradicated"
+    },
+    {
+      "actor": "analyst01",
+      "actor_role": "analyst",
+      "decision": "Close incident after verified eradication and recovery",
+      "decision_key": "v2-stage13-transition-fda7ee7f483d15ce530476116bb45d05358804d63911ad34d6d34dbb21db727a",
+      "event_time": "2026-09-20T04:16:55.694713+00:00",
+      "new_status": "Closed",
+      "notes": "Post-incident review completed after successful verification.",
+      "previous_status": "Recovered"
     }
   ],
   "approvals": [],
@@ -139,8 +179,8 @@
       "source_evidence_keys": "[\"network:8ff8ca09d4339ba02069b4cba98c8d104f6bf86be33a88666217346c74ac1efc\"]"
     }
   ],
-  "closed_at": null,
-  "closure_reason": null,
+  "closed_at": "2026-09-20T04:16:55.693615+00:00",
+  "closure_reason": "Simulated eradication and recovery completed; the original privilege-change and Wi-Fi downgrade conditions were blocked during verification.",
   "confidence": 95,
   "created_at": "2026-09-19T05:49:57.567381+00:00",
   "decisions": [
@@ -197,6 +237,95 @@
       "new_status": "Investigating",
       "notes": "Investigate the identity, access-policy and network evidence linked to CYOD-001. Check the correlation reasons and distinguish suspicious activity from enforced access controls and the reviewed exception. No containment, eradication or recovery is being claimed.",
       "previous_status": "Triaged"
+    },
+    {
+      "actor": "responder01",
+      "actor_role": "responder",
+      "decision": "Confirm successful evidence-backed containment",
+      "decision_key": "v2-stage13-transition-5f1146e18a79269294e81a966e705a5fabb092901bdbb5e531686b5c5085866d",
+      "decision_time": "2026-09-20T03:50:11.024229+00:00",
+      "evidence_references": [
+        "v2_xdr_incident_evidence:v2-xdr-evidence-link-2be73feb6c643a29680c124aa8507a824a2d328e439ad62343dd74a9c2a73dcc",
+        "v2_xdr_incident_evidence:v2-xdr-evidence-link-4e9f730439b2a7b5fbe51621d703572b3e3227b3bde05b39761d3dae672cf451",
+        "v2_xdr_incident_evidence:v2-xdr-evidence-link-58641558840a306c017db0323cb600f5c5447a146961bc835984e56fa4012b2c",
+        "v2_xdr_incident_evidence:v2-xdr-evidence-link-666ef927b2045c450697b74c23418a4095a4220457e843a04e3a1a0149a35714",
+        "v2_xdr_incident_evidence:v2-xdr-evidence-link-6947aa9d3e1869083deaa8eb11902b4884ac6f93387071083007b074319a3183",
+        "v2_xdr_incident_evidence:v2-xdr-evidence-link-78edc87cc4403898a734820ae35c7d6b8cd131a2a805cd96a973eb2fc0d1eb55",
+        "v2_xdr_incident_evidence:v2-xdr-evidence-link-8be0d4e06c6e4c90c201f23f3c5b3885fe99177b29f46edf72b739a77de52e43",
+        "v2_xdr_incident_evidence:v2-xdr-evidence-link-8f97e20660dc6ea2e62c02e515bfbcc25b75faac9b237d509fc859c1bd5b3ca5",
+        "v2_xdr_incident_evidence:v2-xdr-evidence-link-99f8b34baeed33fb847666d1c060efdd53e260c5eec38910a90604cccdac59b2",
+        "v2_xdr_incident_evidence:v2-xdr-evidence-link-a0fafdb5f057517f05473ca19fb20c08151841bbcc2f10d0efad2f82a7e82ef2",
+        "v2_xdr_incident_evidence:v2-xdr-evidence-link-cb974448a5afe78b2e47be25ce6d055609f98041f59369083b71425cc86a5df0",
+        "v2_xdr_incident_evidence:v2-xdr-evidence-link-d0def08f892d87b525881a4f4c570607f4874a1c66779f1632b89ba718fb0c8c",
+        "v2_xdr_incident_evidence:v2-xdr-evidence-link-fa3f84aedfe5a073b574cb8bd5b33784c9a2d67dfd08e99fc6736a44bbc163d7"
+      ],
+      "incident_decision_id": 3,
+      "incident_id": "INC-V2-11-0001",
+      "new_status": "Contained",
+      "notes": "Stage 12 recorded successful simulated containment with preserved evidence.",
+      "previous_status": "Investigating"
+    },
+    {
+      "actor": "responder01",
+      "actor_role": "responder",
+      "decision": "Confirm successful simulated eradication",
+      "decision_key": "v2-stage13-transition-3afc79370e93def8bee1492277b44b271c3354af0282b1ef27282c9039b114a6",
+      "decision_time": "2026-09-20T04:14:15.297325+00:00",
+      "evidence_references": [
+        "[\"identity:975039ee0461946cc2027194ff549d3a555641a353549153923805c99817e822\"]",
+        "[\"identity:9d970c63b0c9f91ae60fa0ae9719102d7da582c8832294b6e94851917eb94ffe\"]",
+        "[\"identity:cf1bbeaeed866f97e0c5eae880beb7c5b81ae5598d3645dfc610988a3c05ad0e\"]",
+        "[\"network:8ff8ca09d4339ba02069b4cba98c8d104f6bf86be33a88666217346c74ac1efc\"]"
+      ],
+      "incident_decision_id": 4,
+      "incident_id": "INC-V2-11-0001",
+      "new_status": "Eradicated",
+      "notes": "Four evidence-backed simulated eradication actions completed; the denied account action did not execute.",
+      "previous_status": "Contained"
+    },
+    {
+      "actor": "responder01",
+      "actor_role": "responder",
+      "decision": "Confirm successful simulated recovery",
+      "decision_key": "v2-stage13-transition-0b941b5ae7b1dd9b98b95940053816e0fc9e3429da1443a095042307342037cd",
+      "decision_time": "2026-09-20T04:16:02.605918+00:00",
+      "evidence_references": [
+        "[\"identity:9d970c63b0c9f91ae60fa0ae9719102d7da582c8832294b6e94851917eb94ffe\"]",
+        "[\"identity:cf1bbeaeed866f97e0c5eae880beb7c5b81ae5598d3645dfc610988a3c05ad0e\"]",
+        "[\"network:8ff8ca09d4339ba02069b4cba98c8d104f6bf86be33a88666217346c74ac1efc\"]"
+      ],
+      "incident_decision_id": 5,
+      "incident_id": "INC-V2-11-0001",
+      "new_status": "Recovered",
+      "notes": "Recovery actions completed, both original conditions were blocked during retest, and increased monitoring is active.",
+      "previous_status": "Eradicated"
+    },
+    {
+      "actor": "analyst01",
+      "actor_role": "analyst",
+      "decision": "Close incident after verified eradication and recovery",
+      "decision_key": "v2-stage13-transition-fda7ee7f483d15ce530476116bb45d05358804d63911ad34d6d34dbb21db727a",
+      "decision_time": "2026-09-20T04:16:55.694713+00:00",
+      "evidence_references": [
+        "v2_xdr_incident_evidence:v2-xdr-evidence-link-2be73feb6c643a29680c124aa8507a824a2d328e439ad62343dd74a9c2a73dcc",
+        "v2_xdr_incident_evidence:v2-xdr-evidence-link-4e9f730439b2a7b5fbe51621d703572b3e3227b3bde05b39761d3dae672cf451",
+        "v2_xdr_incident_evidence:v2-xdr-evidence-link-58641558840a306c017db0323cb600f5c5447a146961bc835984e56fa4012b2c",
+        "v2_xdr_incident_evidence:v2-xdr-evidence-link-666ef927b2045c450697b74c23418a4095a4220457e843a04e3a1a0149a35714",
+        "v2_xdr_incident_evidence:v2-xdr-evidence-link-6947aa9d3e1869083deaa8eb11902b4884ac6f93387071083007b074319a3183",
+        "v2_xdr_incident_evidence:v2-xdr-evidence-link-78edc87cc4403898a734820ae35c7d6b8cd131a2a805cd96a973eb2fc0d1eb55",
+        "v2_xdr_incident_evidence:v2-xdr-evidence-link-8be0d4e06c6e4c90c201f23f3c5b3885fe99177b29f46edf72b739a77de52e43",
+        "v2_xdr_incident_evidence:v2-xdr-evidence-link-8f97e20660dc6ea2e62c02e515bfbcc25b75faac9b237d509fc859c1bd5b3ca5",
+        "v2_xdr_incident_evidence:v2-xdr-evidence-link-99f8b34baeed33fb847666d1c060efdd53e260c5eec38910a90604cccdac59b2",
+        "v2_xdr_incident_evidence:v2-xdr-evidence-link-a0fafdb5f057517f05473ca19fb20c08151841bbcc2f10d0efad2f82a7e82ef2",
+        "v2_xdr_incident_evidence:v2-xdr-evidence-link-cb974448a5afe78b2e47be25ce6d055609f98041f59369083b71425cc86a5df0",
+        "v2_xdr_incident_evidence:v2-xdr-evidence-link-d0def08f892d87b525881a4f4c570607f4874a1c66779f1632b89ba718fb0c8c",
+        "v2_xdr_incident_evidence:v2-xdr-evidence-link-fa3f84aedfe5a073b574cb8bd5b33784c9a2d67dfd08e99fc6736a44bbc163d7"
+      ],
+      "incident_decision_id": 6,
+      "incident_id": "INC-V2-11-0001",
+      "new_status": "Closed",
+      "notes": "Post-incident review completed after successful verification.",
+      "previous_status": "Recovered"
     }
   ],
   "detection_sources": [
@@ -665,6 +794,46 @@
       "new_status": "Investigating",
       "notes": "Investigate the identity, access-policy and network evidence linked to CYOD-001. Check the correlation reasons and distinguish suspicious activity from enforced access controls and the reviewed exception. No containment, eradication or recovery is being claimed.",
       "previous_status": "Triaged"
+    },
+    {
+      "actor": "responder01",
+      "actor_role": "responder",
+      "decision": "Confirm successful evidence-backed containment",
+      "decision_key": "v2-stage13-transition-5f1146e18a79269294e81a966e705a5fabb092901bdbb5e531686b5c5085866d",
+      "event_time": "2026-09-20T03:50:11.024229+00:00",
+      "new_status": "Contained",
+      "notes": "Stage 12 recorded successful simulated containment with preserved evidence.",
+      "previous_status": "Investigating"
+    },
+    {
+      "actor": "responder01",
+      "actor_role": "responder",
+      "decision": "Confirm successful simulated eradication",
+      "decision_key": "v2-stage13-transition-3afc79370e93def8bee1492277b44b271c3354af0282b1ef27282c9039b114a6",
+      "event_time": "2026-09-20T04:14:15.297325+00:00",
+      "new_status": "Eradicated",
+      "notes": "Four evidence-backed simulated eradication actions completed; the denied account action did not execute.",
+      "previous_status": "Contained"
+    },
+    {
+      "actor": "responder01",
+      "actor_role": "responder",
+      "decision": "Confirm successful simulated recovery",
+      "decision_key": "v2-stage13-transition-0b941b5ae7b1dd9b98b95940053816e0fc9e3429da1443a095042307342037cd",
+      "event_time": "2026-09-20T04:16:02.605918+00:00",
+      "new_status": "Recovered",
+      "notes": "Recovery actions completed, both original conditions were blocked during retest, and increased monitoring is active.",
+      "previous_status": "Eradicated"
+    },
+    {
+      "actor": "analyst01",
+      "actor_role": "analyst",
+      "decision": "Close incident after verified eradication and recovery",
+      "decision_key": "v2-stage13-transition-fda7ee7f483d15ce530476116bb45d05358804d63911ad34d6d34dbb21db727a",
+      "event_time": "2026-09-20T04:16:55.694713+00:00",
+      "new_status": "Closed",
+      "notes": "Post-incident review completed after successful verification.",
+      "previous_status": "Recovered"
     }
   ],
   "iocs": [
@@ -704,7 +873,7 @@
   "source_first_evidence_time": "2026-09-09T07:26:17.647588+00:00",
   "source_incident_key": "v2-xdr-incident-76c33e5b75f802188258b3639ad60d63527a9a846cb56080d7ecc9fcce297cec",
   "source_last_evidence_time": "2026-09-10T09:06:00+00:00",
-  "status": "Investigating",
+  "status": "Closed",
   "timeline": [
     {
       "action": "import_v2_stage11_incidents",
@@ -816,20 +985,96 @@
       "timeline_key": "v2-review-4838432f96253971e54863711d4f197d5f7a865e956d269e6ca9009cda26b097"
     },
     {
-      "action": "generate_v2_stage11_reports",
-      "actor": "netshield01",
-      "details": "{\"json_sha256\":\"f17983871cbb2d6c11a34038b1fc2d9ae29fa7351a34989abf83a133e042b1b8\",\"text_sha256\":\"08f352d983b0cfb85325dba2e65b80d364294821680c118df8f806924d7445d8\"}",
-      "event_time": "2026-09-19T10:39:26.313813+00:00",
-      "event_type": "report_generated",
-      "evidence_references": [],
+      "action": "manage_v2_stage13_recovery",
+      "actor": "responder01",
+      "details": "{\"decision\":\"Confirm successful evidence-backed containment\",\"notes\":\"Stage 12 recorded successful simulated containment with preserved evidence.\"}",
+      "event_time": "2026-09-20T03:50:11.024229+00:00",
+      "event_type": "status_changed",
+      "evidence_references": [
+        "v2_xdr_incident_evidence:v2-xdr-evidence-link-2be73feb6c643a29680c124aa8507a824a2d328e439ad62343dd74a9c2a73dcc",
+        "v2_xdr_incident_evidence:v2-xdr-evidence-link-4e9f730439b2a7b5fbe51621d703572b3e3227b3bde05b39761d3dae672cf451",
+        "v2_xdr_incident_evidence:v2-xdr-evidence-link-58641558840a306c017db0323cb600f5c5447a146961bc835984e56fa4012b2c",
+        "v2_xdr_incident_evidence:v2-xdr-evidence-link-666ef927b2045c450697b74c23418a4095a4220457e843a04e3a1a0149a35714",
+        "v2_xdr_incident_evidence:v2-xdr-evidence-link-6947aa9d3e1869083deaa8eb11902b4884ac6f93387071083007b074319a3183",
+        "v2_xdr_incident_evidence:v2-xdr-evidence-link-78edc87cc4403898a734820ae35c7d6b8cd131a2a805cd96a973eb2fc0d1eb55",
+        "v2_xdr_incident_evidence:v2-xdr-evidence-link-8be0d4e06c6e4c90c201f23f3c5b3885fe99177b29f46edf72b739a77de52e43",
+        "v2_xdr_incident_evidence:v2-xdr-evidence-link-8f97e20660dc6ea2e62c02e515bfbcc25b75faac9b237d509fc859c1bd5b3ca5",
+        "v2_xdr_incident_evidence:v2-xdr-evidence-link-99f8b34baeed33fb847666d1c060efdd53e260c5eec38910a90604cccdac59b2",
+        "v2_xdr_incident_evidence:v2-xdr-evidence-link-a0fafdb5f057517f05473ca19fb20c08151841bbcc2f10d0efad2f82a7e82ef2",
+        "v2_xdr_incident_evidence:v2-xdr-evidence-link-cb974448a5afe78b2e47be25ce6d055609f98041f59369083b71425cc86a5df0",
+        "v2_xdr_incident_evidence:v2-xdr-evidence-link-d0def08f892d87b525881a4f4c570607f4874a1c66779f1632b89ba718fb0c8c",
+        "v2_xdr_incident_evidence:v2-xdr-evidence-link-fa3f84aedfe5a073b574cb8bd5b33784c9a2d67dfd08e99fc6736a44bbc163d7"
+      ],
       "incident_id": "INC-V2-11-0001",
-      "incident_timeline_id": 10,
-      "new_status": "Investigating",
+      "incident_timeline_id": 13,
+      "new_status": "Contained",
       "previous_status": "Investigating",
-      "timeline_key": "v2-report-generated-03f6ca4c19f11017fbe1a29e54304cd9b62d9f77aca39a2ac97430dc0f461434"
+      "timeline_key": "v2-stage13-transition-5f1146e18a79269294e81a966e705a5fabb092901bdbb5e531686b5c5085866d"
+    },
+    {
+      "action": "manage_v2_stage13_recovery",
+      "actor": "responder01",
+      "details": "{\"decision\":\"Confirm successful simulated eradication\",\"notes\":\"Four evidence-backed simulated eradication actions completed; the denied account action did not execute.\"}",
+      "event_time": "2026-09-20T04:14:15.297325+00:00",
+      "event_type": "status_changed",
+      "evidence_references": [
+        "[\"identity:975039ee0461946cc2027194ff549d3a555641a353549153923805c99817e822\"]",
+        "[\"identity:9d970c63b0c9f91ae60fa0ae9719102d7da582c8832294b6e94851917eb94ffe\"]",
+        "[\"identity:cf1bbeaeed866f97e0c5eae880beb7c5b81ae5598d3645dfc610988a3c05ad0e\"]",
+        "[\"network:8ff8ca09d4339ba02069b4cba98c8d104f6bf86be33a88666217346c74ac1efc\"]"
+      ],
+      "incident_id": "INC-V2-11-0001",
+      "incident_timeline_id": 14,
+      "new_status": "Eradicated",
+      "previous_status": "Contained",
+      "timeline_key": "v2-stage13-transition-3afc79370e93def8bee1492277b44b271c3354af0282b1ef27282c9039b114a6"
+    },
+    {
+      "action": "manage_v2_stage13_recovery",
+      "actor": "responder01",
+      "details": "{\"decision\":\"Confirm successful simulated recovery\",\"notes\":\"Recovery actions completed, both original conditions were blocked during retest, and increased monitoring is active.\"}",
+      "event_time": "2026-09-20T04:16:02.605918+00:00",
+      "event_type": "status_changed",
+      "evidence_references": [
+        "[\"identity:9d970c63b0c9f91ae60fa0ae9719102d7da582c8832294b6e94851917eb94ffe\"]",
+        "[\"identity:cf1bbeaeed866f97e0c5eae880beb7c5b81ae5598d3645dfc610988a3c05ad0e\"]",
+        "[\"network:8ff8ca09d4339ba02069b4cba98c8d104f6bf86be33a88666217346c74ac1efc\"]"
+      ],
+      "incident_id": "INC-V2-11-0001",
+      "incident_timeline_id": 15,
+      "new_status": "Recovered",
+      "previous_status": "Eradicated",
+      "timeline_key": "v2-stage13-transition-0b941b5ae7b1dd9b98b95940053816e0fc9e3429da1443a095042307342037cd"
+    },
+    {
+      "action": "manage_v2_stage13_recovery",
+      "actor": "analyst01",
+      "details": "{\"decision\":\"Close incident after verified eradication and recovery\",\"notes\":\"Post-incident review completed after successful verification.\"}",
+      "event_time": "2026-09-20T04:16:55.694713+00:00",
+      "event_type": "status_changed",
+      "evidence_references": [
+        "v2_xdr_incident_evidence:v2-xdr-evidence-link-2be73feb6c643a29680c124aa8507a824a2d328e439ad62343dd74a9c2a73dcc",
+        "v2_xdr_incident_evidence:v2-xdr-evidence-link-4e9f730439b2a7b5fbe51621d703572b3e3227b3bde05b39761d3dae672cf451",
+        "v2_xdr_incident_evidence:v2-xdr-evidence-link-58641558840a306c017db0323cb600f5c5447a146961bc835984e56fa4012b2c",
+        "v2_xdr_incident_evidence:v2-xdr-evidence-link-666ef927b2045c450697b74c23418a4095a4220457e843a04e3a1a0149a35714",
+        "v2_xdr_incident_evidence:v2-xdr-evidence-link-6947aa9d3e1869083deaa8eb11902b4884ac6f93387071083007b074319a3183",
+        "v2_xdr_incident_evidence:v2-xdr-evidence-link-78edc87cc4403898a734820ae35c7d6b8cd131a2a805cd96a973eb2fc0d1eb55",
+        "v2_xdr_incident_evidence:v2-xdr-evidence-link-8be0d4e06c6e4c90c201f23f3c5b3885fe99177b29f46edf72b739a77de52e43",
+        "v2_xdr_incident_evidence:v2-xdr-evidence-link-8f97e20660dc6ea2e62c02e515bfbcc25b75faac9b237d509fc859c1bd5b3ca5",
+        "v2_xdr_incident_evidence:v2-xdr-evidence-link-99f8b34baeed33fb847666d1c060efdd53e260c5eec38910a90604cccdac59b2",
+        "v2_xdr_incident_evidence:v2-xdr-evidence-link-a0fafdb5f057517f05473ca19fb20c08151841bbcc2f10d0efad2f82a7e82ef2",
+        "v2_xdr_incident_evidence:v2-xdr-evidence-link-cb974448a5afe78b2e47be25ce6d055609f98041f59369083b71425cc86a5df0",
+        "v2_xdr_incident_evidence:v2-xdr-evidence-link-d0def08f892d87b525881a4f4c570607f4874a1c66779f1632b89ba718fb0c8c",
+        "v2_xdr_incident_evidence:v2-xdr-evidence-link-fa3f84aedfe5a073b574cb8bd5b33784c9a2d67dfd08e99fc6736a44bbc163d7"
+      ],
+      "incident_id": "INC-V2-11-0001",
+      "incident_timeline_id": 16,
+      "new_status": "Closed",
+      "previous_status": "Recovered",
+      "timeline_key": "v2-stage13-transition-fda7ee7f483d15ce530476116bb45d05358804d63911ad34d6d34dbb21db727a"
     }
   ],
   "title": "Cross-source activity involving device CYOD-001",
-  "updated_at": "2026-09-19T06:02:42.599291+00:00",
+  "updated_at": "2026-09-20T04:16:55.694713+00:00",
   "vulnerability_links": []
 }

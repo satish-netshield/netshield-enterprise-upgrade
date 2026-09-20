@@ -1,16 +1,16 @@
-# NetShield Security Logic
+# NetShield Enterprise Upgrade Security Logic
 
 ## Purpose
 
-This document explains the main security decisions in Phase 3A V2 and why they exist. It focuses on logic and boundaries rather than repeating workflow steps, commands or detailed findings.
+This document explains the main security decisions in Phase 3A V2 and why they exist. It focuses on security logic and boundaries rather than repeating commands, workflow steps or detailed test findings.
 
-NetShield is my project and part of my engineering journey. Its security logic, configuration, testing, validation and improvements are documented here without claiming personal source-code authorship.
+NetShield is my project. Its design, configuration, testing, validation and improvement form part of my engineering journey.
 
 ## Project boundary
 
-The system runs in the controlled Ubuntu sandbox with Python, SQLite and simulated enterprise data.
+The system runs inside a controlled Ubuntu sandbox using Python, SQLite and simulated enterprise data.
 
-Microsoft security products and XDR concepts are design references only. Real production accounts, external targets, network changes and automatic response actions remain disabled.
+Microsoft security platforms and XDR are design references only. The project does not require Microsoft services, production accounts, external targets or real response actions.
 
 ---
 
@@ -18,19 +18,23 @@ Microsoft security products and XDR concepts are design references only. Real pr
 
 ### Authoritative context
 
-Users, devices, applications, services and assets must come from registered project context. Unknown context is not silently accepted as trusted.
+Users, devices, applications, services and assets must come from registered project context. Unknown context is not silently trusted.
+
+This prevents an event from gaining trust only because it contains a familiar username, address or device value.
 
 ### RBAC and ACL
 
-RBAC controls which roles may investigate, review, approve or manage records. The automation ACL controls response actions separately. Undefined actions are denied.
+RBAC decides which roles may investigate, review, request, approve or manage records. The automation ACL controls response actions separately.
+
+Undefined actions are denied by default. Permission to investigate does not automatically grant permission to approve or execute a response.
 
 ### Event validation
 
-Events must contain the required fields, valid data types, recognised sources and UTC timestamps. Raw events are preserved, accepted events are normalised, malformed records are quarantined and duplicates are ignored.
+Events require valid fields, data types, source names and UTC timestamps.
 
-### Why this exists
+Raw events are preserved, valid events are normalised, malformed records are quarantined and duplicate records are ignored.
 
-Security decisions need traceable identity, valid evidence and repeatable storage. The original Phase 3 controls remain available while V2 adds enterprise context.
+This keeps evidence traceable while preventing invalid or repeated data from changing the result.
 
 ---
 
@@ -38,31 +42,19 @@ Security decisions need traceable identity, valid evidence and repeatable storag
 
 Device evaluation uses device ID, asset ID, registration, ownership, compliance and last-seen evidence.
 
-MAC addresses are supporting evidence only. They cannot identify a device by themselves.
+MAC addresses are supporting evidence because they can be reused or changed. Unknown, unregistered, stale and mismatched devices remain separate investigation states.
 
-Unknown, unregistered, stale and mismatched states remain separate so that an investigation can distinguish missing inventory from suspicious activity.
+Database and web assets are not treated as devices.
 
 ---
 
 ## Stage 4 — Identity monitoring
 
-Identity detections group related authentication events by user, source address and time window.
+Identity detections group related authentication and identity-risk activity by user, source address and time window.
 
-The logic considers:
+The logic checks failures, password spraying, successful access after failures, location, new devices, access time, MFA, privilege changes, dormant accounts, service accounts and shared source activity.
 
-- repeated failures and password spraying
-- successful sign-in after failures
-- impossible travel and unusual location
-- new-device sign-in
-- abnormal access time
-- MFA failure or fatigue
-- privilege changes
-- dormant-account activity
-- service-account interactive login
-- multiple accounts from one source
-- risky sign-in and user-risk activity
-
-Approved VPN and controlled-testing exceptions are narrow. They suppress only the expected condition and remain recorded as evidence.
+Approved VPN and controlled-testing exceptions remain narrow and auditable. They suppress only the expected condition and do not delete the original event.
 
 Deterministic alert keys prevent repeated detections from creating duplicate alerts.
 
@@ -70,56 +62,52 @@ Deterministic alert keys prevent repeated detections from creating duplicate ale
 
 ## Stage 5 — Access policy
 
-Access decisions verify identity, active role, required permission, device state, application sensitivity, asset criticality, location, network, sign-in risk, user risk and MFA evidence.
+Access decisions evaluate identity, active role, permission, device state, application sensitivity, asset criticality, location, network, risk and MFA evidence.
 
-The engine returns:
+The available outcomes are:
 
-- `allow` when required evidence is satisfied
-- `deny` when access is not permitted
-- `challenge` when stronger verification is required
-- `restrict` when controlled restriction should be considered
+- `allow`
+- `deny`
+- `challenge`
+- `restrict`
 
 The default is `deny`.
 
-When rules conflict, lower priority numbers win. Equal-priority outcomes use the more restrictive order:
+When policies conflict, configured priority is applied first. Equal-priority outcomes use the more restrictive order:
 
 `deny → restrict → challenge → allow`
 
-A policy decision does not execute a response action. Any response still passes through the automation ACL and approval boundary.
+A policy decision does not execute a response. Any later action must still pass the automation ACL and approval controls.
 
 ---
 
 ## Stage 6 — Network and Wi-Fi
 
-Network logic checks IP reputation, approved networks, ports, services, connection volume, access time, device identity, Wi-Fi security, access points and network zones.
+Network logic checks IP reputation, approved networks, ports, services, connection volume, device identity, Wi-Fi security, access points and network zones.
 
-Overlapping outcomes use:
+Every matching rule and reason is preserved before one final decision is selected.
 
-`deny → restrict → challenge → allow`
+MAC reuse can support an investigation but cannot override device identity evidence.
 
-The engine stores every matching rule and reason code before selecting one final decision.
-
-MAC reuse can raise an investigation indicator, but it cannot override device identity evidence.
-
-Network restriction remains simulated and approval-controlled. The project does not change the real Ubuntu firewall or wireless state.
+Network restrictions are simulated. The project does not change the real Ubuntu firewall, Wi-Fi configuration or network connection.
 
 ---
 
 ## Stage 7 — Endpoint monitoring
 
-Endpoint logic evaluates health, compliance, risk, process approval, ownership, parent-child relationships, command activity, persistence indicators, file hashes and crash patterns.
+Endpoint logic evaluates health, compliance, risk, approved processes, process ownership, parent-child relationships, command activity, persistence indicators, file hashes and crash patterns.
 
-Three crashes or restarts within eight minutes form the configured pattern.
+Three crashes or restarts within eight minutes form the configured repeated-crash pattern.
 
-Critical alerts are consolidated into one simulated isolation request per device. Approval changes the project record only; it does not disable Wi-Fi, stop traffic, terminate processes or change the operating system.
+Critical alerts can create one consolidated simulated-isolation request per device. Approval changes only the project record.
 
-A crash or suspicious process is evidence for investigation, not automatic proof of malicious activity.
+A suspicious process, crash or hash is evidence for investigation rather than automatic proof of malicious activity.
 
 ---
 
 ## Stage 8 — Vulnerability management
 
-A finding requires an authoritative asset and preserved supporting evidence.
+A vulnerability finding requires authoritative asset context and preserved evidence.
 
 Priority uses:
 
@@ -129,133 +117,188 @@ Priority uses:
 - exposed-service context
 - confidence
 
-Remediation changes status and adds verification history. It does not erase the original severity, exploitability or exploitation evidence.
+Remediation adds status and verification history without replacing the original risk evidence.
 
-Approved testing remains evidence and does not become a vulnerability by itself.
+Approved testing remains evidence and does not become a vulnerability by itself. A vulnerability becomes incident context only when related activity or exploitation evidence exists.
 
-A finding links to an alert or incident only when supporting activity or exploitation evidence exists. A vulnerability alone does not create an incident.
-
-False-positive classification requires an authorised investigator, review notes and an audit record.
+False-positive classification requires authorised review, notes and an audit record.
 
 ---
 
-## Stage 9 — Continuous risk scoring
+## Stage 9 — Continuous monitoring and risk
 
 Risk scoring combines existing evidence for users, devices, assets and incidents.
 
-The score uses severity, confidence, asset criticality, independent-source independent-source agreement, validated exceptions and time decay.
+The score uses severity, confidence, asset criticality, independent-source agreement, validated exceptions and time decay.
 
-Risk scores support investigation decisions but never replace the source alerts, findings, decisions or events.
-
-Independent sources add configured agreement points. Repeated records from the same source do not receive the same benefit again.
-
-Completed false-positive reviews and verified activity can reduce risk. Unknown asset criticality contributes zero points rather than being treated as Low.
+Repeated evidence from one source does not gain independent-source points. Unknown asset criticality contributes zero points instead of being treated as Low.
 
 Threshold alerts use cooldown and suppression records to reduce repeated noise without deleting evidence.
 
-Detection health records processed data, failures and last-successful-run values. A risk score is not considered reliable if required pipeline components are failing.
+Risk supports investigation decisions but never replaces the original events, alerts, findings or decisions.
 
 ---
 
-## Stage 10 — Cross-source correlation
+## Stage 10 — XDR-style correlation
 
-Correlation uses ordered primary anchors such as:
+Correlation uses ordered primary anchors such as device ID, asset ID, username, IP address, hostname, process name and file hash.
 
-- device ID
-- asset ID
-- username
-- IP address
-- hostname
-- process name
-- file hash
+MAC address, location and detection type remain supporting context.
 
-MAC address, location and detection type provide supporting context only.
+A shared username or address cannot create an unrestricted bridge between unrelated device chains. Explicit exploitation links may connect only the specifically related evidence.
 
-Records are grouped within the configured time window. A shared username or address cannot create an unrestricted transitive bridge between separate device chains.
+Repeated detections are preserved but scored once. Independent sources can increase confidence, while validated exceptions and verified activity can reduce it.
 
-Explicit exploitation links may join the specifically named evidence across normal grouping boundaries.
-
-Repeated detections from one source event are preserved but scored once. Independent source agreement increases confidence. Validated exceptions and verified activity reduce confidence without deleting evidence.
-
-Vulnerability findings remain context unless activity or explicit exploitation evidence supports an incident.
-
-IoCs are stored separately from behaviours. IP addresses, file hashes, hostnames and suspicious process values may be IoCs when supported by evidence. A detection label remains a behaviour.
+IoCs remain separate from behaviours. Detection names describe behaviour; they are not automatically IoCs.
 
 ---
 
 ## Stage 11 — Incident management
 
-Managed incidents preserve:
-
-- unique incident ID
-- source incident key
-- title and detection sources
-- severity and confidence
-- risk provenance
-- identity, device, asset and network context
-- owner and status
-- investigation notes
-- analyst decisions
-- closure reason
-- IoCs and behaviours
-- ATT&CK references
-- evidence links and SHA-256 hashes
-- timeline and approval records
-- vulnerability relationships
-- JSON and readable reports
+Managed incidents preserve identity, device, asset, network, evidence, ownership, decisions, approvals, timelines, IoCs, behaviours, ATT&CK references, vulnerability links and reports.
 
 The controlled lifecycle is:
 
 `New → Triaged → Investigating → Contained → Eradicated → Recovered → Closed`
 
-False-positive closure is allowed only from `New`, `Triaged` or `Investigating` and requires investigation permission.
+False-positive closure is allowed only from `New`, `Triaged` or `Investigating` with investigation permission.
 
-Containment, eradication and recovery states are used only when those actions genuinely occurred. An incident does not automatically prove that a response action was performed.
+Containment, eradication and recovery states are recorded only when supporting actions genuinely occurred.
 
-Reports are hash-recorded and duplicate-safe. Repeated generation must produce the same evidence-backed result.
+Evidence references use SHA-256 hashes. Reports are hash-recorded and duplicate-safe.
 
----
+A valid report hash proves that report content has not changed unexpectedly. It does not prove that the report still matches the current incident state. Validation therefore compares both report formats with the authoritative incident record.
 
-## Evidence and audit logic
-
-Original evidence remains available after scoring, correlation, remediation, review or incident management.
-
-Every meaningful decision records its actor, reason, evidence reference and result. Denied actions are audited as denied; they are not represented as successful actions.
-
-SQLite integrity, foreign-key integrity, duplicate protection and evidence hashes are checked during validation.
+An incident status does not prove that a response action was performed.
 
 ---
 
-## Testing and validation
+## Stage 12 — Containment and response
 
-Each implemented stage has focused tests, validation checks and repeat-run checks. The project also uses regression validation to confirm that earlier components remain operational.
+Stage 12 uses the existing RBAC and automation ACL to control simulated containment.
 
-The main validation themes are:
+Every action requires:
 
-- safe sandbox boundaries
-- authoritative asset and device context
+- a managed incident
+- related evidence
+- a configured action
+- the correct target type
+- an authorised requester
+- a responsible actor
+- an audit record
+
+Evidence is preserved before the action is considered.
+
+Approval-required actions cannot be approved or executed by their requester. Approval records permission to continue; it does not claim that execution occurred.
+
+The system records requested, approved, denied, successful, failed and rolled-back outcomes separately.
+
+Undefined actions and unauthorised roles fail closed. Failed and denied actions remain visible and cannot be represented as successful.
+
+Rollback is allowed only when the configured action has a safe rollback path. An irreversible action cannot invent one.
+
+All containment remains simulated and does not change real accounts, devices, processes, files, sessions or networks.
+
+---
+
+## Stage 13 — Eradication and recovery
+
+Stage 13 continues only after successful evidence-backed containment.
+
+Eradication actions can address simulated credentials, privileges, compromised accounts, devices, Wi-Fi, rogue access points, malicious files, persistence, processes, vulnerable SQL and vulnerability remediation.
+
+Disruptive eradication and recovery actions are never automatic. Approval-required and manual actions preserve separation between requester, approver and executor.
+
+The incident can move to Eradicated only after at least one successful eradication action.
+
+Recovery can restore accounts, devices, services and access restrictions. Post-recovery monitoring must remain active.
+
+The incident cannot move to Recovered until both conditions are verified:
+
+- the original threat no longer succeeds
+- the original vulnerability no longer succeeds
+
+Closure requires a completed post-incident review, recorded lessons, improvement recommendations and an authorised closure decision.
+
+A successful action alone is not proof of recovery. Verification is required.
+
+---
+
+## Stage 14 — Full validation
+
+Stage 14 is validation-only. It cannot perform response actions or change external systems.
+
+The tracked schema is rebuilt in a temporary database. The live evidence database is preserved and is not copied into the temporary environment.
+
+Validation checks:
+
+- Python syntax and source imports
+- the complete regression suite
+- all earlier V2 validators
+- SQLite and foreign-key integrity
+- malformed and duplicate handling
 - RBAC and ACL enforcement
-- evidence preservation
-- duplicate-safe storage
-- deterministic decisions
-- lifecycle integrity
+- evidence hashes
+- lifecycle transitions
+- denied and failed actions
+- containment and rollback
+- eradication and recovery
+- IoC and behaviour extraction
 - audit completeness
-- no unauthorised or automatic real-world response
+- earlier-stage compatibility
+
+The live database SHA-256 hash is compared before and after validation. A changed hash causes validation to fail.
+
+Source imports also confirm that the project does not depend on Microsoft platform SDKs.
 
 ---
 
-## Engineering lessons
+## Stage 15 — Final assurance
 
-The project repeatedly showed that:
+Final revision checks both integrity and accuracy.
 
-- evidence must remain separate from interpretation
-- unknown values must remain unknown
-- detection and response must remain separate
-- approval must be enforced by the ACL
-- repeated runs must preserve stored investigation state
-- independent evidence should increase confidence only once
-- a vulnerability is not automatically an attack
-- correlation must explain both joined and separated activity
-- lifecycle status must reflect actions that genuinely occurred
+Generated reports must:
 
-Future stages should extend these controls without replacing the original evidence model.
+- match their stored SHA-256 hashes
+- match the current authoritative incident state
+- retain closure details when an incident is Closed
+- remain duplicate-safe after repeated generation
+
+Thresholds are changed only when test evidence supports a change. Passing results alone do not justify making a threshold stricter or weaker.
+
+A component is removed only when it is shown to be obsolete or unused. Earlier Phase 3 components remain because compatibility and regression checks still depend on them.
+
+Privacy review checks for credentials, private keys, tokens, personal paths, email addresses and temporary files. Simulated security values are retained when they form part of controlled project evidence.
+
+Final documentation must describe actual project behaviour and keep Microsoft products labelled as design concepts rather than dependencies.
+
+---
+
+## Evidence and audit rules
+
+Original evidence remains available after scoring, correlation, review, containment, eradication, recovery or closure.
+
+Every meaningful action records its actor, target, reason, evidence and result.
+
+Denied actions remain denied. Failed actions remain failed. Approval does not prove execution, and execution does not prove recovery.
+
+SQLite integrity, foreign keys, duplicate protection, evidence hashes and report state are checked during validation.
+
+---
+
+## Main security lessons
+
+- Unknown values must remain unknown.
+- Evidence must remain separate from interpretation.
+- Detection, approval and execution are different events.
+- Requesters must not approve or execute their own disruptive requests.
+- A vulnerability is not automatically an incident.
+- Correlation must explain why evidence was joined or kept separate.
+- Risk scores support decisions but do not replace evidence.
+- Failed and denied actions must remain visible.
+- Recovery requires retesting the original threat and vulnerability.
+- Closure requires verified recovery and an authorised review.
+- Report integrity and report accuracy must both be validated.
+- Final changes require evidence rather than assumption.
+
+After Phase 3A V2 sign-off, changes should be limited to genuine defects, security improvements or justified engineering requirements.

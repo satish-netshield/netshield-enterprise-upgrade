@@ -22,7 +22,7 @@ Behaviours: 2
 ATT&CK references: 1
 Linked vulnerabilities: 0
 Investigation decisions: 0
-Timeline records: 3
+Timeline records: 2
 
 Evidence SHA-256 values:
 - access_policy:65ba64a529ce96d9625d9c71d95ff6e11179809e48b32a0a06d75e9e4c5ffd54: caef947cd079d8cb2061826a43c081ecec4172353e90ebc11b0728ddb6ad7f90

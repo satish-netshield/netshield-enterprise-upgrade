@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import hashlib
+import json
 import sqlite3
 from pathlib import Path
 
@@ -128,9 +129,11 @@ def main():
             ),
             "Original evidence is preserved",
         )
+
         lifecycle_statuses = set(
             configuration["lifecycle"]["primary_path"]
         ) | {configuration["lifecycle"]["false_positive_target"]}
+
         require(
             {row["status"] for row in incidents}
             <= lifecycle_statuses
@@ -265,18 +268,103 @@ def main():
             "JSON and readable reports exist per incident",
         )
 
+        reports_by_incident = {}
+
         for report in reports:
             path = ROOT / report["report_path"]
+
             require(
                 path.is_file(),
                 f"Report exists: {report['report_path']}",
             )
+
+            content = path.read_text(encoding="utf-8")
+
             require(
-                sha256_text(
-                    path.read_text(encoding="utf-8")
-                )
-                == report["report_sha256"],
+                sha256_text(content) == report["report_sha256"],
                 f"Report hash verifies: {report['report_path']}",
+            )
+
+            reports_by_incident.setdefault(
+                report["incident_id"],
+                {},
+            )[report["report_type"]] = content
+
+        require(
+            all(
+                set(reports_by_incident.get(
+                    incident["incident_id"],
+                    {},
+                ))
+                == {"json", "text"}
+                for incident in incidents
+            ),
+            "Each incident has JSON and readable reports",
+        )
+
+        for incident in incidents:
+            incident_id = incident["incident_id"]
+            json_report = json.loads(
+                reports_by_incident[incident_id]["json"]
+            )
+            text_report = reports_by_incident[incident_id]["text"]
+
+            require(
+                json_report["incident_id"] == incident_id
+                and json_report["status"] == incident["status"]
+                and json_report["incident_owner"]
+                == incident["incident_owner"]
+                and json_report["closure_reason"]
+                == incident["closure_reason"]
+                and json_report["closed_at"]
+                == incident["closed_at"],
+                f"JSON report matches current incident state: {incident_id}",
+            )
+
+            expected_owner = (
+                incident["incident_owner"]
+                if incident["incident_owner"]
+                else "Unassigned"
+            )
+            expected_text_lines = {
+                f"Incident ID: {incident_id}",
+                f"Status: {incident['status']}",
+                f"Owner: {expected_owner}",
+            }
+            actual_text_lines = set(text_report.splitlines())
+
+            require(
+                expected_text_lines <= actual_text_lines,
+                f"Readable report matches current incident state: {incident_id}",
+            )
+
+        closed_incidents = [
+            incident
+            for incident in incidents
+            if incident["status"] == "Closed"
+        ]
+
+        require(
+            all(
+                incident["closure_reason"]
+                and incident["closed_at"]
+                for incident in closed_incidents
+            ),
+            "Closed incidents retain verified closure details",
+        )
+
+        for incident in closed_incidents:
+            json_report = json.loads(
+                reports_by_incident[incident["incident_id"]]["json"]
+            )
+
+            require(
+                any(
+                    decision["new_status"] == "Closed"
+                    for decision in json_report["decisions"]
+                ),
+                "Closed report retains its lifecycle decision: "
+                f"{incident['incident_id']}",
             )
 
         require(

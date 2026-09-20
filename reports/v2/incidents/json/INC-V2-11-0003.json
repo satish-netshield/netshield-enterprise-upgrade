@@ -215,19 +215,6 @@
       "new_status": null,
       "previous_status": null,
       "timeline_key": "v2-incident-context-531d6e6f8209413be1505ed1b9ebf19f6e1d241c92353e35bd1aca0d69253483"
-    },
-    {
-      "action": "generate_v2_stage11_reports",
-      "actor": "netshield01",
-      "details": "{\"json_sha256\":\"8d0b99ddb7f5fa020f99356ef14c086118a0c1cd5d4bb2e167bc4c6f4d2fba2c\",\"text_sha256\":\"4281dc9ebd6f6d679285e901e1b1128f91428d03292d1b691ff0a000ff6d0e81\"}",
-      "event_time": "2026-09-19T10:39:26.318755+00:00",
-      "event_type": "report_generated",
-      "evidence_references": [],
-      "incident_id": "INC-V2-11-0003",
-      "incident_timeline_id": 12,
-      "new_status": "New",
-      "previous_status": "New",
-      "timeline_key": "v2-report-generated-531d6e6f8209413be1505ed1b9ebf19f6e1d241c92353e35bd1aca0d69253483"
     }
   ],
   "title": "Cross-source activity involving device CYOD-003",
