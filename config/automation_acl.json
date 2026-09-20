@@ -5,7 +5,8 @@
     "calculate_evidence_hash",
     "preserve_log_copy",
     "add_to_simulated_blocklist",
-    "increase_monitoring"
+    "increase_monitoring",
+    "increase_post_recovery_monitoring"
   ],
   "approval_required": [
     "restrict_account",
@@ -16,12 +17,29 @@
     "isolate_endpoint",
     "quarantine_file",
     "reject_non_compliant_connection",
-    "apply_ubuntu_firewall_rule"
+    "apply_ubuntu_firewall_rule",
+    "remove_unauthorised_privileges",
+    "correct_compromised_account",
+    "disable_compromised_account",
+    "quarantine_unknown_device",
+    "remove_malicious_file",
+    "remove_persistence",
+    "remove_malicious_process",
+    "replace_vulnerable_sql",
+    "apply_simulated_vulnerability_remediation",
+    "restore_account",
+    "restore_device",
+    "restore_service",
+    "restore_normal_access"
   ],
   "manual_only": [
     "reset_credentials",
     "remove_physical_device",
     "modify_router_configuration",
-    "remove_access_point"
+    "remove_access_point",
+    "register_unknown_device",
+    "remove_unknown_device",
+    "correct_insecure_wifi_configuration",
+    "remove_simulated_rogue_access_point"
   ]
 }

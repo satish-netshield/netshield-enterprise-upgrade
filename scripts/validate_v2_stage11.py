@@ -128,19 +128,27 @@ def main():
             ),
             "Original evidence is preserved",
         )
+        lifecycle_statuses = set(
+            configuration["lifecycle"]["primary_path"]
+        ) | {configuration["lifecycle"]["false_positive_target"]}
         require(
             {row["status"] for row in incidents}
-            <= {"New", "Triaged", "Investigating"}
-            and any(
-                row["status"] == "Investigating"
-                for row in incidents
-            ),
+            <= lifecycle_statuses
+            and incidents[1]["status"] == "New"
+            and incidents[2]["status"] == "New",
             "Current lifecycle states are evidence-backed",
         )
         require(
             incidents[0]["incident_owner"] == "analyst01"
-            and incidents[0]["status"] == "Investigating",
-            "Investigated incident has an authorised owner",
+            and incidents[0]["status"]
+            in {
+                "Investigating",
+                "Contained",
+                "Eradicated",
+                "Recovered",
+                "Closed",
+            },
+            "Investigated incident retains its authorised owner",
         )
         require(
             all(row["risk_score"] is None for row in incidents),
@@ -224,6 +232,7 @@ def main():
 
         decisions = connection.execute(
             "SELECT * FROM v2_incident_decisions "
+            "WHERE decision_key LIKE 'v2-review-%' "
             "ORDER BY decision_time"
         ).fetchall()
 

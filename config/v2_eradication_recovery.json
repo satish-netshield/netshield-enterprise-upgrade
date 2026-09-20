@@ -1,0 +1,203 @@
+{
+  "stage": 13,
+  "name": "Eradication, recovery and post-incident review",
+  "environment": "sandbox",
+  "simulation_only": true,
+  "allow_real_actions": false,
+  "allow_external_targets": false,
+  "default_action": "deny",
+  "permissions": {
+    "perform_recovery": "record_recovery",
+    "close_incident": "investigate_incidents"
+  },
+  "lifecycle": {
+    "containment_source_table": "v2_containment_actions",
+    "successful_containment_required": true,
+    "rolled_back_containment_is_not_active": true,
+    "eradication_entry_status": "Contained",
+    "eradication_complete_status": "Eradicated",
+    "recovery_complete_status": "Recovered",
+    "verified_closure_status": "Closed",
+    "skip_transitions_allowed": false,
+    "close_only_after_verification": true
+  },
+  "evidence_policy": {
+    "incident_required": true,
+    "preserve_before_action": true,
+    "hash_algorithm": "sha256",
+    "minimum_evidence_references": 1,
+    "original_evidence_preserved": true,
+    "containment_evidence_preserved": true,
+    "duplicate_evidence_links_allowed": false
+  },
+  "actions": {
+    "reset_credentials": {
+      "phase": "eradication",
+      "target_type": "username",
+      "disruptive": true,
+      "approval_source_required": true
+    },
+    "remove_unauthorised_privileges": {
+      "phase": "eradication",
+      "target_type": "username",
+      "disruptive": true,
+      "approval_source_required": true
+    },
+    "correct_compromised_account": {
+      "phase": "eradication",
+      "target_type": "username",
+      "disruptive": true,
+      "approval_source_required": true
+    },
+    "disable_compromised_account": {
+      "phase": "eradication",
+      "target_type": "username",
+      "disruptive": true,
+      "approval_source_required": true
+    },
+    "register_unknown_device": {
+      "phase": "eradication",
+      "target_type": "device_id",
+      "disruptive": false,
+      "approval_source_required": false
+    },
+    "quarantine_unknown_device": {
+      "phase": "eradication",
+      "target_type": "device_id",
+      "disruptive": true,
+      "approval_source_required": true
+    },
+    "remove_unknown_device": {
+      "phase": "eradication",
+      "target_type": "device_id",
+      "disruptive": true,
+      "approval_source_required": true
+    },
+    "correct_insecure_wifi_configuration": {
+      "phase": "eradication",
+      "target_type": "network_id",
+      "disruptive": true,
+      "approval_source_required": true
+    },
+    "remove_simulated_rogue_access_point": {
+      "phase": "eradication",
+      "target_type": "access_point_id",
+      "disruptive": true,
+      "approval_source_required": true
+    },
+    "remove_malicious_file": {
+      "phase": "eradication",
+      "target_type": "file_hash",
+      "disruptive": true,
+      "approval_source_required": true
+    },
+    "remove_persistence": {
+      "phase": "eradication",
+      "target_type": "persistence_id",
+      "disruptive": true,
+      "approval_source_required": true
+    },
+    "remove_malicious_process": {
+      "phase": "eradication",
+      "target_type": "process_name",
+      "disruptive": true,
+      "approval_source_required": true
+    },
+    "replace_vulnerable_sql": {
+      "phase": "eradication",
+      "target_type": "application_id",
+      "disruptive": true,
+      "approval_source_required": true
+    },
+    "apply_simulated_vulnerability_remediation": {
+      "phase": "eradication",
+      "target_type": "finding_key",
+      "disruptive": true,
+      "approval_source_required": true
+    },
+    "restore_account": {
+      "phase": "recovery",
+      "target_type": "username",
+      "disruptive": true,
+      "approval_source_required": true
+    },
+    "restore_device": {
+      "phase": "recovery",
+      "target_type": "device_id",
+      "disruptive": true,
+      "approval_source_required": true
+    },
+    "restore_service": {
+      "phase": "recovery",
+      "target_type": "service_id",
+      "disruptive": true,
+      "approval_source_required": true
+    },
+    "restore_normal_access": {
+      "phase": "recovery",
+      "target_type": "access_policy_id",
+      "disruptive": true,
+      "approval_source_required": true
+    },
+    "increase_post_recovery_monitoring": {
+      "phase": "recovery",
+      "target_type": "incident_id",
+      "disruptive": false,
+      "approval_source_required": false
+    }
+  },
+  "verification": {
+    "retest_original_threat_required": true,
+    "retest_original_vulnerability_required": true,
+    "successful_result": "blocked",
+    "failed_result": "succeeded",
+    "confirmation_required": true,
+    "post_recovery_monitoring_required": true,
+    "failed_retest_blocks_recovery": true,
+    "failed_retest_blocks_closure": true,
+    "verification_evidence_required": true
+  },
+  "post_incident_review": {
+    "lessons_learned_required": true,
+    "detection_improvement_required": true,
+    "policy_improvement_required": true,
+    "closure_reason_required": true,
+    "responsible_actor_required": true,
+    "review_required_before_closure": true
+  },
+  "action_statuses": [
+    "requested",
+    "approved",
+    "denied",
+    "successful",
+    "failed"
+  ],
+  "verification_statuses": [
+    "pending",
+    "passed",
+    "failed"
+  ],
+  "audit_policy": {
+    "record_responsible_actor": true,
+    "record_containment_confirmation": true,
+    "record_eradication_actions": true,
+    "record_recovery_actions": true,
+    "record_retests": true,
+    "record_verification": true,
+    "record_lessons_learned": true,
+    "record_recommendations": true,
+    "record_lifecycle_changes": true,
+    "record_closure": true
+  },
+  "safety": {
+    "local_simulated_data_only": true,
+    "automatic_eradication_allowed": false,
+    "automatic_recovery_allowed": false,
+    "automatic_incident_closure_allowed": false,
+    "real_account_changes_allowed": false,
+    "real_device_changes_allowed": false,
+    "real_network_changes_allowed": false,
+    "real_application_changes_allowed": false,
+    "real_file_or_process_changes_allowed": false
+  }
+}

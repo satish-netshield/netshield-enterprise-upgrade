@@ -2093,3 +2093,290 @@ ON v2_containment_rollbacks(requested_at);
 
 CREATE INDEX IF NOT EXISTS idx_v2_containment_rollbacks_actor
 ON v2_containment_rollbacks(executed_by);
+
+-- Phase 3A V2 Stage 13: eradication, recovery and post-incident review
+CREATE TABLE IF NOT EXISTS v2_recovery_actions (
+    recovery_action_id INTEGER PRIMARY KEY AUTOINCREMENT,
+    action_key TEXT NOT NULL UNIQUE,
+    request_id TEXT NOT NULL UNIQUE,
+    incident_id TEXT NOT NULL,
+    containment_action_id INTEGER,
+    phase TEXT NOT NULL
+        CHECK (phase IN ('eradication', 'recovery')),
+    action_type TEXT NOT NULL,
+    target_type TEXT NOT NULL,
+    target_value TEXT NOT NULL,
+    control_level TEXT NOT NULL
+        CHECK (
+            control_level IN (
+                'automatic',
+                'approval_required',
+                'manual_only'
+            )
+        ),
+    disruptive INTEGER NOT NULL
+        CHECK (disruptive IN (0, 1)),
+    requested_by TEXT NOT NULL,
+    requested_at TEXT NOT NULL,
+    request_reason TEXT NOT NULL,
+    status TEXT NOT NULL
+        CHECK (
+            status IN (
+                'requested',
+                'approved',
+                'denied',
+                'successful',
+                'failed'
+            )
+        ),
+    evidence_preserved INTEGER NOT NULL DEFAULT 0
+        CHECK (evidence_preserved IN (0, 1)),
+    evidence_snapshot_sha256 TEXT,
+    evidence_references TEXT NOT NULL,
+    approved_by TEXT,
+    approved_at TEXT,
+    denied_by TEXT,
+    denied_at TEXT,
+    executed_by TEXT,
+    executed_at TEXT,
+    result_details TEXT,
+    simulation_only INTEGER NOT NULL DEFAULT 1
+        CHECK (simulation_only = 1),
+    real_action_executed INTEGER NOT NULL DEFAULT 0
+        CHECK (real_action_executed = 0),
+    external_target_used INTEGER NOT NULL DEFAULT 0
+        CHECK (external_target_used = 0),
+    original_evidence_preserved INTEGER NOT NULL DEFAULT 1
+        CHECK (original_evidence_preserved = 1),
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL,
+    FOREIGN KEY (incident_id)
+        REFERENCES v2_incidents(incident_id),
+    FOREIGN KEY (containment_action_id)
+        REFERENCES v2_containment_actions(containment_action_id)
+);
+
+CREATE TABLE IF NOT EXISTS v2_recovery_evidence (
+    recovery_evidence_id INTEGER PRIMARY KEY AUTOINCREMENT,
+    evidence_snapshot_key TEXT NOT NULL UNIQUE,
+    recovery_action_id INTEGER NOT NULL,
+    incident_id TEXT NOT NULL,
+    captured_at TEXT NOT NULL,
+    captured_by TEXT NOT NULL,
+    evidence_references TEXT NOT NULL,
+    evidence_payload TEXT NOT NULL,
+    evidence_sha256 TEXT NOT NULL
+        CHECK (
+            length(evidence_sha256) = 64
+            AND evidence_sha256 NOT GLOB '*[^0-9a-f]*'
+        ),
+    hash_algorithm TEXT NOT NULL
+        CHECK (hash_algorithm = 'sha256'),
+    preserved_before_action INTEGER NOT NULL DEFAULT 1
+        CHECK (preserved_before_action = 1),
+    original_evidence_preserved INTEGER NOT NULL DEFAULT 1
+        CHECK (original_evidence_preserved = 1),
+    FOREIGN KEY (recovery_action_id)
+        REFERENCES v2_recovery_actions(recovery_action_id),
+    FOREIGN KEY (incident_id)
+        REFERENCES v2_incidents(incident_id),
+    UNIQUE (recovery_action_id, evidence_sha256)
+);
+
+CREATE TABLE IF NOT EXISTS v2_recovery_approvals (
+    recovery_approval_id INTEGER PRIMARY KEY AUTOINCREMENT,
+    approval_key TEXT NOT NULL UNIQUE,
+    recovery_action_id INTEGER NOT NULL,
+    incident_id TEXT NOT NULL,
+    requested_by TEXT NOT NULL,
+    requested_at TEXT NOT NULL,
+    decided_by TEXT,
+    decided_at TEXT,
+    decision_status TEXT NOT NULL
+        CHECK (
+            decision_status IN (
+                'requested',
+                'approved',
+                'denied'
+            )
+        ),
+    decision_notes TEXT,
+    self_approval_blocked INTEGER NOT NULL DEFAULT 0
+        CHECK (self_approval_blocked IN (0, 1)),
+    actor_role TEXT,
+    action_occurred INTEGER NOT NULL DEFAULT 0
+        CHECK (action_occurred IN (0, 1)),
+    evidence_references TEXT NOT NULL,
+    FOREIGN KEY (recovery_action_id)
+        REFERENCES v2_recovery_actions(recovery_action_id),
+    FOREIGN KEY (incident_id)
+        REFERENCES v2_incidents(incident_id)
+);
+
+CREATE TABLE IF NOT EXISTS v2_recovery_retests (
+    recovery_retest_id INTEGER PRIMARY KEY AUTOINCREMENT,
+    retest_key TEXT NOT NULL UNIQUE,
+    incident_id TEXT NOT NULL,
+    recovery_action_id INTEGER,
+    retest_type TEXT NOT NULL
+        CHECK (
+            retest_type IN (
+                'original_threat',
+                'original_vulnerability'
+            )
+        ),
+    target_type TEXT NOT NULL,
+    target_value TEXT NOT NULL,
+    test_description TEXT NOT NULL,
+    expected_result TEXT NOT NULL,
+    observed_result TEXT NOT NULL
+        CHECK (
+            observed_result IN (
+                'pending',
+                'blocked',
+                'succeeded',
+                'error'
+            )
+        ),
+    verification_status TEXT NOT NULL
+        CHECK (
+            verification_status IN (
+                'pending',
+                'passed',
+                'failed'
+            )
+        ),
+    confirmed_no_longer_succeeds INTEGER NOT NULL DEFAULT 0
+        CHECK (confirmed_no_longer_succeeds IN (0, 1)),
+    evidence_references TEXT NOT NULL,
+    evidence_sha256 TEXT
+        CHECK (
+            evidence_sha256 IS NULL
+            OR (
+                length(evidence_sha256) = 64
+                AND evidence_sha256 NOT GLOB '*[^0-9a-f]*'
+            )
+        ),
+    tested_by TEXT NOT NULL,
+    tested_at TEXT NOT NULL,
+    simulation_only INTEGER NOT NULL DEFAULT 1
+        CHECK (simulation_only = 1),
+    real_action_executed INTEGER NOT NULL DEFAULT 0
+        CHECK (real_action_executed = 0),
+    FOREIGN KEY (incident_id)
+        REFERENCES v2_incidents(incident_id),
+    FOREIGN KEY (recovery_action_id)
+        REFERENCES v2_recovery_actions(recovery_action_id)
+);
+
+CREATE TABLE IF NOT EXISTS v2_post_incident_reviews (
+    post_incident_review_id INTEGER PRIMARY KEY AUTOINCREMENT,
+    review_key TEXT NOT NULL UNIQUE,
+    incident_id TEXT NOT NULL UNIQUE,
+    review_status TEXT NOT NULL
+        CHECK (review_status IN ('draft', 'complete')),
+    reviewed_by TEXT NOT NULL,
+    started_at TEXT NOT NULL,
+    completed_at TEXT,
+    lessons_learned TEXT NOT NULL,
+    detection_improvements TEXT NOT NULL,
+    policy_improvements TEXT NOT NULL,
+    closure_reason TEXT,
+    eradication_verified INTEGER NOT NULL DEFAULT 0
+        CHECK (eradication_verified IN (0, 1)),
+    recovery_verified INTEGER NOT NULL DEFAULT 0
+        CHECK (recovery_verified IN (0, 1)),
+    original_threat_blocked INTEGER NOT NULL DEFAULT 0
+        CHECK (original_threat_blocked IN (0, 1)),
+    original_vulnerability_blocked INTEGER NOT NULL DEFAULT 0
+        CHECK (original_vulnerability_blocked IN (0, 1)),
+    post_recovery_monitoring_active INTEGER NOT NULL DEFAULT 0
+        CHECK (post_recovery_monitoring_active IN (0, 1)),
+    closure_authorised INTEGER NOT NULL DEFAULT 0
+        CHECK (closure_authorised IN (0, 1)),
+    closure_actor TEXT,
+    closed_at TEXT,
+    evidence_references TEXT NOT NULL,
+    original_evidence_preserved INTEGER NOT NULL DEFAULT 1
+        CHECK (original_evidence_preserved = 1),
+    FOREIGN KEY (incident_id)
+        REFERENCES v2_incidents(incident_id),
+    CHECK (
+        review_status != 'complete'
+        OR (
+            completed_at IS NOT NULL
+            AND length(trim(lessons_learned)) > 2
+            AND length(trim(detection_improvements)) > 2
+            AND length(trim(policy_improvements)) > 2
+        )
+    ),
+    CHECK (
+        closure_authorised = 0
+        OR (
+            review_status = 'complete'
+            AND eradication_verified = 1
+            AND recovery_verified = 1
+            AND original_threat_blocked = 1
+            AND original_vulnerability_blocked = 1
+            AND post_recovery_monitoring_active = 1
+            AND closure_reason IS NOT NULL
+            AND closure_actor IS NOT NULL
+            AND closed_at IS NOT NULL
+        )
+    )
+);
+
+CREATE INDEX IF NOT EXISTS idx_v2_recovery_actions_incident
+ON v2_recovery_actions(incident_id);
+CREATE INDEX IF NOT EXISTS idx_v2_recovery_actions_phase
+ON v2_recovery_actions(phase);
+CREATE INDEX IF NOT EXISTS idx_v2_recovery_actions_type
+ON v2_recovery_actions(action_type);
+CREATE INDEX IF NOT EXISTS idx_v2_recovery_actions_target
+ON v2_recovery_actions(target_type, target_value);
+CREATE INDEX IF NOT EXISTS idx_v2_recovery_actions_status
+ON v2_recovery_actions(status);
+CREATE INDEX IF NOT EXISTS idx_v2_recovery_actions_requested
+ON v2_recovery_actions(requested_at);
+CREATE INDEX IF NOT EXISTS idx_v2_recovery_actions_approver
+ON v2_recovery_actions(approved_by);
+CREATE INDEX IF NOT EXISTS idx_v2_recovery_actions_executor
+ON v2_recovery_actions(executed_by);
+
+CREATE INDEX IF NOT EXISTS idx_v2_recovery_evidence_action
+ON v2_recovery_evidence(recovery_action_id);
+CREATE INDEX IF NOT EXISTS idx_v2_recovery_evidence_incident
+ON v2_recovery_evidence(incident_id);
+CREATE INDEX IF NOT EXISTS idx_v2_recovery_evidence_hash
+ON v2_recovery_evidence(evidence_sha256);
+CREATE INDEX IF NOT EXISTS idx_v2_recovery_evidence_created
+ON v2_recovery_evidence(captured_at);
+
+CREATE INDEX IF NOT EXISTS idx_v2_recovery_approvals_action
+ON v2_recovery_approvals(recovery_action_id);
+CREATE INDEX IF NOT EXISTS idx_v2_recovery_approvals_incident
+ON v2_recovery_approvals(incident_id);
+CREATE INDEX IF NOT EXISTS idx_v2_recovery_approvals_status
+ON v2_recovery_approvals(decision_status);
+CREATE INDEX IF NOT EXISTS idx_v2_recovery_approvals_requester
+ON v2_recovery_approvals(requested_by);
+CREATE INDEX IF NOT EXISTS idx_v2_recovery_approvals_decider
+ON v2_recovery_approvals(decided_by);
+
+CREATE INDEX IF NOT EXISTS idx_v2_recovery_retests_incident
+ON v2_recovery_retests(incident_id);
+CREATE INDEX IF NOT EXISTS idx_v2_recovery_retests_type
+ON v2_recovery_retests(retest_type);
+CREATE INDEX IF NOT EXISTS idx_v2_recovery_retests_status
+ON v2_recovery_retests(verification_status);
+CREATE INDEX IF NOT EXISTS idx_v2_recovery_retests_time
+ON v2_recovery_retests(tested_at);
+
+CREATE INDEX IF NOT EXISTS idx_v2_post_reviews_incident
+ON v2_post_incident_reviews(incident_id);
+CREATE INDEX IF NOT EXISTS idx_v2_post_reviews_status
+ON v2_post_incident_reviews(review_status);
+CREATE INDEX IF NOT EXISTS idx_v2_post_reviews_reviewer
+ON v2_post_incident_reviews(reviewed_by);
+CREATE INDEX IF NOT EXISTS idx_v2_post_reviews_completed
+ON v2_post_incident_reviews(completed_at);
